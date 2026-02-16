@@ -164,6 +164,10 @@ class ExecutionLog(Vertical):
         else:
             self._write_execution(ex)
 
+    def add_info(self, text: str) -> None:
+        """Add an informational entry to the log (e.g. MCP server messages)."""
+        self._write(f"[dim]\u2139 {text}[/dim]")
+
     def add_error(self, error: str) -> None:
         """Add an error entry to the log."""
         self._write(f"[red bold]\u2717 Error: {error}[/red bold]")

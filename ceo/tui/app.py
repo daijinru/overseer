@@ -73,6 +73,13 @@ class ExecutionError(Message):
         self.error = error
 
 
+class InfoMessage(Message):
+    def __init__(self, co_id: str, text: str) -> None:
+        super().__init__()
+        self.co_id = co_id
+        self.text = text
+
+
 class CeoApp(App):
     """Wenko CEO — Cognitive Operating System."""
 
@@ -203,6 +210,9 @@ class CeoApp(App):
             ),
             on_error=lambda err: app.post_message(
                 ExecutionError(co_id, err)
+            ),
+            on_info=lambda cid, text: app.post_message(
+                InfoMessage(cid, text)
             ),
         )
 
@@ -430,6 +440,14 @@ class CeoApp(App):
         self._execution_services.pop(message.co_id, None)
         self._co_workers.pop(message.co_id, None)
         self._refresh_co_list()
+
+    def on_info_message(self, message: InfoMessage) -> None:
+        if message.co_id == self._selected_co_id:
+            try:
+                log = self.screen.query_one(ExecutionLog)
+                log.add_info(message.text)
+            except Exception:
+                logger.debug("ExecutionLog widget not available", exc_info=True)
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         """Clean up when a worker is cancelled (stopped by user)."""

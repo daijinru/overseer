@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import threading
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
+import mcp as _mcp_module
 from mcp import ClientSessionGroup, StdioServerParameters
 from mcp.client.session_group import SseServerParameters, StreamableHttpParameters
 
@@ -14,6 +18,66 @@ from ceo.core.enums import ToolPermission
 from ceo.core.protocols import ToolCall
 
 logger = logging.getLogger(__name__)
+
+
+class _StderrPipe:
+    """Captures MCP subprocess stderr via a real OS pipe.
+
+    subprocess.Popen requires a real file descriptor for stderr redirection.
+    This class creates an os.pipe() and reads from it in a background thread,
+    buffering lines so they can be drained by the TUI later.
+    """
+
+    def __init__(self) -> None:
+        self._read_fd, self._write_fd = os.pipe()
+        # Wrap write end as a Python file object (keep fd ownership manual)
+        self._write_file = os.fdopen(self._write_fd, "w", closefd=False)
+        self._lines: List[str] = []
+        self._lock = threading.Lock()
+        self._stop = False
+        self._reader_thread = threading.Thread(
+            target=self._reader_loop, daemon=True
+        )
+        self._reader_thread.start()
+
+    def _reader_loop(self) -> None:
+        """Background thread that reads lines from the pipe read end."""
+        try:
+            with os.fdopen(self._read_fd, "r", closefd=True) as f:
+                for raw_line in f:
+                    stripped = raw_line.strip()
+                    if stripped:
+                        with self._lock:
+                            self._lines.append(stripped)
+                    if self._stop:
+                        break
+        except (OSError, ValueError):
+            pass
+
+    @property
+    def write_file(self):
+        """The writable file object with a real fileno()."""
+        return self._write_file
+
+    def drain_lines(self) -> List[str]:
+        """Return and clear all buffered lines."""
+        with self._lock:
+            lines = list(self._lines)
+            self._lines.clear()
+        return lines
+
+    def close(self) -> None:
+        """Shut down the pipe and reader thread."""
+        self._stop = True
+        try:
+            self._write_file.close()
+        except OSError:
+            pass
+        try:
+            os.close(self._write_fd)
+        except OSError:
+            pass
+        self._reader_thread.join(timeout=2.0)
 
 
 # Built-in tool implementations for when MCP server is not available
@@ -75,39 +139,69 @@ class ToolService:
         # Map: tool_name -> mcp server name, for routing calls
         self._mcp_tool_map: Dict[str, str] = {}
         self._connected = False
+        # OS pipe that captures MCP subprocess stderr for their full lifetime
+        self._stderr_pipe: Optional[_StderrPipe] = None
 
-    async def connect(self) -> None:
-        """Connect to all configured MCP servers and discover tools."""
+    async def connect(self) -> List[str]:
+        """Connect to all configured MCP servers and discover tools.
+
+        Returns a list of log lines captured from MCP server stderr
+        (e.g. startup messages).
+        """
         mcp_servers = self._cfg.mcp.servers
         if not mcp_servers:
             logger.info("No MCP servers configured, using builtin tools only")
-            return
+            return []
 
         self._session_group = ClientSessionGroup()
         await self._session_group.__aenter__()
 
-        for name, server_cfg in mcp_servers.items():
-            try:
-                params = _build_server_params(server_cfg)
-                session = await self._session_group.connect_to_server(params)
-                logger.info("Connected to MCP server: %s", name)
+        # Create an OS pipe to capture subprocess stderr for the full
+        # lifetime of the MCP connections (not just startup).
+        self._stderr_pipe = _StderrPipe()
+        errlog = self._stderr_pipe.write_file
 
-                # Discover tools from this server
-                result = await session.list_tools()
-                for tool in result.tools:
-                    tool_info = {
-                        "name": tool.name,
-                        "description": tool.description or "",
-                        "parameters": tool.inputSchema or {},
-                    }
-                    self._tools[tool.name] = tool_info
-                    self._mcp_tool_map[tool.name] = name
-                    logger.info("  Discovered tool: %s", tool.name)
+        # Monkey-patch mcp.stdio_client so that ClientSessionGroup's
+        # internal call passes our errlog to the subprocess.
+        # The default `errlog=sys.stderr` is bound at *import time*,
+        # so swapping sys.stderr at call time has no effect.
+        _original_stdio_client = _mcp_module.stdio_client
 
-            except Exception as e:
-                logger.error("Failed to connect to MCP server '%s': %s", name, e)
+        @asynccontextmanager
+        async def _patched_stdio_client(server, _errlog=None):
+            async with _original_stdio_client(server, errlog=errlog) as streams:
+                yield streams
+
+        _mcp_module.stdio_client = _patched_stdio_client
+
+        try:
+            for name, server_cfg in mcp_servers.items():
+                try:
+                    params = _build_server_params(server_cfg)
+                    session = await self._session_group.connect_to_server(params)
+                    logger.info("Connected to MCP server: %s", name)
+
+                    # Discover tools from this server
+                    result = await session.list_tools()
+                    for tool in result.tools:
+                        tool_info = {
+                            "name": tool.name,
+                            "description": tool.description or "",
+                            "parameters": tool.inputSchema or {},
+                        }
+                        self._tools[tool.name] = tool_info
+                        self._mcp_tool_map[tool.name] = name
+                        logger.info("  Discovered tool: %s", tool.name)
+
+                except Exception as e:
+                    logger.error("Failed to connect to MCP server '%s': %s", name, e)
+        finally:
+            # Restore original stdio_client
+            _mcp_module.stdio_client = _original_stdio_client
 
         self._connected = True
+        # Drain startup lines collected so far
+        return self._stderr_pipe.drain_lines()
 
     async def disconnect(self) -> None:
         """Disconnect from all MCP servers."""
@@ -122,6 +216,15 @@ class ToolService:
             self._tools = dict(BUILTIN_TOOLS)
             self._connected = False
             logger.info("Disconnected from all MCP servers")
+        if self._stderr_pipe is not None:
+            self._stderr_pipe.close()
+            self._stderr_pipe = None
+
+    def drain_stderr(self) -> List[str]:
+        """Return any new stderr lines from MCP subprocesses since last drain."""
+        if self._stderr_pipe is not None:
+            return self._stderr_pipe.drain_lines()
+        return []
 
     def list_tools(self) -> List[Dict[str, Any]]:
         """Return list of available tools."""

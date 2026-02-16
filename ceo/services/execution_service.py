@@ -47,6 +47,7 @@ class ExecutionService:
         self._on_tool_confirm: Optional[Callable] = None
         self._on_complete: Optional[Callable] = None
         self._on_error: Optional[Callable] = None
+        self._on_info: Optional[Callable] = None
 
     @property
     def session(self) -> Session:
@@ -61,6 +62,7 @@ class ExecutionService:
         on_tool_confirm: Optional[Callable] = None,
         on_complete: Optional[Callable] = None,
         on_error: Optional[Callable] = None,
+        on_info: Optional[Callable] = None,
     ) -> None:
         """Set callback functions for TUI communication."""
         self._on_step_update = on_step_update
@@ -68,6 +70,7 @@ class ExecutionService:
         self._on_tool_confirm = on_tool_confirm
         self._on_complete = on_complete
         self._on_error = on_error
+        self._on_info = on_info
 
     def provide_human_response(self, decision: str, text: str = "") -> None:
         """Called by TUI when human makes a decision."""
@@ -82,6 +85,13 @@ class ExecutionService:
         self._human_response = {}
         return response
 
+    def _drain_mcp_stderr(self, co_id: str) -> None:
+        """Forward any new MCP subprocess stderr lines to the TUI."""
+        lines = self.tool_service.drain_stderr()
+        if lines and self._on_info:
+            for line in lines:
+                self._on_info(co_id, line)
+
     async def run_loop(self, co_id: str) -> None:
         """Main cognitive loop for a CognitiveObject."""
         co = self.co_service.get(co_id)
@@ -91,7 +101,10 @@ class ExecutionService:
 
         # Connect to MCP servers (discovers remote tools)
         try:
-            await self.tool_service.connect()
+            mcp_lines = await self.tool_service.connect()
+            if mcp_lines and self._on_info:
+                for line in mcp_lines:
+                    self._on_info(co_id, line)
         except Exception as e:
             logger.warning("MCP connection failed, using builtin tools: %s", e)
 
@@ -107,6 +120,9 @@ class ExecutionService:
             while True:
                 step_number += 1
                 co = self.co_service.get(co_id)  # refresh
+
+                # Drain any new MCP stderr output and forward to TUI
+                self._drain_mcp_stderr(co_id)
 
                 # 1. Create Execution record
                 execution = Execution(
