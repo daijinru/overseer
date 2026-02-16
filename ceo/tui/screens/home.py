@@ -5,7 +5,7 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Footer, Header, Static
+from textual.widgets import Footer, Header
 
 from ceo.tui.widgets.co_detail import CODetail
 from ceo.tui.widgets.co_list import COList
@@ -24,6 +24,9 @@ class HomeScreen(Screen):
         ("x", "stop_co", "Stop"),
         ("d", "delete_co", "Delete"),
         ("D", "clear_all_co", "Clear All"),
+        ("j", "next_co", "Next"),
+        ("k", "prev_co", "Prev"),
+        ("f", "filter_co", "Filter"),
         ("q", "quit_app", "Quit"),
     ]
 
@@ -56,6 +59,15 @@ class HomeScreen(Screen):
 
     def action_clear_all_co(self) -> None:
         self.app.action_clear_all_co()
+
+    def action_next_co(self) -> None:
+        self.app.action_next_co()
+
+    def action_prev_co(self) -> None:
+        self.app.action_prev_co()
+
+    def action_filter_co(self) -> None:
+        self.app.action_filter_co()
 
     def action_quit_app(self) -> None:
         self.app.exit()

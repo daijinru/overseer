@@ -4,8 +4,17 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal
+from textual.events import Key
 from textual.message import Message
 from textual.widgets import Button, Input, Static
+
+
+class OptionButton(Button):
+    """Button subclass that stores its option value cleanly."""
+
+    def __init__(self, label: str, option_value: str, **kwargs) -> None:
+        super().__init__(label, **kwargs)
+        self.option_value = option_value
 
 
 class InteractionPanel(Static):
@@ -30,12 +39,16 @@ class InteractionPanel(Static):
             f"[bold yellow]Decision Required:[/bold yellow] {reason}"
         )
 
-        # Rebuild option buttons
+        # Rebuild option buttons with OptionButton subclass
         container = self.query_one("#interaction-options", Horizontal)
         container.remove_children()
         for i, option in enumerate(options):
-            btn = Button(f"[{i+1}] {option}", id=f"opt-{i}", variant="primary")
-            btn._option_value = option  # store the option text
+            btn = OptionButton(
+                f"[{i+1}] {option}",
+                option_value=option,
+                id=f"opt-{i}",
+                variant="primary",
+            )
             container.mount(btn)
 
         # Clear and focus input
@@ -47,11 +60,24 @@ class InteractionPanel(Static):
         self.remove_class("visible")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id and event.button.id.startswith("opt-"):
-            option_value = getattr(event.button, "_option_value", "continue")
+        if isinstance(event.button, OptionButton):
             text = self.query_one("#interaction-input", Input).value
             self.hide()
-            self.post_message(self.Decision(option_value, text))
+            self.post_message(self.Decision(event.button.option_value, text))
+
+    def on_key(self, event: Key) -> None:
+        """Handle number keys 1-9 as shortcuts to select options."""
+        if not self.has_class("visible"):
+            return
+        if event.key in ("1", "2", "3", "4", "5", "6", "7", "8", "9"):
+            index = int(event.key) - 1
+            container = self.query_one("#interaction-options", Horizontal)
+            buttons = [c for c in container.children if isinstance(c, OptionButton)]
+            if 0 <= index < len(buttons):
+                text = self.query_one("#interaction-input", Input).value
+                self.hide()
+                self.post_message(self.Decision(buttons[index].option_value, text))
+                event.prevent_default()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Allow Enter in the input to submit with the first option as default."""
@@ -60,9 +86,9 @@ class InteractionPanel(Static):
             return
         # Use the first option as the default choice
         container = self.query_one("#interaction-options", Horizontal)
-        buttons = [c for c in container.children if isinstance(c, Button)]
+        buttons = [c for c in container.children if isinstance(c, OptionButton)]
         if buttons:
-            option_value = getattr(buttons[0], "_option_value", "continue")
+            option_value = buttons[0].option_value
         else:
             option_value = "continue"
         self.hide()

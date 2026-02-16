@@ -24,8 +24,9 @@ Footer {
 }
 
 #co-list-panel {
-    width: 30;
+    width: 25%;
     min-width: 24;
+    max-width: 40;
     border-right: thick $primary-background;
     padding: 0 1;
 }
@@ -34,6 +35,12 @@ Footer {
     text-style: bold;
     color: $text;
     padding: 1 0;
+}
+
+#co-list-panel .filter-label {
+    color: $text-muted;
+    padding: 0 0 1 0;
+    text-style: italic;
 }
 
 #detail-panel {
@@ -61,6 +68,7 @@ Footer {
 
 .co-status-running {
     color: $success;
+    text-style: bold;
 }
 
 .co-status-paused {
@@ -80,9 +88,14 @@ Footer {
 }
 
 /* ── Detail panel ── */
+CODetail {
+    height: auto;
+    max-height: 14;
+}
+
 #co-detail-header {
     height: auto;
-    padding: 1 0;
+    padding: 1 0 0 0;
 }
 
 #co-detail-title {
@@ -90,15 +103,32 @@ Footer {
     width: 1fr;
 }
 
+#co-detail-meta {
+    color: $text-muted;
+    padding: 0 1;
+}
+
+#co-detail-stats {
+    padding: 0 1;
+}
+
 #co-detail-status {
     padding: 0 1;
 }
 
+#co-detail-artifacts {
+    padding: 0 1;
+    color: $text-muted;
+}
+
+/* ── Execution log ── */
 #execution-log {
     height: 1fr;
     min-height: 8;
     border: round $primary-background;
+    border-title-color: $text-muted;
     padding: 0 1;
+    margin-top: 1;
 }
 
 /* ── Interaction panel ── */
@@ -137,7 +167,7 @@ Footer {
 /* ── Tool preview panel ── */
 #tool-preview-panel {
     height: auto;
-    max-height: 10;
+    max-height: 16;
     border: round $warning;
     padding: 1;
     display: none;
@@ -153,6 +183,16 @@ Footer {
     margin-bottom: 1;
 }
 
+#tool-preview-detail {
+    height: auto;
+    max-height: 8;
+    overflow-y: auto;
+}
+
+#tool-reject-reason {
+    margin: 1 0;
+}
+
 #tool-preview-buttons {
     layout: horizontal;
     height: auto;
@@ -163,13 +203,18 @@ Footer {
 }
 
 /* ── Create screen ── */
+CreateScreen {
+    align: center middle;
+}
+
 #create-container {
-    width: 60;
+    width: 70%;
+    max-width: 80;
+    min-width: 40;
     height: auto;
-    max-height: 20;
+    max-height: 80%;
     border: round $primary;
     padding: 1 2;
-    margin: 4 10;
     background: $surface;
 }
 
@@ -183,7 +228,9 @@ Footer {
 }
 
 #create-container TextArea {
-    height: 6;
+    height: auto;
+    min-height: 4;
+    max-height: 10;
     margin-bottom: 1;
 }
 
@@ -193,6 +240,40 @@ Footer {
 }
 
 #create-buttons Button {
+    margin-right: 1;
+}
+
+/* ── Confirm screen ── */
+ConfirmScreen {
+    align: center middle;
+}
+
+#confirm-container {
+    width: 50%;
+    max-width: 60;
+    min-width: 30;
+    height: auto;
+    border: round $error;
+    padding: 1 2;
+    background: $surface;
+}
+
+#confirm-container .confirm-title {
+    text-style: bold;
+    color: $warning;
+    margin-bottom: 1;
+}
+
+#confirm-container .confirm-message {
+    margin-bottom: 1;
+}
+
+#confirm-buttons {
+    layout: horizontal;
+    height: auto;
+}
+
+#confirm-buttons Button {
     margin-right: 1;
 }
 

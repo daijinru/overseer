@@ -17,6 +17,7 @@ from ceo.database import init_db
 from ceo.models.execution import Execution
 from ceo.services.cognitive_object_service import CognitiveObjectService
 from ceo.services.execution_service import ExecutionService
+from ceo.tui.screens.confirm import ConfirmScreen
 from ceo.tui.screens.create import CreateScreen
 from ceo.tui.screens.home import HomeScreen
 from ceo.tui.widgets.co_detail import CODetail
@@ -86,6 +87,9 @@ class CeoApp(App):
         ("x", "stop_co", "Stop"),
         ("d", "delete_co", "Delete"),
         ("D", "clear_all_co", "Clear All"),
+        ("j", "next_co", "Next"),
+        ("k", "prev_co", "Prev"),
+        ("f", "filter_co", "Filter"),
         ("q", "quit", "Quit"),
     ]
 
@@ -117,7 +121,7 @@ class CeoApp(App):
         self._awaiting_count = sum(
             1 for co in cos if co.status == "paused"
         )
-        self._update_footer_awaiting()
+        self._update_subtitle(cos)
 
     def on_colist_selected(self, message: COList.Selected) -> None:
         self._selected_co_id = message.co_id
@@ -232,7 +236,7 @@ class CeoApp(App):
 
     def action_complete_co(self) -> None:
         if self._selected_co_id is None:
-            self.notify("未选中任何事件", severity="warning")
+            self.notify("No event selected", severity="warning")
             return
 
         co_id = self._selected_co_id
@@ -247,17 +251,17 @@ class CeoApp(App):
 
         co = self._co_service.get(co_id)
         if co is None:
-            self.notify("事件未找到", severity="error")
+            self.notify("Event not found", severity="error")
             return
 
         if co.status == "completed":
-            self.notify("事件已完成", severity="warning")
+            self.notify("Event already completed", severity="warning")
             return
 
         self._co_service.update_status(co_id, COStatus.COMPLETED)
         self._refresh_co_list()
         self._show_co_detail(co_id)
-        self.notify(f"已完成: {co.title}")
+        self.notify(f"Completed: {co.title}")
 
     def action_delete_co(self) -> None:
         if self._selected_co_id is None:
@@ -274,30 +278,78 @@ class CeoApp(App):
             return
 
         title = co.title
-        self._co_service.delete(self._selected_co_id)
-        self._selected_co_id = None
-        self._refresh_co_list()
-        try:
-            detail = self.screen.query_one(CODetail)
-            detail.show_co(None)
-        except Exception:
-            pass
-        self.notify(f"Deleted: {title}")
+        co_id = self._selected_co_id
+
+        def on_confirm(confirmed: bool) -> None:
+            if not confirmed:
+                return
+            self._co_service.delete(co_id)
+            self._selected_co_id = None
+            self._refresh_co_list()
+            try:
+                detail = self.screen.query_one(CODetail)
+                detail.show_co(None)
+            except Exception:
+                pass
+            self.notify(f"Deleted: {title}")
+
+        self.push_screen(
+            ConfirmScreen("Delete Event", f"Delete \"{title}\"?"),
+            callback=on_confirm,
+        )
 
     def action_clear_all_co(self) -> None:
         if self._execution_services:
             self.notify("Cannot clear while events are running", severity="warning")
             return
 
-        count = self._co_service.delete_all()
-        self._selected_co_id = None
-        self._refresh_co_list()
+        cos = self._co_service.list_all()
+        count = len(cos)
+        if count == 0:
+            self.notify("No events to clear", severity="warning")
+            return
+
+        def on_confirm(confirmed: bool) -> None:
+            if not confirmed:
+                return
+            deleted = self._co_service.delete_all()
+            self._selected_co_id = None
+            self._refresh_co_list()
+            try:
+                detail = self.screen.query_one(CODetail)
+                detail.show_co(None)
+            except Exception:
+                pass
+            self.notify(f"Cleared {deleted} events")
+
+        self.push_screen(
+            ConfirmScreen("Clear All Events", f"Delete all {count} events? This cannot be undone."),
+            callback=on_confirm,
+        )
+
+    def action_next_co(self) -> None:
+        """Move selection down in the CO list."""
         try:
-            detail = self.screen.query_one(CODetail)
-            detail.show_co(None)
+            co_list = self.screen.query_one(COList)
+            co_list.select_next()
         except Exception:
             pass
-        self.notify(f"Cleared {count} events")
+
+    def action_prev_co(self) -> None:
+        """Move selection up in the CO list."""
+        try:
+            co_list = self.screen.query_one(COList)
+            co_list.select_prev()
+        except Exception:
+            pass
+
+    def action_filter_co(self) -> None:
+        """Cycle the status filter on the CO list."""
+        try:
+            co_list = self.screen.query_one(COList)
+            co_list.cycle_filter()
+        except Exception:
+            pass
 
     # ── Message handlers from execution service ──
 
@@ -327,7 +379,7 @@ class CeoApp(App):
 
     def on_human_required(self, message: HumanRequired) -> None:
         self._awaiting_count += 1
-        self._update_footer_awaiting()
+        self._update_subtitle()
 
         if message.co_id == self._selected_co_id:
             try:
@@ -336,6 +388,17 @@ class CeoApp(App):
                 panel.show(message.reason, options)
             except Exception:
                 logger.debug("InteractionPanel widget not available", exc_info=True)
+        else:
+            # Notify user about non-selected CO needing attention
+            self.notify(
+                f"Event {message.co_id[:8]} needs your input",
+                severity="warning",
+            )
+            try:
+                co_list = self.screen.query_one(COList)
+                co_list.mark_awaiting(message.co_id)
+            except Exception:
+                logger.debug("COList widget not available", exc_info=True)
 
         self._refresh_co_list()
 
@@ -357,6 +420,13 @@ class CeoApp(App):
 
     def on_execution_error(self, message: ExecutionError) -> None:
         self.notify(f"Error: {message.error}", severity="error")
+        # Write error to execution log for persistence
+        if message.co_id == self._selected_co_id:
+            try:
+                log = self.screen.query_one(ExecutionLog)
+                log.add_error(message.error)
+            except Exception:
+                logger.debug("ExecutionLog widget not available", exc_info=True)
         self._execution_services.pop(message.co_id, None)
         self._co_workers.pop(message.co_id, None)
         self._refresh_co_list()
@@ -385,7 +455,7 @@ class CeoApp(App):
             exec_service = self._execution_services[self._selected_co_id]
             exec_service.provide_human_response(message.choice, message.text)
             self._awaiting_count = max(0, self._awaiting_count - 1)
-            self._update_footer_awaiting()
+            self._update_subtitle()
 
     def on_tool_preview_approved(self, message: ToolPreview.Approved) -> None:
         if self._selected_co_id and self._selected_co_id in self._execution_services:
@@ -397,8 +467,28 @@ class CeoApp(App):
             exec_service = self._execution_services[self._selected_co_id]
             exec_service.provide_human_response("reject", message.reason)
 
-    def _update_footer_awaiting(self) -> None:
+    def _update_subtitle(self, cos: list | None = None) -> None:
+        """Update subtitle with comprehensive status counts."""
+        if cos is None:
+            self._co_service.session.expire_all()
+            cos = self._co_service.list_all()
+
+        total = len(cos)
+        running = sum(1 for co in cos if (co.status.value if hasattr(co.status, 'value') else co.status) == "running")
+        paused = sum(1 for co in cos if (co.status.value if hasattr(co.status, 'value') else co.status) == "paused")
+
+        parts = ["Cognitive Operating System"]
+        stats = []
+        if total > 0:
+            stats.append(f"Total: {total}")
+        if running > 0:
+            stats.append(f"Running: {running}")
+        if paused > 0:
+            stats.append(f"Paused: {paused}")
         if self._awaiting_count > 0:
-            self.sub_title = f"Cognitive Operating System  |  {self._awaiting_count} awaiting"
-        else:
-            self.sub_title = "Cognitive Operating System"
+            stats.append(f"Awaiting: {self._awaiting_count}")
+
+        if stats:
+            parts.append("  |  " + "  |  ".join(stats))
+
+        self.sub_title = "".join(parts)
