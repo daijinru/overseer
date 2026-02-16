@@ -69,5 +69,5 @@ class HomeScreen(Screen):
     def action_filter_co(self) -> None:
         self.app.action_filter_co()
 
-    def action_quit_app(self) -> None:
-        self.app.exit()
+    async def action_quit_app(self) -> None:
+        await self.app.action_quit()

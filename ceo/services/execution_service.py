@@ -98,6 +98,10 @@ class ExecutionService:
         # Set status to running
         self.co_service.update_status(co_id, COStatus.RUNNING)
         step_number = (co.context or {}).get("step_count", 0)
+        _last_tool_sig: str | None = None  # for exact loop detection
+        _repeat_count = 0
+        _last_tool_names: str | None = None  # for same-tool-name detection
+        _name_repeat_count = 0
 
         try:
             while True:
@@ -160,6 +164,58 @@ class ExecutionService:
 
                 # 5. Handle tool calls
                 if decision.tool_calls:
+                    # Pre-filter args to match what tools actually accept.
+                    # Track which params were removed so we can inform LLM via context.
+                    _removed_params: dict[str, list[str]] = {}
+                    for tc in decision.tool_calls:
+                        filtered_args, removed = self.tool_service.filter_args(tc.tool, tc.args)
+                        if removed:
+                            _removed_params[tc.tool] = removed
+                            logger.info(
+                                "Pre-filtered args for %s: removed %s",
+                                tc.tool, removed,
+                            )
+                        tc.args = filtered_args
+
+                    # Loop detection on filtered args
+                    tool_sig = json.dumps(
+                        [{"t": tc.tool, "a": tc.args} for tc in decision.tool_calls],
+                        sort_keys=True,
+                    )
+                    if tool_sig == _last_tool_sig:
+                        _repeat_count += 1
+                    else:
+                        _repeat_count = 0
+                        _last_tool_sig = tool_sig
+
+                    # Same-tool-name detection (same tools called, even if args differ)
+                    tool_names = json.dumps(sorted(tc.tool for tc in decision.tool_calls))
+                    if tool_names == _last_tool_names:
+                        _name_repeat_count += 1
+                    else:
+                        _name_repeat_count = 0
+                        _last_tool_names = tool_names
+
+                    is_loop = _repeat_count >= 2 or _name_repeat_count >= 3
+                    if is_loop:
+                        reason = "exact args" if _repeat_count >= 2 else "same tool"
+                        logger.warning(
+                            "Loop detected (%s): tool repeated %d times",
+                            reason,
+                            max(_repeat_count, _name_repeat_count) + 1,
+                        )
+                        self.context_service.merge_step_result(
+                            co, step_number, "loop_detected",
+                            "System: repeated tool calls detected ({}). "
+                            "Previous calls did not produce useful progress. "
+                            "Please try a completely different approach or ask the user for help.".format(reason),
+                        )
+                        decision.tool_calls = []
+                        decision.human_required = True
+                        decision.human_reason = "检测到重复工具调用，工具可能未返回有效数据。请选择下一步操作。"
+                        decision.options = ["换一种方式继续", "终止"]
+
+                if decision.tool_calls:
                     execution.status = ExecutionStatus.RUNNING_TOOL
                     execution.tool_calls = [tc.model_dump() for tc in decision.tool_calls]
                     self.session.commit()
@@ -200,8 +256,15 @@ class ExecutionService:
                             )
                             self.context_service.add_artifact(co, result.get("path", ""))
 
-                        # Merge tool result into context
-                        result_summary = json.dumps(result, ensure_ascii=False)[:500]
+                        # Merge tool result into context, including param-filter warnings
+                        result_summary = json.dumps(result, ensure_ascii=False)[:2000]
+                        removed = _removed_params.get(tc.tool)
+                        if removed:
+                            result_summary = (
+                                f"[WARNING: parameters {removed} are NOT accepted by "
+                                f"this tool and were ignored. Only use parameters listed "
+                                f"in the tool schema.] {result_summary}"
+                            )
                         self.context_service.merge_tool_result(
                             co, step_number, tc.tool, result_summary
                         )

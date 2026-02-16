@@ -5,14 +5,14 @@ from __future__ import annotations
 import json
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.widgets import Button, Input, Static
 
 from ceo.core.protocols import ToolCall
 
 
-class ToolPreview(Static):
+class ToolPreview(Vertical):
     """Panel for previewing and approving/rejecting tool calls."""
 
     class Approved(Message):
@@ -46,8 +46,11 @@ class ToolPreview(Static):
         self.query_one("#tool-preview-detail", Static).update(
             f"[bold]Arguments:[/bold]\n{highlighted}"
         )
-        # Clear rejection reason input
-        self.query_one("#tool-reject-reason", Input).value = ""
+        # Clear rejection reason input and focus it (Enter = approve, type reason + Enter = reject)
+        inp = self.query_one("#tool-reject-reason", Input)
+        inp.value = ""
+        inp.placeholder = "Enter to approve, type reason + Enter to reject..."
+        inp.focus()
 
     def hide(self) -> None:
         self.remove_class("visible")
@@ -74,3 +77,13 @@ class ToolPreview(Static):
             reason = self.query_one("#tool-reject-reason", Input).value.strip()
             self.hide()
             self.post_message(self.Rejected(reason))
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Allow Enter in the rejection reason input to approve (empty) or reject (with reason)."""
+        text = event.value.strip()
+        if text:
+            self.hide()
+            self.post_message(self.Rejected(text))
+        else:
+            self.hide()
+            self.post_message(self.Approved())

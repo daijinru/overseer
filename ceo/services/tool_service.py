@@ -127,10 +127,30 @@ class ToolService:
         """Return list of available tools."""
         return list(self._tools.values())
 
+    def filter_args(self, tool_name: str, args: Dict[str, Any]) -> tuple[Dict[str, Any], List[str]]:
+        """Filter tool args to only include parameters defined in the schema.
+
+        Returns (filtered_args, removed_keys).
+        """
+        schema = self._tools.get(tool_name, {}).get("parameters", {})
+        valid_props = schema.get("properties", {})
+        if not valid_props:
+            return args, []
+        filtered = {k: v for k, v in args.items() if k in valid_props}
+        removed = [k for k in args if k not in valid_props]
+        return filtered, removed
+
     def get_permission(self, tool_name: str) -> ToolPermission:
         """Get permission level for a tool."""
         perms = self._cfg.tool_permissions
-        level = perms.get(tool_name, perms.get("default", "confirm"))
+        # Check tool-specific permission first
+        if tool_name in perms:
+            level = perms[tool_name]
+        elif tool_name in self._mcp_tool_map:
+            # MCP tools default to auto (read-only queries) unless explicitly configured
+            level = perms.get("mcp_default", "auto")
+        else:
+            level = perms.get("default", "confirm")
         try:
             return ToolPermission(level)
         except ValueError:
@@ -154,6 +174,9 @@ class ToolService:
 
         # Route to MCP server if the tool was discovered from one
         if tool_name in self._mcp_tool_map and self._session_group:
+            args, removed = self.filter_args(tool_name, args)
+            if removed:
+                logger.info("Filtered args for %s: removed %s", tool_name, removed)
             return await self._execute_mcp(tool_name, args)
 
         # Fall back to builtin implementations

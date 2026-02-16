@@ -49,7 +49,21 @@ class ContextService:
             for t in available_tools:
                 name = t.get("name", "")
                 desc = t.get("description", "")
-                tool_lines.append(f"- **{name}**: {desc}")
+                params = t.get("parameters", {})
+                # Extract required params and their types for LLM
+                props = params.get("properties", {})
+                required = params.get("required", [])
+                if props:
+                    param_parts = []
+                    for pname, pinfo in props.items():
+                        ptype = pinfo.get("type", "string")
+                        pdesc = pinfo.get("description", "")
+                        req = " (required)" if pname in required else ""
+                        param_parts.append(f"    - `{pname}` ({ptype}{req}): {pdesc}")
+                    params_text = "\n" + "\n".join(param_parts)
+                else:
+                    params_text = ""
+                tool_lines.append(f"- **{name}**: {desc}{params_text}")
             parts.append(f"\n## Available Tools\n" + "\n".join(tool_lines))
 
         if findings:

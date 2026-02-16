@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.events import Key
 from textual.message import Message
 from textual.widgets import Button, Input, Static
@@ -17,7 +17,7 @@ class OptionButton(Button):
         self.option_value = option_value
 
 
-class InteractionPanel(Static):
+class InteractionPanel(Vertical):
     """Panel for human-in-the-loop decisions."""
 
     class Decision(Message):
@@ -39,10 +39,15 @@ class InteractionPanel(Static):
             f"[bold yellow]Decision Required:[/bold yellow] {reason}"
         )
 
+        # Filter out None/empty options and ensure we always have usable options
+        valid_options = [opt for opt in (options or []) if opt]
+        if not valid_options:
+            valid_options = ["Continue", "Abort"]
+
         # Rebuild option buttons with OptionButton subclass
         container = self.query_one("#interaction-options", Horizontal)
         container.remove_children()
-        for i, option in enumerate(options):
+        for i, option in enumerate(valid_options):
             btn = OptionButton(
                 f"[{i+1}] {option}",
                 option_value=option,
@@ -51,9 +56,10 @@ class InteractionPanel(Static):
             )
             container.mount(btn)
 
-        # Clear and focus input
+        # Clear and focus input so user can type and press Enter
         inp = self.query_one("#interaction-input", Input)
         inp.value = ""
+        inp.focus()
 
     def hide(self) -> None:
         """Hide the interaction panel."""
