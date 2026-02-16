@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import platform
+import re
+import subprocess
 from typing import Any, Dict, List
 
 from textual.app import ComposeResult
@@ -12,7 +15,6 @@ from ceo.models.execution import Execution
 
 LLM_RESPONSE_MAX = 120
 TOOL_PREVIEW_MAX = 80
-SEPARATOR = "[dim]" + "\u2500" * 40 + "[/dim]"
 
 STATUS_ICONS = {
     "pending": "\u23f3",
@@ -26,27 +28,53 @@ STATUS_ICONS = {
 }
 
 
+def _copy_to_system_clipboard(text: str) -> bool:
+    """Copy text to system clipboard. Returns True on success."""
+    try:
+        if platform.system() == "Darwin":
+            subprocess.run(["pbcopy"], input=text.encode(), check=True)
+            return True
+        elif platform.system() == "Linux":
+            subprocess.run(
+                ["xclip", "-selection", "clipboard"],
+                input=text.encode(), check=True,
+            )
+            return True
+    except (subprocess.SubprocessError, FileNotFoundError):
+        pass
+    return False
+
+
 class ExecutionLog(Vertical):
     """Displays the execution steps for a CognitiveObject."""
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+        self._lines: list[str] = []
         self._tool_results: List[Dict[str, Any]] = []
 
     def compose(self) -> ComposeResult:
-        yield RichLog(wrap=True, id="exec-log-richlog")
+        yield RichLog(wrap=True, markup=True, id="exec-log-richlog")
 
     def on_mount(self) -> None:
-        self.border_title = "Execution Log [dim](t: view result)[/dim]"
+        self.border_title = "Execution Log"
+        self.border_subtitle = "[dim]t[/dim] view  [dim]y[/dim] copy"
 
     @property
     def _log(self) -> RichLog:
         return self.query_one("#exec-log-richlog", RichLog)
 
+    @staticmethod
+    def _strip_markup(text: str) -> str:
+        """Remove Rich markup tags for plain-text copy."""
+        return re.sub(r"\[/?[^\]]*\]", "", text)
+
     def _write(self, text: str) -> None:
+        self._lines.append(text)
         self._log.write(text)
 
     def clear(self) -> None:
+        self._lines.clear()
         self._tool_results.clear()
         self._log.clear()
 
@@ -73,36 +101,42 @@ class ExecutionLog(Vertical):
             preview = preview[:TOOL_PREVIEW_MAX] + "\u2026"
         return preview
 
+    def _write_separator(self) -> None:
+        self._write("")
+        self._write("[dim]\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500[/dim]")
+        self._write("")
+
     def show_executions(self, executions: list[Execution]) -> None:
         """Display all executions for a CO."""
         self.clear()
         for i, ex in enumerate(executions):
             if i > 0:
-                self._write(SEPARATOR)
+                self._write_separator()
             self._write_execution(ex)
 
     def _write_execution(self, ex: Execution) -> None:
         icon = STATUS_ICONS.get(ex.status, "?")
         ts = self._format_ts(ex)
-        self._write(f"{ts}{icon} Step {ex.sequence_number}: {ex.title}")
+        self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: {ex.title}[/bold]")
         if ex.llm_response and ex.status in ("completed", "awaiting_human", "approved"):
-            self._write(f"  \u2514\u2500 [dim]{self._truncate(ex.llm_response, LLM_RESPONSE_MAX)}[/dim]")
+            summary = self._truncate(ex.llm_response, LLM_RESPONSE_MAX)
+            self._write(f"    [italic]{summary}[/italic]")
         if ex.tool_results:
             for tr in ex.tool_results:
                 self._write_tool_result(tr)
         if ex.human_decision:
-            self._write(f"  \u2514\u2500 [yellow]\U0001f464 Decision: {ex.human_decision}[/yellow]")
+            self._write(f"    [yellow]\U0001f464 Decision: {ex.human_decision}[/yellow]")
         if ex.human_input:
-            self._write(f"  \u2514\u2500 [yellow]\U0001f4ac Feedback: {ex.human_input}[/yellow]")
+            self._write(f"    [yellow]\U0001f4ac Feedback: {ex.human_input}[/yellow]")
 
     def _write_tool_result(self, tr: Dict[str, Any]) -> None:
         status = tr.get("status", "?")
         tool = tr.get("tool", "?")
         status_color = "green" if status == "ok" else "red" if status == "error" else "yellow"
-        self._write(f"  \u2514\u2500 Tool [{tool}]: [{status_color}]{status}[/{status_color}]")
+        self._write(f"    \u2514 [bold]{tool}[/bold] [{status_color}]{status}[/{status_color}]")
         preview = self._tool_preview(tr)
         if preview:
-            self._write(f"       [dim]{preview}[/dim]")
+            self._write(f"      [italic $text-muted]{preview}[/italic $text-muted]")
         self._tool_results.append(tr)
 
     def add_step(self, ex: Execution, phase: str = "") -> None:
@@ -110,19 +144,20 @@ class ExecutionLog(Vertical):
         icon = STATUS_ICONS.get(ex.status, "?")
         ts = self._format_ts(ex)
         if phase == "running_llm":
-            self._write(SEPARATOR)
-            self._write(f"{ts}{icon} Step {ex.sequence_number}: Thinking...")
+            self._write_separator()
+            self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: Thinking...[/bold]")
         elif phase == "llm_done":
-            self._write(f"{ts}{icon} Step {ex.sequence_number}: {ex.title}")
+            self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: {ex.title}[/bold]")
             if ex.llm_response:
-                self._write(f"  \u2514\u2500 [dim]{self._truncate(ex.llm_response, LLM_RESPONSE_MAX)}[/dim]")
+                summary = self._truncate(ex.llm_response, LLM_RESPONSE_MAX)
+                self._write(f"    [italic]{summary}[/italic]")
         elif phase == "running_tool":
             tool_names = ", ".join(
                 tc.get("tool", "?") for tc in (ex.tool_calls or [])
             )
-            self._write(f"{ts}\U0001f527 Executing tools: {tool_names}")
+            self._write(f"{ts}\U0001f527 Executing: [bold]{tool_names}[/bold]")
         elif phase == "completed":
-            self._write(f"{ts}\u2713 Step {ex.sequence_number} completed: {ex.title}")
+            self._write(f"{ts}\u2713 [bold]Step {ex.sequence_number} completed: {ex.title}[/bold]")
             if ex.tool_results:
                 for tr in ex.tool_results:
                     self._write_tool_result(tr)
@@ -132,6 +167,18 @@ class ExecutionLog(Vertical):
     def add_error(self, error: str) -> None:
         """Add an error entry to the log."""
         self._write(f"[red bold]\u2717 Error: {error}[/red bold]")
+
+    def copy_log(self) -> None:
+        """Copy all log content to system clipboard."""
+        plain = "\n".join(self._strip_markup(line) for line in self._lines)
+        if not plain.strip():
+            self.notify("No log content to copy", severity="warning")
+            return
+        if _copy_to_system_clipboard(plain):
+            self.notify("Log copied to clipboard")
+        else:
+            self.app.copy_to_clipboard(plain)
+            self.notify("Log copied to clipboard (OSC 52)")
 
     def show_tool_result_picker(self) -> None:
         """Show tool result detail in a modal."""

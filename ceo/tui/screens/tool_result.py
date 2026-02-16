@@ -13,12 +13,26 @@ from textual.widgets import Button, Static
 MAX_CONTENT_LENGTH = 50000
 
 
+def _extract_raw_content(result: Dict[str, Any]) -> str:
+    """Extract raw content from a tool result dict."""
+    content = (
+        result.get("output")
+        or result.get("content")
+        or result.get("error")
+        or ""
+    )
+    if not content:
+        content = json.dumps(result, ensure_ascii=False, indent=2)
+    return content
+
+
 class ToolResultScreen(ModalScreen):
     """Modal screen for viewing full tool result content."""
 
     BINDINGS = [
         ("escape", "dismiss_screen", "Close"),
         ("q", "dismiss_screen", "Close"),
+        ("y", "copy_content", "Copy"),
     ]
 
     def __init__(self, tool_name: str, result: Dict[str, Any]) -> None:
@@ -29,7 +43,7 @@ class ToolResultScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         with Vertical(id="tool-result-container"):
             yield Static(
-                f"[bold]Tool Result: {self._tool_name}[/bold]",
+                f"[bold]Tool Result: {self._tool_name}[/bold]  [dim]y: copy  q: close[/dim]",
                 id="tool-result-title",
             )
             yield Static(self._format_status(), id="tool-result-status")
@@ -49,15 +63,7 @@ class ToolResultScreen(ModalScreen):
         return f"[dim]Status: {status}[/dim]"
 
     def _format_content(self) -> str:
-        content = (
-            self._result.get("output")
-            or self._result.get("content")
-            or self._result.get("error")
-            or ""
-        )
-
-        if not content:
-            content = json.dumps(self._result, ensure_ascii=False, indent=2)
+        content = _extract_raw_content(self._result)
 
         if len(content) > MAX_CONTENT_LENGTH:
             content = content[:MAX_CONTENT_LENGTH] + "\n\n[dim][truncated][/dim]"
@@ -84,6 +90,17 @@ class ToolResultScreen(ModalScreen):
             else:
                 lines.append(f"[dim]{line}[/dim]")
         return "\n".join(lines)
+
+    def action_copy_content(self) -> None:
+        """Copy the raw tool result content to system clipboard."""
+        from ceo.tui.widgets.execution_log import _copy_to_system_clipboard
+
+        content = _extract_raw_content(self._result)
+        if _copy_to_system_clipboard(content):
+            self.notify("Content copied to clipboard")
+        else:
+            self.app.copy_to_clipboard(content)
+            self.notify("Content copied to clipboard (OSC 52)")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "tool-result-close":

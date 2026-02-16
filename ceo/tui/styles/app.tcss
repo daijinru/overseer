@@ -133,6 +133,7 @@ CODetail {
 
 #exec-log-richlog {
     height: 1fr;
+    padding: 1 2;
 }
 
 /* ── Interaction panel ── */

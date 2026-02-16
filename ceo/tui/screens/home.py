@@ -28,6 +28,7 @@ class HomeScreen(Screen):
         ("k", "prev_co", "Prev"),
         ("f", "filter_co", "Filter"),
         ("t", "view_tool_result", "Tool Result"),
+        ("y", "copy_log", "Copy Log"),
         ("q", "quit_app", "Quit"),
     ]
 
@@ -74,6 +75,13 @@ class HomeScreen(Screen):
         try:
             log = self.query_one(ExecutionLog)
             log.show_tool_result_picker()
+        except Exception:
+            pass
+
+    def action_copy_log(self) -> None:
+        try:
+            log = self.query_one(ExecutionLog)
+            log.copy_log()
         except Exception:
             pass
 
