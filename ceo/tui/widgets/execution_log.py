@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any, Dict, List
 
 from textual.app import ComposeResult
 from textual.containers import Vertical
-from textual.widgets import Button, RichLog
+from textual.widgets import RichLog
 
 from ceo.models.execution import Execution
 
+LLM_RESPONSE_MAX = 120
+TOOL_PREVIEW_MAX = 80
+SEPARATOR = "[dim]" + "\u2500" * 40 + "[/dim]"
 
 STATUS_ICONS = {
     "pending": "\u23f3",
@@ -29,33 +31,22 @@ class ExecutionLog(Vertical):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self._lines: list[str] = []
         self._tool_results: List[Dict[str, Any]] = []
 
     def compose(self) -> ComposeResult:
-        yield Button("Copy", id="exec-log-copy", variant="default")
-        yield Button("View Result", id="exec-log-view-result", variant="default")
         yield RichLog(wrap=True, id="exec-log-richlog")
 
     def on_mount(self) -> None:
-        self.border_title = "Execution Log"
+        self.border_title = "Execution Log [dim](t: view result)[/dim]"
 
     @property
     def _log(self) -> RichLog:
         return self.query_one("#exec-log-richlog", RichLog)
 
-    @staticmethod
-    def _strip_markup(text: str) -> str:
-        """Remove Rich markup tags for plain-text copy."""
-        return re.sub(r"\[/?[^\]]*\]", "", text)
-
     def _write(self, text: str) -> None:
-        """Write a line to both the RichLog and the internal buffer."""
-        self._lines.append(text)
         self._log.write(text)
 
     def clear(self) -> None:
-        self._lines.clear()
         self._tool_results.clear()
         self._log.clear()
 
@@ -64,10 +55,30 @@ class ExecutionLog(Vertical):
             return f"[dim]{ex.created_at.strftime('%H:%M:%S')}[/dim] "
         return ""
 
+    @staticmethod
+    def _truncate(text: str, max_len: int) -> str:
+        text = text.replace("\n", " ").strip()
+        if len(text) <= max_len:
+            return text
+        return text[:max_len] + "\u2026"
+
+    @staticmethod
+    def _tool_preview(tr: Dict[str, Any]) -> str:
+        """Extract a short preview from tool result output."""
+        content = tr.get("output") or tr.get("content") or tr.get("error") or ""
+        if not content:
+            return ""
+        preview = content.replace("\n", " ").strip()
+        if len(preview) > TOOL_PREVIEW_MAX:
+            preview = preview[:TOOL_PREVIEW_MAX] + "\u2026"
+        return preview
+
     def show_executions(self, executions: list[Execution]) -> None:
         """Display all executions for a CO."""
         self.clear()
-        for ex in executions:
+        for i, ex in enumerate(executions):
+            if i > 0:
+                self._write(SEPARATOR)
             self._write_execution(ex)
 
     def _write_execution(self, ex: Execution) -> None:
@@ -75,28 +86,36 @@ class ExecutionLog(Vertical):
         ts = self._format_ts(ex)
         self._write(f"{ts}{icon} Step {ex.sequence_number}: {ex.title}")
         if ex.llm_response and ex.status in ("completed", "awaiting_human", "approved"):
-            self._write(f"  \u2514\u2500 {ex.llm_response}")
+            self._write(f"  \u2514\u2500 [dim]{self._truncate(ex.llm_response, LLM_RESPONSE_MAX)}[/dim]")
         if ex.tool_results:
             for tr in ex.tool_results:
-                status = tr.get("status", "?")
-                tool = tr.get("tool", "?")
-                self._write(f"  \u2514\u2500 Tool [{tool}]: {status}  [dim](press t to view)[/dim]")
-                self._tool_results.append(tr)
+                self._write_tool_result(tr)
         if ex.human_decision:
             self._write(f"  \u2514\u2500 [yellow]\U0001f464 Decision: {ex.human_decision}[/yellow]")
         if ex.human_input:
             self._write(f"  \u2514\u2500 [yellow]\U0001f4ac Feedback: {ex.human_input}[/yellow]")
+
+    def _write_tool_result(self, tr: Dict[str, Any]) -> None:
+        status = tr.get("status", "?")
+        tool = tr.get("tool", "?")
+        status_color = "green" if status == "ok" else "red" if status == "error" else "yellow"
+        self._write(f"  \u2514\u2500 Tool [{tool}]: [{status_color}]{status}[/{status_color}]")
+        preview = self._tool_preview(tr)
+        if preview:
+            self._write(f"       [dim]{preview}[/dim]")
+        self._tool_results.append(tr)
 
     def add_step(self, ex: Execution, phase: str = "") -> None:
         """Add or update a single execution step."""
         icon = STATUS_ICONS.get(ex.status, "?")
         ts = self._format_ts(ex)
         if phase == "running_llm":
+            self._write(SEPARATOR)
             self._write(f"{ts}{icon} Step {ex.sequence_number}: Thinking...")
         elif phase == "llm_done":
             self._write(f"{ts}{icon} Step {ex.sequence_number}: {ex.title}")
             if ex.llm_response:
-                self._write(f"  \u2514\u2500 {ex.llm_response}")
+                self._write(f"  \u2514\u2500 [dim]{self._truncate(ex.llm_response, LLM_RESPONSE_MAX)}[/dim]")
         elif phase == "running_tool":
             tool_names = ", ".join(
                 tc.get("tool", "?") for tc in (ex.tool_calls or [])
@@ -106,10 +125,7 @@ class ExecutionLog(Vertical):
             self._write(f"{ts}\u2713 Step {ex.sequence_number} completed: {ex.title}")
             if ex.tool_results:
                 for tr in ex.tool_results:
-                    status = tr.get("status", "?")
-                    tool = tr.get("tool", "?")
-                    self._write(f"  \u2514\u2500 Tool [{tool}]: {status}  [dim](press t to view)[/dim]")
-                    self._tool_results.append(tr)
+                    self._write_tool_result(tr)
         else:
             self._write_execution(ex)
 
@@ -138,14 +154,3 @@ class ExecutionLog(Vertical):
             self.app.push_screen(
                 ToolResultListScreen(self._tool_results), callback=on_selected
             )
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "exec-log-copy":
-            plain = "\n".join(self._strip_markup(line) for line in self._lines)
-            if not plain.strip():
-                self.notify("No log content to copy", severity="warning")
-                return
-            self.app.copy_to_clipboard(plain)
-            self.notify("Log copied to clipboard")
-        elif event.button.id == "exec-log-view-result":
-            self.show_tool_result_picker()
