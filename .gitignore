@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+
+# Config (contains API keys)
+config.yaml
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Output
+output/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Testing
+.pytest_cache/

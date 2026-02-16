@@ -1,0 +1,38 @@
+llm:
+  base_url: "https://api.openai.com/v1"
+  model: "gpt-4o"
+  api_key: "sk-your-api-key-here"
+  max_tokens: 4096
+  temperature: 0.7
+
+database:
+  path: "ceo_data.db"
+
+mcp:
+  servers:
+    # 示例：stdio 方式启动 MCP server
+    # filesystem:
+    #   transport: stdio
+    #   command: npx
+    #   args: ["-y", "@anthropic/mcp-filesystem-server", "/tmp"]
+    #
+    # 示例：SSE 方式连接远程 MCP server
+    # remote_tools:
+    #   transport: sse
+    #   url: "http://localhost:8080/sse"
+
+tool_permissions:
+  file_read: auto
+  web_search: auto
+  file_write: confirm
+  file_delete: approve
+  default: confirm
+
+reflection:
+  interval: 5          # 每 N 步触发一次反思
+  similarity_threshold: 0.8  # 连续相似步骤阈值
+
+context:
+  max_tokens: 8000     # StateDict 压缩阈值
+  output_dir: "output"  # 默认产出物输出目录
+

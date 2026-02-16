@@ -1,0 +1,210 @@
+/* Wenko CEO — Textual CSS */
+
+Screen {
+    layout: vertical;
+}
+
+/* ── Header / Footer ── */
+Header {
+    dock: top;
+    height: 1;
+    background: $primary;
+    color: $text;
+}
+
+Footer {
+    dock: bottom;
+    height: 1;
+}
+
+/* ── Home screen layout ── */
+#home-container {
+    layout: horizontal;
+    height: 1fr;
+}
+
+#co-list-panel {
+    width: 30;
+    min-width: 24;
+    border-right: thick $primary-background;
+    padding: 0 1;
+}
+
+#co-list-panel .panel-title {
+    text-style: bold;
+    color: $text;
+    padding: 1 0;
+}
+
+#detail-panel {
+    width: 1fr;
+    padding: 0 1;
+}
+
+/* ── CO List ── */
+#co-listview {
+    height: 1fr;
+}
+
+.co-item {
+    height: 2;
+    padding: 0 1;
+}
+
+.co-item.--highlight {
+    background: $accent;
+}
+
+.co-status-created {
+    color: $text-muted;
+}
+
+.co-status-running {
+    color: $success;
+}
+
+.co-status-paused {
+    color: $warning;
+}
+
+.co-status-completed {
+    color: $primary;
+}
+
+.co-status-aborted {
+    color: $error;
+}
+
+.co-status-failed {
+    color: $error;
+}
+
+/* ── Detail panel ── */
+#co-detail-header {
+    height: auto;
+    padding: 1 0;
+}
+
+#co-detail-title {
+    text-style: bold;
+    width: 1fr;
+}
+
+#co-detail-status {
+    padding: 0 1;
+}
+
+#execution-log {
+    height: 1fr;
+    min-height: 8;
+    border: round $primary-background;
+    padding: 0 1;
+}
+
+/* ── Interaction panel ── */
+#interaction-panel {
+    height: auto;
+    max-height: 14;
+    border: round $accent;
+    padding: 1;
+    display: none;
+}
+
+#interaction-panel.visible {
+    display: block;
+}
+
+#interaction-reason {
+    margin-bottom: 1;
+    color: $warning;
+}
+
+#interaction-options {
+    layout: horizontal;
+    height: auto;
+    margin-bottom: 1;
+}
+
+#interaction-options Button {
+    margin-right: 1;
+    min-width: 12;
+}
+
+#interaction-input {
+    margin-bottom: 1;
+}
+
+/* ── Tool preview panel ── */
+#tool-preview-panel {
+    height: auto;
+    max-height: 10;
+    border: round $warning;
+    padding: 1;
+    display: none;
+}
+
+#tool-preview-panel.visible {
+    display: block;
+}
+
+#tool-preview-title {
+    text-style: bold;
+    color: $warning;
+    margin-bottom: 1;
+}
+
+#tool-preview-buttons {
+    layout: horizontal;
+    height: auto;
+}
+
+#tool-preview-buttons Button {
+    margin-right: 1;
+}
+
+/* ── Create screen ── */
+#create-container {
+    width: 60;
+    height: auto;
+    max-height: 20;
+    border: round $primary;
+    padding: 1 2;
+    margin: 4 10;
+    background: $surface;
+}
+
+#create-container .title {
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#create-container Input {
+    margin-bottom: 1;
+}
+
+#create-container TextArea {
+    height: 6;
+    margin-bottom: 1;
+}
+
+#create-buttons {
+    layout: horizontal;
+    height: auto;
+}
+
+#create-buttons Button {
+    margin-right: 1;
+}
+
+/* ── Loading ── */
+LoadingIndicator {
+    height: 3;
+    color: $accent;
+}
+
+/* ── Empty state ── */
+.empty-state {
+    text-align: center;
+    color: $text-muted;
+    padding: 4;
+}
