@@ -448,6 +448,19 @@ class CeoApp(App):
                 if co_id == self._selected_co_id:
                     self._show_co_detail(co_id)
 
+    async def action_quit(self) -> None:
+        """Gracefully shut down all MCP connections before quitting."""
+        for worker in list(self._co_workers.values()):
+            worker.cancel()
+        for exec_service in list(self._execution_services.values()):
+            try:
+                await exec_service.tool_service.disconnect()
+            except Exception as e:
+                logger.debug("Error disconnecting MCP on quit: %s", e)
+        self._execution_services.clear()
+        self._co_workers.clear()
+        self.exit()
+
     # ── Handle interaction panel decisions ──
 
     def on_interaction_panel_decision(self, message: InteractionPanel.Decision) -> None:

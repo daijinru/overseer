@@ -24,8 +24,13 @@ class ContextService:
             self._session = get_session()
         return self._session
 
-    def build_prompt(self, co: CognitiveObject, memories: list[str] | None = None) -> str:
-        """Build a complete prompt for the LLM from CO context + memories."""
+    def build_prompt(
+        self,
+        co: CognitiveObject,
+        memories: list[str] | None = None,
+        available_tools: list[dict] | None = None,
+    ) -> str:
+        """Build a complete prompt for the LLM from CO context + memories + tools."""
         ctx = co.context or {}
         goal = ctx.get("goal", co.title)
         findings = ctx.get("accumulated_findings", [])
@@ -38,6 +43,14 @@ class ContextService:
 
         if co.description:
             parts.append(f"\n## Description\n{co.description}")
+
+        if available_tools:
+            tool_lines = []
+            for t in available_tools:
+                name = t.get("name", "")
+                desc = t.get("description", "")
+                tool_lines.append(f"- **{name}**: {desc}")
+            parts.append(f"\n## Available Tools\n" + "\n".join(tool_lines))
 
         if findings:
             findings_text = "\n".join(
@@ -61,7 +74,7 @@ class ContextService:
         parts.append(
             "\n## Instructions\n"
             "Based on the above context, decide the next step to take toward achieving the goal. "
-            "If you need tools, specify them in tool_calls. "
+            "If you need tools, specify them in tool_calls using the exact tool name from the Available Tools list. "
             "If you need human input, set human_required to true and explain why."
         )
 

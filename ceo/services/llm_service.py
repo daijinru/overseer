@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 
 from ceo.config import get_config
-from ceo.core.protocols import LLMDecision
+from ceo.core.protocols import LLMDecision, ToolCall
 
 logger = logging.getLogger(__name__)
 
@@ -19,26 +19,31 @@ SYSTEM_PROMPT = """\
 
 你的职责：根据给定的目标和已积累的上下文，决定下一步该做什么。
 
-重要：请全程使用中文回复。每个回复必须以一个 JSON 决策块结尾，用 ```decision``` 围栏包裹：
+重要：请全程使用中文回复。每个回复必须以一个 JSON 决策块结尾，用 ```decision``` 围栏包裹。
+
+输出格式要求（严格遵守）：
+1. 分析部分要精简，不超过 200 字，聚焦于可操作的洞察。
+2. decision 块中的字段值要简短：title 不超过 20 字，description 不超过 50 字，reflection 不超过 100 字。
+3. 禁止在 decision 块中放置大段文本，详细内容放在分析部分。
+4. 必须确保 decision 块 JSON 完整闭合，这是最高优先级。
 
 ```decision
 {
-  "next_action": {"title": "...", "description": "..."},
+  "next_action": {"title": "简短标题", "description": "简短描述"},
   "tool_calls": [],
   "human_required": false,
   "human_reason": null,
   "options": [],
   "task_complete": false,
   "confidence": 0.8,
-  "reflection": "..."
+  "reflection": "简短反思"
 }
 ```
 
 规则：
 - 当你需要用户做出选择、提供信息或确认关键操作时，设置 "human_required": true，在 "human_reason" 中解释原因，并提供 "options"。
 - 当目标已完全达成时，设置 "task_complete": true。
-- 使用 "tool_calls" 来请求文件操作、搜索等。
-- 分析要简洁，聚焦于可操作的洞察。
+- 使用 "tool_calls" 来调用工具。每个 tool_call 格式为 {"tool": "工具名", "args": {参数}}。tool 字段必须是可用工具列表中的精确工具名。
 - 反思时，诚实评估你是否在朝目标推进。
 """
 
@@ -80,6 +85,13 @@ class LLMService:
         content = data["choices"][0]["message"]["content"]
         return content
 
+    def _normalize_decision(self, data: dict) -> LLMDecision:
+        """Build LLMDecision from a dict, normalising tool_calls field names."""
+        raw_tcs = data.pop("tool_calls", [])
+        decision = LLMDecision(**data)
+        decision.tool_calls = [ToolCall.from_llm(tc) for tc in raw_tcs]
+        return decision
+
     def parse_decision(self, response: str) -> LLMDecision:
         """Extract the decision JSON block from LLM response."""
         # Try to find ```decision ... ``` block
@@ -87,7 +99,7 @@ class LLMService:
         match = re.search(pattern, response, re.DOTALL)
         if match:
             try:
-                return LLMDecision(**json.loads(match.group(1)))
+                return self._normalize_decision(json.loads(match.group(1)))
             except (json.JSONDecodeError, Exception) as e:
                 logger.warning("Failed to parse decision block: %s", e)
 
@@ -96,7 +108,7 @@ class LLMService:
         match = re.search(json_pattern, response, re.DOTALL)
         if match:
             try:
-                return LLMDecision(**json.loads(match.group(0)))
+                return self._normalize_decision(json.loads(match.group(0)))
             except (json.JSONDecodeError, Exception):
                 pass
 

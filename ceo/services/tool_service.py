@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -83,6 +84,7 @@ class ToolService:
             return
 
         self._session_group = ClientSessionGroup()
+        await self._session_group.__aenter__()
 
         for name, server_cfg in mcp_servers.items():
             try:
@@ -110,6 +112,10 @@ class ToolService:
     async def disconnect(self) -> None:
         """Disconnect from all MCP servers."""
         if self._session_group:
+            try:
+                await self._session_group.__aexit__(None, None, None)
+            except Exception as e:
+                logger.warning("Error closing MCP session group: %s", e)
             self._session_group = None
             self._mcp_tool_map.clear()
             # Remove MCP tools, keep builtins
@@ -165,32 +171,51 @@ class ToolService:
             return {"status": "error", "error": str(e)}
 
     async def _execute_mcp(
-        self, tool_name: str, args: Dict[str, Any]
+        self, tool_name: str, args: Dict[str, Any], max_retries: int = 3
     ) -> Dict[str, Any]:
-        """Execute a tool via MCP server."""
-        try:
-            result = await self._session_group.call_tool(tool_name, args)
+        """Execute a tool via MCP server, with automatic retries on failure."""
+        last_error = ""
+        for attempt in range(1, max_retries + 1):
+            try:
+                result = await self._session_group.call_tool(tool_name, args)
 
-            if result.isError:
-                error_text = ""
+                if result.isError:
+                    error_text = ""
+                    for block in result.content:
+                        if hasattr(block, "text"):
+                            error_text += block.text
+                    last_error = error_text or "MCP tool error"
+                    logger.warning(
+                        "MCP tool '%s' returned error (attempt %d/%d): %s",
+                        tool_name, attempt, max_retries, last_error,
+                    )
+                    if attempt < max_retries:
+                        await asyncio.sleep(1.0 * attempt)
+                        continue
+                    return {"status": "error", "error": last_error}
+
+                # Collect text content from result
+                output_parts = []
                 for block in result.content:
                     if hasattr(block, "text"):
-                        error_text += block.text
-                return {"status": "error", "error": error_text or "MCP tool error"}
+                        output_parts.append(block.text)
+                    elif hasattr(block, "data"):
+                        output_parts.append(f"[binary data: {block.mimeType}]")
 
-            # Collect text content from result
-            output_parts = []
-            for block in result.content:
-                if hasattr(block, "text"):
-                    output_parts.append(block.text)
-                elif hasattr(block, "data"):
-                    output_parts.append(f"[binary data: {block.mimeType}]")
+                return {"status": "ok", "output": "\n".join(output_parts)}
 
-            return {"status": "ok", "output": "\n".join(output_parts)}
+            except Exception as e:
+                last_error = str(e)
+                logger.warning(
+                    "MCP tool '%s' execution failed (attempt %d/%d): %s",
+                    tool_name, attempt, max_retries, e,
+                )
+                if attempt < max_retries:
+                    await asyncio.sleep(1.0 * attempt)
+                    continue
 
-        except Exception as e:
-            logger.error("MCP tool execution failed: %s — %s", tool_name, e)
-            return {"status": "error", "error": str(e)}
+        logger.error("MCP tool '%s' failed after %d attempts: %s", tool_name, max_retries, last_error)
+        return {"status": "error", "error": f"Failed after {max_retries} attempts: {last_error}"}
 
     # ── Builtin tool implementations ──
 

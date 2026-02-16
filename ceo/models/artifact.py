@@ -22,7 +22,7 @@ class Artifact(Base):
         String(36), ForeignKey("cognitive_objects.id"), index=True
     )
     execution_id: Mapped[Optional[str]] = mapped_column(
-        String(36), ForeignKey("executions.id"), nullable=True
+        String(36), ForeignKey("executions.id", ondelete="SET NULL"), nullable=True
     )
     name: Mapped[str] = mapped_column(String(255))
     file_path: Mapped[str] = mapped_column(Text)

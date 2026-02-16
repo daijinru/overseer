@@ -122,7 +122,8 @@ class ExecutionService:
                 memories = self.memory_service.retrieve_as_text(
                     co.title + " " + co.description, limit=3
                 )
-                prompt = self.context_service.build_prompt(co, memories)
+                available_tools = self.tool_service.list_tools()
+                prompt = self.context_service.build_prompt(co, memories, available_tools)
                 execution.prompt = prompt
                 self.session.commit()
 

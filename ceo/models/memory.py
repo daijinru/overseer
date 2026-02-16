@@ -23,7 +23,7 @@ class Memory(Base):
     )
     content: Mapped[str] = mapped_column(Text)
     source_co_id: Mapped[Optional[str]] = mapped_column(
-        String(36), ForeignKey("cognitive_objects.id"), nullable=True
+        String(36), ForeignKey("cognitive_objects.id", ondelete="SET NULL"), nullable=True
     )
     relevance_tags: Mapped[Dict[str, Any]] = mapped_column(
         JSON, default=list

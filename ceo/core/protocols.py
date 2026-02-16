@@ -16,6 +16,13 @@ class ToolCall(BaseModel):
     tool: str
     args: Dict[str, Any] = Field(default_factory=dict)
 
+    @classmethod
+    def from_llm(cls, data: dict) -> "ToolCall":
+        """Create ToolCall from LLM output, accepting both 'tool'/'args' and 'name'/'parameters' formats."""
+        tool = data.get("tool") or data.get("name", "")
+        args = data.get("args") or data.get("parameters", {})
+        return cls(tool=tool, args=args)
+
 
 class Reflection(BaseModel):
     progress: str = ""

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ceo.core.enums import COStatus
 from ceo.database import get_session
 from ceo.models.cognitive_object import CognitiveObject
+from ceo.models.memory import Memory
 
 
 class CognitiveObjectService:
@@ -64,6 +65,10 @@ class CognitiveObjectService:
         co = self.get(co_id)
         if co is None:
             return False
+        # Clear memory references to avoid FK constraint violations on old schemas
+        self.session.query(Memory).filter(Memory.source_co_id == co_id).update(
+            {"source_co_id": None}
+        )
         self.session.delete(co)
         self.session.commit()
         return True
@@ -71,6 +76,11 @@ class CognitiveObjectService:
     def delete_all(self) -> int:
         cos = self.list_all()
         count = len(cos)
+        co_ids = [co.id for co in cos]
+        if co_ids:
+            self.session.query(Memory).filter(Memory.source_co_id.in_(co_ids)).update(
+                {"source_co_id": None}
+            )
         for co in cos:
             self.session.delete(co)
         self.session.commit()
