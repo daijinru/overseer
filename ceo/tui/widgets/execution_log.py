@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any, Dict, List
 
 from textual.app import ComposeResult
 from textual.containers import Vertical
@@ -29,9 +30,11 @@ class ExecutionLog(Vertical):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._lines: list[str] = []
+        self._tool_results: List[Dict[str, Any]] = []
 
     def compose(self) -> ComposeResult:
         yield Button("Copy", id="exec-log-copy", variant="default")
+        yield Button("View Result", id="exec-log-view-result", variant="default")
         yield RichLog(wrap=True, id="exec-log-richlog")
 
     def on_mount(self) -> None:
@@ -53,6 +56,7 @@ class ExecutionLog(Vertical):
 
     def clear(self) -> None:
         self._lines.clear()
+        self._tool_results.clear()
         self._log.clear()
 
     def _format_ts(self, ex: Execution) -> str:
@@ -76,7 +80,8 @@ class ExecutionLog(Vertical):
             for tr in ex.tool_results:
                 status = tr.get("status", "?")
                 tool = tr.get("tool", "?")
-                self._write(f"  \u2514\u2500 Tool [{tool}]: {status}")
+                self._write(f"  \u2514\u2500 Tool [{tool}]: {status}  [dim](press t to view)[/dim]")
+                self._tool_results.append(tr)
         if ex.human_decision:
             self._write(f"  \u2514\u2500 [yellow]\U0001f464 Decision: {ex.human_decision}[/yellow]")
         if ex.human_input:
@@ -99,12 +104,40 @@ class ExecutionLog(Vertical):
             self._write(f"{ts}\U0001f527 Executing tools: {tool_names}")
         elif phase == "completed":
             self._write(f"{ts}\u2713 Step {ex.sequence_number} completed: {ex.title}")
+            if ex.tool_results:
+                for tr in ex.tool_results:
+                    status = tr.get("status", "?")
+                    tool = tr.get("tool", "?")
+                    self._write(f"  \u2514\u2500 Tool [{tool}]: {status}  [dim](press t to view)[/dim]")
+                    self._tool_results.append(tr)
         else:
             self._write_execution(ex)
 
     def add_error(self, error: str) -> None:
         """Add an error entry to the log."""
         self._write(f"[red bold]\u2717 Error: {error}[/red bold]")
+
+    def show_tool_result_picker(self) -> None:
+        """Show tool result detail in a modal."""
+        if not self._tool_results:
+            self.notify("No tool results to view", severity="warning")
+            return
+        if len(self._tool_results) == 1:
+            result = self._tool_results[0]
+            tool_name = result.get("tool", "unknown")
+            from ceo.tui.screens.tool_result import ToolResultScreen
+            self.app.push_screen(ToolResultScreen(tool_name, result))
+        else:
+            from ceo.tui.screens.tool_result import ToolResultListScreen, ToolResultScreen
+
+            def on_selected(result: dict | None) -> None:
+                if result is not None:
+                    tool_name = result.get("tool", "unknown")
+                    self.app.push_screen(ToolResultScreen(tool_name, result))
+
+            self.app.push_screen(
+                ToolResultListScreen(self._tool_results), callback=on_selected
+            )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "exec-log-copy":
@@ -114,3 +147,5 @@ class ExecutionLog(Vertical):
                 return
             self.app.copy_to_clipboard(plain)
             self.notify("Log copied to clipboard")
+        elif event.button.id == "exec-log-view-result":
+            self.show_tool_result_picker()

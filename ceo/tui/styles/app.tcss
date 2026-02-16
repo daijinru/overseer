@@ -143,6 +143,18 @@ CODetail {
     border: none;
 }
 
+#exec-log-view-result {
+    dock: right;
+    width: auto;
+    min-width: 14;
+    max-height: 3;
+    margin: 0 1 0 0;
+    padding: 0 1;
+    background: $accent;
+    color: $text;
+    border: none;
+}
+
 #exec-log-richlog {
     height: 1fr;
 }
@@ -298,6 +310,68 @@ ConfirmScreen {
 LoadingIndicator {
     height: 3;
     color: $accent;
+}
+
+/* ── Tool result screen ── */
+ToolResultScreen {
+    align: center middle;
+}
+
+#tool-result-container {
+    width: 80%;
+    max-width: 100;
+    min-width: 40;
+    height: 80%;
+    border: round $primary;
+    padding: 1 2;
+    background: $surface;
+}
+
+#tool-result-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+#tool-result-status {
+    margin-bottom: 1;
+}
+
+#tool-result-scroll {
+    height: 1fr;
+    border: round $primary-background;
+    padding: 0 1;
+}
+
+#tool-result-close {
+    dock: bottom;
+    width: auto;
+    margin-top: 1;
+}
+
+/* ── Tool result list screen ── */
+ToolResultListScreen {
+    align: center middle;
+}
+
+#tool-result-list-container {
+    width: 60%;
+    max-width: 70;
+    min-width: 30;
+    height: auto;
+    max-height: 80%;
+    border: round $primary;
+    padding: 1 2;
+    background: $surface;
+}
+
+#tool-result-list-title {
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#tool-result-list-container Button {
+    margin-bottom: 1;
 }
 
 /* ── Empty state ── */

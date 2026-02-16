@@ -27,6 +27,7 @@ class HomeScreen(Screen):
         ("j", "next_co", "Next"),
         ("k", "prev_co", "Prev"),
         ("f", "filter_co", "Filter"),
+        ("t", "view_tool_result", "Tool Result"),
         ("q", "quit_app", "Quit"),
     ]
 
@@ -68,6 +69,13 @@ class HomeScreen(Screen):
 
     def action_filter_co(self) -> None:
         self.app.action_filter_co()
+
+    def action_view_tool_result(self) -> None:
+        try:
+            log = self.query_one(ExecutionLog)
+            log.show_tool_result_picker()
+        except Exception:
+            pass
 
     async def action_quit_app(self) -> None:
         await self.app.action_quit()
