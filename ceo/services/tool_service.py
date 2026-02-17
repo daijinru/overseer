@@ -160,6 +160,8 @@ class ToolService:
         self._connected = False
         # OS pipe that captures MCP subprocess stderr for their full lifetime
         self._stderr_pipe: Optional[_StderrPipe] = None
+        # Phase 3: Runtime permission overrides (set by ExecutionService on auto-escalation)
+        self._permission_overrides: Dict[str, str] = {}
 
     async def connect(self) -> List[str]:
         """Connect to all configured MCP servers and discover tools.
@@ -264,6 +266,12 @@ class ToolService:
 
     def get_permission(self, tool_name: str) -> ToolPermission:
         """Get permission level for a tool."""
+        # Phase 3: Runtime overrides take precedence
+        if tool_name in self._permission_overrides:
+            try:
+                return ToolPermission(self._permission_overrides[tool_name])
+            except ValueError:
+                pass
         perms = self._cfg.tool_permissions
         # Check tool-specific permission first
         if tool_name in perms:
@@ -286,6 +294,15 @@ class ToolService:
     def needs_preview(self, tool_name: str) -> bool:
         """Check if a tool call should show a preview before approval."""
         return self.get_permission(tool_name) == ToolPermission.APPROVE
+
+    def override_permission(self, tool_name: str, level: str) -> None:
+        """Override the runtime permission level for a tool.
+
+        Phase 3: Used by ExecutionService to escalate permissions when the user
+        consecutively rejects a tool, signaling it should require higher approval.
+        """
+        self._permission_overrides[tool_name] = level
+        logger.info("Permission override: %s → %s", tool_name, level)
 
     async def execute(self, tool_call: ToolCall) -> Dict[str, Any]:
         """Execute a tool call and return the result."""

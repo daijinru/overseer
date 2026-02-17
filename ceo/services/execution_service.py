@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any, Callable, Dict, Optional
+import time
+from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -48,6 +49,16 @@ class ExecutionService:
         self._on_complete: Optional[Callable] = None
         self._on_error: Optional[Callable] = None
         self._on_info: Optional[Callable] = None
+
+        # Phase 3: User behavior perception state
+        # Per-tool approval statistics: {tool_name: {"approve": N, "reject": N}}
+        self._approval_stats: Dict[str, Dict[str, int]] = {}
+        # Per-tool consecutive reject counter: {tool_name: count}
+        self._consecutive_rejects: Dict[str, int] = {}
+        # Threshold: consecutive rejects before auto-escalating permission
+        self._auto_escalate_threshold = 3
+        # Hesitation threshold in seconds — response slower than this injects a signal
+        self._hesitation_threshold = 30.0
 
     @property
     def session(self) -> Session:
@@ -96,6 +107,88 @@ class ExecutionService:
         """Check if a reflection indicates lack of progress."""
         text_lower = reflection_text.lower()
         return any(ind in text_lower for ind in self._NO_PROGRESS_INDICATORS)
+
+    # ── Phase 3: User behavior perception helpers ──
+
+    def _record_approval(self, tool_name: str, approved: bool) -> None:
+        """Record an approve/reject decision for a tool."""
+        if tool_name not in self._approval_stats:
+            self._approval_stats[tool_name] = {"approve": 0, "reject": 0}
+        key = "approve" if approved else "reject"
+        self._approval_stats[tool_name][key] += 1
+
+        if approved:
+            self._consecutive_rejects[tool_name] = 0
+        else:
+            self._consecutive_rejects[tool_name] = (
+                self._consecutive_rejects.get(tool_name, 0) + 1
+            )
+
+    def _check_auto_escalate(self, tool_name: str, co_id: str) -> None:
+        """Auto-escalate permission if user consecutively rejects a tool."""
+        count = self._consecutive_rejects.get(tool_name, 0)
+        if count >= self._auto_escalate_threshold:
+            logger.warning(
+                "User rejected '%s' %d consecutive times — escalating permission",
+                tool_name, count,
+            )
+            self.tool_service.override_permission(tool_name, "approve")
+            if self._on_info:
+                self._on_info(
+                    co_id,
+                    f"[Perception] Tool '{tool_name}' permission escalated to 'approve' "
+                    f"after {count} consecutive rejections",
+                )
+            # Reset counter after escalation
+            self._consecutive_rejects[tool_name] = 0
+
+    def _build_approval_summary(self) -> List[Dict[str, Any]]:
+        """Build a summary of implicit user preferences from approval stats."""
+        preferences: List[Dict[str, Any]] = []
+        for tool, stats in self._approval_stats.items():
+            total = stats["approve"] + stats["reject"]
+            if total < 2:
+                continue  # not enough data
+            reject_rate = stats["reject"] / total
+            preferences.append({
+                "tool": tool,
+                "approve": stats["approve"],
+                "reject": stats["reject"],
+                "reject_rate": round(reject_rate, 2),
+            })
+        return preferences
+
+    def _persist_preferences(self, co_id: str) -> None:
+        """Write stable implicit preferences to Memory for future CO reuse."""
+        for tool, stats in self._approval_stats.items():
+            total = stats["approve"] + stats["reject"]
+            if total < 3:
+                continue  # need sufficient data points
+            reject_rate = stats["reject"] / total
+            if reject_rate >= 0.7:
+                content = (
+                    f"User tends to reject tool '{tool}' "
+                    f"(reject rate {reject_rate:.0%}, n={total}). "
+                    f"Consider avoiding this tool or requesting confirmation beforehand."
+                )
+            elif reject_rate <= 0.1 and total >= 5:
+                content = (
+                    f"User consistently approves tool '{tool}' "
+                    f"(approve rate {1 - reject_rate:.0%}, n={total}). "
+                    f"This tool can likely be used with auto permission."
+                )
+            else:
+                continue
+            # Avoid duplicate memories — check if similar preference already exists
+            existing = self.memory_service.retrieve(f"preference {tool}", limit=1)
+            if existing and tool in existing[0].content:
+                continue
+            self.memory_service.save(
+                category="preference",
+                content=content,
+                tags=["implicit_preference", tool],
+                source_co_id=co_id,
+            )
 
     def _drain_mcp_stderr(self, co_id: str) -> None:
         """Forward any new MCP subprocess stderr lines to the TUI."""
@@ -309,13 +402,42 @@ class ExecutionService:
                             self.session.commit()
                             if self._on_tool_confirm:
                                 self._on_tool_confirm(execution, tc)
+
+                            # Phase 3: Time the approval wait
+                            _approval_start = time.monotonic()
                             human = await self._wait_for_human()
-                            if human["decision"] == "reject":
+                            _approval_elapsed = time.monotonic() - _approval_start
+
+                            is_approved = human["decision"] != "reject"
+                            self._record_approval(tc.tool, is_approved)
+
+                            # Phase 3: Hesitation detection
+                            if _approval_elapsed >= self._hesitation_threshold:
+                                logger.info(
+                                    "User hesitated %.1fs on tool '%s' (decision: %s)",
+                                    _approval_elapsed, tc.tool, human["decision"],
+                                )
+                                self.context_service.merge_step_result(
+                                    co, step_number, "perception:hesitation",
+                                    f"System: user took {_approval_elapsed:.0f}s to respond "
+                                    f"to '{tc.tool}' (decision: {human['decision']}). "
+                                    f"User may be uncertain about this operation — "
+                                    f"consider explaining your intent more clearly next time.",
+                                )
+                                if self._on_info:
+                                    self._on_info(
+                                        co_id,
+                                        f"[Perception] User hesitated {_approval_elapsed:.0f}s on '{tc.tool}'",
+                                    )
+
+                            if not is_approved:
                                 all_results.append({
                                     "tool": tc.tool,
                                     "status": "rejected",
                                     "reason": human.get("text", "User rejected"),
                                 })
+                                # Phase 3: Check if consecutive rejects trigger escalation
+                                self._check_auto_escalate(tc.tool, co_id)
                                 continue
                             execution.status = ExecutionStatus.RUNNING_TOOL
                             self.session.commit()
@@ -383,7 +505,19 @@ class ExecutionService:
                     # Pause CO status
                     self.co_service.update_status(co_id, COStatus.PAUSED)
 
+                    # Phase 3: Time the human response
+                    _hitl_start = time.monotonic()
                     human = await self._wait_for_human()
+                    _hitl_elapsed = time.monotonic() - _hitl_start
+
+                    # Phase 3: Inject hesitation signal for HITL decisions too
+                    if _hitl_elapsed >= self._hesitation_threshold:
+                        self.context_service.merge_step_result(
+                            co, step_number, "perception:hesitation",
+                            f"System: user took {_hitl_elapsed:.0f}s to respond to HITL request. "
+                            f"User may need more context or is uncertain about the direction.",
+                        )
+
                     execution.human_decision = human["decision"]
                     execution.human_input = human.get("text", "")
                     execution.status = ExecutionStatus.APPROVED
@@ -451,11 +585,28 @@ class ExecutionService:
                 # 9. Memory extraction
                 self.memory_service.extract_and_save(co_id, response, execution.title)
 
+                # 9.5 Phase 3: Inject approval stats into context periodically
+                if step_number % cfg.reflection.interval == 0:
+                    prefs = self._build_approval_summary()
+                    if prefs:
+                        pref_lines = "; ".join(
+                            f"{p['tool']}: {p['approve']} approved, "
+                            f"{p['reject']} rejected ({p['reject_rate']:.0%} reject rate)"
+                            for p in prefs
+                        )
+                        self.context_service.merge_step_result(
+                            co, step_number, "perception:user_preferences",
+                            f"System: implicit user tool preferences — {pref_lines}. "
+                            f"Adjust your approach based on these signals.",
+                        )
+
                 # 10. Context compression
                 self.context_service.compress_if_needed(co)
 
                 # 11. Check completion
                 if decision.task_complete:
+                    # Phase 3: Persist implicit preferences to Memory before exiting
+                    self._persist_preferences(co_id)
                     self.co_service.update_status(co_id, COStatus.COMPLETED)
                     await self.tool_service.disconnect()
                     if self._on_complete:

@@ -27,10 +27,10 @@
 
 **改动范围**：`execution_service.py`、`memory_service.py`、`tool_service.py`
 
-- [ ] 记录审批响应时间，长时间等待时向上下文注入"用户可能犹豫"信号
-- [ ] 统计用户对各类工具/操作的 approve/reject 比率，形成隐式权限偏好
-- [ ] 用户连续拒绝同类操作 N 次后，自动提升该操作的权限级别
-- [ ] 将隐式偏好写入 Memory（category: "preference"），供未来 CO 复用
+- [x] 记录审批响应时间，长时间等待时向上下文注入"用户可能犹豫"信号
+- [x] 统计用户对各类工具/操作的 approve/reject 比率，形成隐式权限偏好
+- [x] 用户连续拒绝同类操作 N 次后，自动提升该操作的权限级别
+- [x] 将隐式偏好写入 Memory（category: "preference"），供未来 CO 复用
 
 ## Phase 4 — 环境变化感知
 
@@ -72,7 +72,7 @@ Phase 1  元感知闭环        ✅ 完成
   ↓
 Phase 2  工具结果语义感知   ✅ 完成
   ↓
-Phase 3  用户隐式感知
+Phase 3  用户隐式感知      ✅ 完成
   ↓
 Phase 4  环境变化感知
   ↓

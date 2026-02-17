@@ -1,0 +1,1769 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - link "Home" [ref=e4] [cursor=pointer]:
+        - /url: /?ref_=tt_nv_home
+        - img [ref=e5]
+      - generic "Open navigation drawer" [ref=e14] [cursor=pointer]:
+        - generic [ref=e17]: Menu
+      - search [ref=e19]:
+        - generic "All" [ref=e1641] [cursor=pointer]:
+          - generic [ref=e1642]: All
+        - generic [ref=e27]:
+          - combobox [ref=e28]:
+            - textbox "Search IMDb" [ref=e29]
+            - listbox
+          - status [ref=e30]: 8 suggestions available
+        - button "Submit search" [ref=e31] [cursor=pointer]
+      - link "Go To IMDb Pro" [ref=e36] [cursor=pointer]:
+        - /url: https://pro.imdb.com/login/ap?u=/login/lwa&imdbPageAction=signUp&rf=cons_nb_hm&ref_=cons_nb_hm
+        - img [ref=e39]
+      - link "Watchlist" [ref=e51] [cursor=pointer]:
+        - /url: /list/watchlist/?ref_=tt_nv_urwls_all
+        - generic [ref=e53]: Watchlist
+      - generic [ref=e54]:
+        - link "Sign in" [ref=e55] [cursor=pointer]:
+          - /url: /registration/signin/?u=%2Ftitle%2Ftt12637874%2F&ref_=tt_nv_generic_lgin
+          - generic [ref=e56]: Sign in
+        - generic [ref=e1648]:
+          - generic [ref=e1649]:
+            - link "Sign in" [ref=e1651] [cursor=pointer]:
+              - /url: /registration/signin/?u=%2Ftitle%2Ftt12637874%2F&ref_=tt_nv_signup_cm_btn
+              - generic [ref=e1652]: Sign in
+            - button "Close" [ref=e1653] [cursor=pointer]
+          - generic [ref=e1656]:
+            - text: New customer?
+            - link "Create account" [ref=e1657] [cursor=pointer]:
+              - /url: /registration/signin/?u=%2Ftitle%2Ftt12637874%2F&ref_=tt_nv_generic_lgin
+      - generic "Toggle language selector" [ref=e59] [cursor=pointer]:
+        - generic [ref=e61]: EN
+    - main [ref=e75]:
+      - generic:
+        - iframe [ref=e77]:
+          - iframe [ref=f2e2]:
+            - generic [active]:
+              - img [ref=f8e1]
+              - img [ref=f8e2]
+              - img [ref=f8e3]
+              - img [ref=f8e4]
+              - img [ref=f8e5]
+              - img [ref=f8e6]
+              - img [ref=f8e7]
+              - img [ref=f8e8]
+              - img [ref=f8e9]
+              - img [ref=f8e10]
+              - img [ref=f8e11]
+              - img [ref=f8e12]
+              - img [ref=f8e13]
+              - img [ref=f8e14]
+              - img [ref=f8e15]
+              - img [ref=f8e16]
+              - img [ref=f8e17]
+              - img [ref=f8e18]
+              - img [ref=f8e19]
+              - img [ref=f8e20]
+              - img [ref=f8e21]
+              - img [ref=f8e22]
+              - img [ref=f8e23]
+              - img [ref=f8e24]
+              - img [ref=f8e25]
+              - img [ref=f8e26]
+              - img [ref=f8e27]
+              - img [ref=f8e28]
+              - img [ref=f8e29]
+              - img [ref=f8e30]
+              - img [ref=f8e31]
+              - img [ref=f8e32]
+              - img [ref=f8e33]
+              - img [ref=f8e34]
+              - img [ref=f8e35]
+              - img [ref=f8e36]
+              - img [ref=f8e37]
+              - img [ref=f8e38]
+              - img [ref=f8e39]
+              - img [ref=f8e40]
+              - img [ref=f8e41]
+              - img [ref=f8e42]
+        - iframe [ref=e79]:
+          - iframe [ref=f3e2]:
+            - generic [active]:
+              - iframe [ref=f9e1]:
+                
+              - iframe [ref=f9e2]:
+                
+              - iframe [ref=f9e3]:
+                
+              - iframe [ref=f9e4]:
+                - generic [active]:
+                  - img [ref=f13e1]
+                  - img [ref=f13e2]
+                  - img [ref=f13e3]
+                  - img [ref=f13e4]
+                  - img [ref=f13e5]
+                  - img [ref=f13e6]
+                  - img [ref=f13e7]
+                  - img [ref=f13e8]
+                  - img [ref=f13e9]
+                  - img [ref=f13e10]
+                  - img [ref=f13e11]
+                  - img [ref=f13e12]
+                  - img [ref=f13e13]
+                  - img [ref=f13e14]
+                  - img [ref=f13e15]
+                  - img [ref=f13e16]
+              - iframe [ref=f9e5]:
+                - generic [active]:
+                  - img [ref=f14e1]
+                  - img [ref=f14e2]
+                  - img [ref=f14e3]
+                  - img [ref=f14e4]
+                  - img [ref=f14e5]
+                  - img [ref=f14e6]
+              - iframe [ref=f9e6]:
+                - generic [active] [ref=f15e1]:
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+                  - img
+              - iframe [ref=f9e7]:
+                
+              - iframe [ref=f9e8]:
+                - generic [active]:
+                  - img [ref=f17e1]
+                  - img [ref=f17e2]
+                  - img [ref=f17e3]
+                  - img [ref=f17e4]
+                  - img [ref=f17e5]
+              - iframe [ref=f9e9]:
+                
+              - iframe [ref=f9e10]:
+                
+              - img [ref=f9e11]
+              - img [ref=f9e12]
+              - iframe [ref=f9e13]:
+                
+              - iframe [ref=f9e14]:
+                - img [ref=f21e2]
+      - generic [ref=e80]:
+        - generic [ref=e89]:
+          - generic [ref=e91]:
+            - link "View episode guide" [ref=e92] [cursor=pointer]:
+              - /url: /title/tt12637874/episodes/?ref_=tt_ov_epl
+              - generic [ref=e93]:
+                - text: Episode guide
+                - generic [ref=e1658]: "17"
+            - link "Cast & crew" [ref=e96] [cursor=pointer]:
+              - /url: /title/tt12637874/fullcredits/?ref_=tt_ov_ql_1
+            - link "User reviews" [ref=e97] [cursor=pointer]:
+              - /url: /title/tt12637874/reviews/?ref_=tt_ov_ql_2
+            - link "Trivia" [ref=e98] [cursor=pointer]:
+              - /url: /title/tt12637874/trivia/?ref_=tt_ov_ql_3
+            - link "FAQ" [ref=e99] [cursor=pointer]:
+              - /url: /title/tt12637874/faq/?ref_=tt_ov_ql_4
+            - link "IMDbPro" [ref=e101] [cursor=pointer]:
+              - /url: https://pro.imdb.com/title/tt12637874/?rf=cons_tt_ov_hdr&ref_=cons_tt_ov_hdr
+            - button "View all topics" [ref=e102] [cursor=pointer]:
+              - generic [ref=e104]: All topics
+            - button "Share on social media" [ref=e106] [cursor=pointer]
+          - generic [ref=e109]:
+            - generic [ref=e110]:
+              - heading "Fallout" [level=1] [ref=e111]
+              - text: TV Series
+              - link "2024–" [ref=e1659] [cursor=pointer]:
+                - /url: /title/tt12637874/releaseinfo/?ref_=tt_ov_rdat
+              - link "TV-MA" [ref=e1660] [cursor=pointer]:
+                - /url: /title/tt12637874/parentalguide/?ref_=tt_ov_pg#certificates
+              - text: 1h
+            - generic [ref=e115]:
+              - generic [ref=e116]:
+                - generic [ref=e117]: IMDb RATING
+                - link "View User Ratings" [ref=e118] [cursor=pointer]:
+                  - /url: /title/tt12637874/ratings/?ref_=tt_ov_rat
+                  - generic [ref=e123]:
+                    - generic [ref=e124]:
+                      - generic [ref=e125]: "8.3"
+                      - generic [ref=e126]: /10
+                    - generic [ref=e127]: 377K
+              - generic [ref=e128]:
+                - generic [ref=e129]: YOUR RATING
+                - button "Rate Fallout" [ref=e130] [cursor=pointer]:
+                  - generic [ref=e137]: Rate
+              - generic [ref=e138]:
+                - generic [ref=e139]: POPULARITY
+                - link "View Popular TV Shows" [ref=e140] [cursor=pointer]:
+                  - /url: /chart/tvmeter/?ref_=tt_ov_pop
+                  - generic [ref=e145]:
+                    - generic [ref=e146]: "6"
+                    - generic [ref=e147]: "3"
+          - generic [ref=e150]:
+            - group [ref=e153]:
+              - img "Walton Goggins, Lana 5, Aaron Moten, and Ella Purnell in Fallout (2024)" [ref=e155]
+              - button "Add to Watchlist" [ref=e156] [cursor=pointer]
+              - link "View ’Fallout’ Poster" [ref=e161] [cursor=pointer]:
+                - /url: /title/tt12637874/mediaviewer/rm2314183426/?ref_=tt_ov_i
+            - generic [ref=e163]:
+              - generic [ref=e165]:
+                - generic [ref=e167]:
+                  - link "反乌托邦科幻" [ref=e168] [cursor=pointer]:
+                    - /url: /interest/in0000160/?ref_=tt_ov_in_1
+                    - generic [ref=e169]: 反乌托邦科幻
+                  - link "生存" [ref=e170] [cursor=pointer]:
+                    - /url: /interest/in0000185/?ref_=tt_ov_in_2
+                    - generic [ref=e171]: 生存
+                  - link "黑色喜剧" [ref=e172] [cursor=pointer]:
+                    - /url: /interest/in0000035/?ref_=tt_ov_in_3
+                    - generic [ref=e173]: 黑色喜剧
+                  - link "冒险" [ref=e174] [cursor=pointer]:
+                    - /url: /interest/in0000012/?ref_=tt_ov_in_4
+                    - generic [ref=e175]: 冒险
+                  - link "戏剧" [ref=e176] [cursor=pointer]:
+                    - /url: /interest/in0000076/?ref_=tt_ov_in_5
+                    - generic [ref=e177]: 戏剧
+                  - link "科幻" [ref=e178] [cursor=pointer]:
+                    - /url: /interest/in0000162/?ref_=tt_ov_in_6
+                    - generic [ref=e179]: 科幻
+                  - link "行动" [ref=e180] [cursor=pointer]:
+                    - /url: /interest/in0000001/?ref_=tt_ov_in_7
+                    - generic [ref=e181]: 行动
+                - paragraph [ref=e183]: In a future, post-apocalyptic Los Angeles brought about by nuclear decimation, citizens must live in underground bunkers to protect themselves from radiation, mutants and bandits.
+                - generic [ref=e184]:
+                  - generic [ref=e185]: Creators
+                  - generic [ref=e186]:
+                    - link "Geneva Robertson-Dworet" [ref=e187] [cursor=pointer]:
+                      - /url: /name/nm4039044/?ref_=tt_ov_1_1
+                    - link "Graham Wagner" [ref=e188] [cursor=pointer]:
+                      - /url: /name/nm1635415/?ref_=tt_ov_1_2
+                  - link "See full cast and crew" [ref=e189] [cursor=pointer]:
+                    - /url: /title/tt12637874/fullcredits/?ref_=tt_ov_sm_2#amzn1.imdb.concept.name_credit_group.7caf7d16-5db9-4f4f-8864-d4c6e711c686
+                    - text: Stars
+                  - generic [ref=e190] [cursor=pointer]:
+                    - link "Ella Purnell" [ref=e191]:
+                      - /url: /name/nm3480246/?ref_=tt_ov_2_1
+                    - link "Aaron Moten" [ref=e192]:
+                      - /url: /name/nm2343418/?ref_=tt_ov_2_2
+                    - link "Walton Goggins" [ref=e193]:
+                      - /url: /name/nm0324658/?ref_=tt_ov_2_3
+                  - link "See full cast and crew" [ref=e194] [cursor=pointer]:
+                    - /url: /title/tt12637874/fullcredits/?ref_=tt_ov_sm_2#amzn1.imdb.concept.name_credit_group.7caf7d16-5db9-4f4f-8864-d4c6e711c686
+                - generic [ref=e198]:
+                  - link "Go to IMDbPro" [ref=e199] [cursor=pointer]:
+                    - /url: https://pro.imdb.com/title/tt12637874/?rf=cons_tt_atf&ref_=cons_tt_atf
+                    - img [ref=e200]
+                  - link "在 IMDbPro 上查看制作信息" [ref=e210] [cursor=pointer]:
+                    - /url: https://pro.imdb.com/title/tt12637874/?rf=cons_tt_atf&ref_=cons_tt_atf
+                    - text: 在 IMDbPro 上查看制作信息
+              - generic [ref=e212]:
+                - generic [ref=e213]:
+                  - generic [ref=e1663]:
+                    - generic [ref=e1664]: STREAMING
+                    - group [ref=e1665]:
+                      - group [ref=e1666]:
+                        - img "Watch on Prime Video" [ref=e1668]
+                        - link "Watch on Prime Video" [ref=e1669] [cursor=pointer]:
+                          - /url: https://www.amazon.com/gp/video/detail/amzn1.dv.gti.242f5d02-0b3e-4f4d-a89b-22da3f65f0ec?ref_=imdbref_tt_ov_wbr_ovf__pvs_piv&tag=imdbtag_tt_ov_wbr_ovf__pvs_piv-20
+                      - link "Watch on Prime Video" [ref=e1671] [cursor=pointer]:
+                        - /url: https://www.amazon.com/gp/video/detail/amzn1.dv.gti.242f5d02-0b3e-4f4d-a89b-22da3f65f0ec?ref_=imdbref_tt_ov_wbr_ovf__pvs_piv&tag=imdbtag_tt_ov_wbr_ovf__pvs_piv-20
+                        - generic [ref=e1672]: S1-2
+                  - generic [ref=e214]:
+                    - link "Set your preferred services" [ref=e1673] [cursor=pointer]:
+                      - /url: /preferences/preferredservices/?ref_=tt_ov_wbr_btn
+                      - generic [ref=e1676]: Set your preferred services
+                    - generic [ref=e215] [cursor=pointer]:
+                      - button "Add to Watchlist 由 43万 位用户添加" [ref=e216]:
+                        - generic [ref=e218]:
+                          - generic [ref=e219]: Add to Watchlist
+                          - generic [ref=e220]: 由 43万 位用户添加
+                      - button "Add title to another list" [ref=e221]
+                    - button "Mark Fallout as watched" [ref=e224] [cursor=pointer]:
+                      - generic [ref=e227]: Mark as watched
+                - link "1.5K User reviews" [ref=e228] [cursor=pointer]:
+                  - /url: /title/tt12637874/reviews/?ref_=tt_ov_ururv
+                  - generic [ref=e229]:
+                    - generic [ref=e230]: 1.5K
+                    - generic [ref=e231]: User reviews
+                - link "105 Critic reviews" [ref=e232] [cursor=pointer]:
+                  - /url: /title/tt12637874/externalreviews/?ref_=tt_ov_crv
+                  - generic [ref=e233]:
+                    - generic [ref=e234]: "105"
+                    - generic [ref=e235]: Critic reviews
+        - generic [ref=e237]:
+          - generic [ref=e238]:
+            - generic [ref=e240]:
+              - link "See more awards and nominations" [ref=e242] [cursor=pointer]:
+                - /url: /title/tt12637874/awards/?ref_=tt_awd
+                - text: Won 1 Primetime Emmy
+              - generic [ref=e243] [cursor=pointer]: 15 wins & 76 nominations total
+              - link "See more awards and nominations" [ref=e244] [cursor=pointer]:
+                - /url: /title/tt12637874/awards/?ref_=tt_awd
+            - generic [ref=e247]:
+              - link "Episodes 17" [ref=e249] [cursor=pointer]:
+                - /url: /title/tt12637874/episodes/?ref_=tt_eps
+                - heading "Episodes 17" [level=3] [ref=e250]:
+                  - text: Episodes
+                  - generic [ref=e251]: "17"
+              - generic [ref=e1677]:
+                - generic [ref=e1678]:
+                  - generic [ref=e1679]:
+                    - generic [ref=e1680]:
+                      - button "Add to Watchlist" [ref=e1681] [cursor=pointer]
+                      - generic [ref=e1686]:
+                        - text: Most recent
+                        - generic [ref=e1687]: Wed, Feb 4, 2026
+                    - link "S2.E8 The Strip Winning might be overrated. . ." [ref=e1688] [cursor=pointer]:
+                      - /url: /title/tt36758871/?ref_=tt_eps_rec
+                      - generic [ref=e1689]:
+                        - text: S2.E8 The Strip
+                        - generic [ref=e1691]: Winning might be overrated. . .
+                  - generic [ref=e1693]:
+                    - 'generic "IMDb rating: 8.5" [ref=e1694]':
+                      - generic [ref=e1696]: "8.5"
+                      - generic [ref=e1697]: /10
+                    - button "Rate The Strip" [ref=e1698] [cursor=pointer]:
+                      - generic [ref=e1701]: Rate
+                - generic [ref=e1702]:
+                  - generic [ref=e1703]:
+                    - generic [ref=e1704]:
+                      - button "Add to Watchlist" [ref=e1705] [cursor=pointer]
+                      - generic [ref=e1710]:
+                        - text: Top-rated
+                        - generic [ref=e1711]: Wed, Apr 10, 2024
+                    - link "S1.E8 The Beginning Two hundred years have passed since the beginning of the apocalypse. Leaving the atomic shelter that protected them will pave the way to an unknown world that will unleash a war for survival." [ref=e1712] [cursor=pointer]:
+                      - /url: /title/tt26256738/?ref_=tt_eps_tp
+                      - generic [ref=e1713]:
+                        - text: S1.E8 The Beginning
+                        - generic [ref=e1715]: Two hundred years have passed since the beginning of the apocalypse. Leaving the atomic shelter that protected them will pave the way to an unknown world that will unleash a war for survival.
+                  - generic [ref=e1717]:
+                    - 'generic "IMDb rating: 8.9" [ref=e1718]':
+                      - generic [ref=e1720]: "8.9"
+                      - generic [ref=e1721]: /10
+                    - button "Rate The Beginning" [ref=e1722] [cursor=pointer]:
+                      - generic [ref=e1725]: Rate
+              - generic [ref=e253]:
+                - generic [ref=e254]: Browse episodes
+                - generic [ref=e255]:
+                  - link "Top-rated" [ref=e256] [cursor=pointer]:
+                    - /url: /search/title/?series=tt12637874&view=simple&count=250&sort=user_rating%2Cdesc&ref_=tt_eps_sm
+                    - generic [ref=e257]: Top-rated
+                  - generic [ref=e259] [cursor=pointer]:
+                    - generic [ref=e260]: 3 seasons
+                    - combobox "3 seasons" [ref=e263]:
+                      - option [selected]
+                      - option "See all"
+                      - option "3"
+                      - option "2"
+                      - option "1"
+                  - generic [ref=e265] [cursor=pointer]:
+                    - generic [ref=e266]: 3 years
+                    - combobox "3 years" [ref=e269]:
+                      - option [selected]
+                      - option "See all"
+                      - option "2026"
+                      - option "2025"
+                      - option "2024"
+            - generic [ref=e270]:
+              - link "Videos 55" [ref=e272] [cursor=pointer]:
+                - /url: /title/tt12637874/videogallery/?ref_=tt_vids_sm
+                - heading "Videos 55" [level=3] [ref=e273]:
+                  - text: Videos
+                  - generic [ref=e274]: "55"
+              - generic [ref=e277]:
+                - group [ref=e278]:
+                  - group [ref=e279]:
+                    - 'img "Fallout: A Super Mutant Saves the Ghoul - Clip" [ref=e281]'
+                    - 'link "ClipFallout: A Super Mutant Saves the Ghoul - Clip" [ref=e282] [cursor=pointer]':
+                      - /url: /video/vi2951138073/?ref_=tt_vids_vi_1
+                      - generic [ref=e287]: Clip 2:51
+                  - 'link "ClipFallout: A Super Mutant Saves the Ghoul - Clip" [ref=e290] [cursor=pointer]':
+                    - /url: /video/vi2951138073/?ref_=tt_vids_vi_t_1
+                    - generic [ref=e291]: "Fallout: A Super Mutant Saves the Ghoul - Clip"
+                  - generic [ref=e1726]:
+                    - img "18 people liked this video" [ref=e1727]
+                    - text: "18"
+                    - generic [ref=e1729]:
+                      - img "There are 15 reactions to this video from other people, primarily 喜欢 and 鼓掌 emojis" [ref=e1730]
+                      - text: "15"
+                - group [ref=e294]:
+                  - group [ref=e295]:
+                    - img "Hank Says Goodbye to Lucy S2 - Clip" [ref=e297]
+                    - link "ClipHank Says Goodbye to Lucy S2 - Clip" [ref=e298] [cursor=pointer]:
+                      - /url: /video/vi2935802649/?ref_=tt_vids_vi_2
+                      - generic [ref=e303]: Clip 3:00
+                  - link "ClipHank Says Goodbye to Lucy S2 - Clip" [ref=e306] [cursor=pointer]:
+                    - /url: /video/vi2935802649/?ref_=tt_vids_vi_t_2
+                    - generic [ref=e307]: Hank Says Goodbye to Lucy S2 - Clip
+                  - generic [ref=e1803]:
+                    - img "125 people liked this video" [ref=e1804]
+                    - text: "125"
+                    - generic [ref=e1806]:
+                      - img "There are 114 reactions to this video from other people, primarily 喜欢 and 非常喜欢 emojis" [ref=e1807]
+                      - text: "114"
+              - group [ref=e311]:
+                - generic [ref=e312]:
+                  - group [ref=e313]:
+                    - group [ref=e314]:
+                      - img "Maximus Gives the Ghoul Cold Fusion - Clip" [ref=e316]
+                      - link "ClipMaximus Gives the Ghoul Cold Fusion - Clip" [ref=e317] [cursor=pointer]:
+                        - /url: /video/vi3975465753/?ref_=tt_vids_vi_3
+                        - generic [ref=e322]: Clip 3:02
+                    - link "ClipMaximus Gives the Ghoul Cold Fusion - Clip" [ref=e325] [cursor=pointer]:
+                      - /url: /video/vi3975465753/?ref_=tt_vids_vi_t_3
+                      - generic [ref=e326]: Maximus Gives the Ghoul Cold Fusion - Clip
+                    - generic [ref=e1878]:
+                      - img "159 people liked this video" [ref=e1879]
+                      - text: "159"
+                      - generic [ref=e1881]:
+                        - img "There are 104 reactions to this video from other people, primarily 喜欢 and 鼓掌 emojis" [ref=e1882]
+                        - text: "104"
+                  - group [ref=e329]:
+                    - group [ref=e330]:
+                      - img "Lucy Tries to Stop Hank - Clip" [ref=e332]
+                      - link "ClipLucy Tries to Stop Hank - Clip" [ref=e333] [cursor=pointer]:
+                        - /url: /video/vi210750233/?ref_=tt_vids_vi_4
+                        - generic [ref=e338]: Clip 2:59
+                    - link "ClipLucy Tries to Stop Hank - Clip" [ref=e341] [cursor=pointer]:
+                      - /url: /video/vi210750233/?ref_=tt_vids_vi_t_4
+                      - generic [ref=e342]: Lucy Tries to Stop Hank - Clip
+                    - generic [ref=e1955]:
+                      - img "206 people liked this video" [ref=e1956]
+                      - text: "206"
+                      - generic [ref=e1958]:
+                        - img "There are 119 reactions to this video from other people, primarily 喜欢 and 鼓掌 emojis" [ref=e1959]
+                        - text: "119"
+                  - group [ref=e345]:
+                    - group [ref=e346]:
+                      - img "Ella Purnell and Walton Goggins Share Their \"Fallout\" Performance Prep" [ref=e348]
+                      - link "ClipElla Purnell and Walton Goggins Share Their \"Fallout\" Performance Prep" [ref=e349] [cursor=pointer]:
+                        - /url: /video/vi3381316377/?ref_=tt_vids_vi_5
+                        - generic [ref=e354]: Clip 1:40
+                    - link "ClipElla Purnell and Walton Goggins Share Their \"Fallout\" Performance Prep" [ref=e357] [cursor=pointer]:
+                      - /url: /video/vi3381316377/?ref_=tt_vids_vi_t_5
+                      - generic [ref=e358]: Ella Purnell and Walton Goggins Share Their "Fallout" Performance Prep
+                    - generic [ref=e2032]:
+                      - img "246 people liked this video" [ref=e2033]
+                      - text: "246"
+                      - generic [ref=e2035]:
+                        - img "There are 147 reactions to this video from other people, primarily 喜欢 and 鼓掌 emojis" [ref=e2036]
+                        - text: "147"
+                  - group [ref=e361]:
+                    - group [ref=e362]:
+                      - img "Norm Learns About F.E.V. - Season 2" [ref=e364]
+                      - link "ClipNorm Learns About F.E.V. - Season 2" [ref=e365] [cursor=pointer]:
+                        - /url: /video/vi478726937/?ref_=tt_vids_vi_6
+                        - generic [ref=e370]: Clip 3:00
+                    - link "ClipNorm Learns About F.E.V. - Season 2" [ref=e373] [cursor=pointer]:
+                      - /url: /video/vi478726937/?ref_=tt_vids_vi_t_6
+                      - generic [ref=e374]: Norm Learns About F.E.V. - Season 2
+                    - generic [ref=e2109]:
+                      - img "155 people liked this video" [ref=e2110]
+                      - text: "155"
+                      - generic [ref=e2112]:
+                        - img "There are 108 reactions to this video from other people, primarily 喜欢 and 鼓掌 emojis" [ref=e2113]
+                        - text: "108"
+            - generic [ref=e377]:
+              - generic [ref=e379]:
+                - link "Photos 264" [ref=e380] [cursor=pointer]:
+                  - /url: /title/tt12637874/mediaviewer/rm1693949954/?ref_=tt_ph_sm
+                  - heading "Photos 264" [level=3] [ref=e381]:
+                    - text: Photos
+                    - generic [ref=e382]: "264"
+                - button "Add photo" [ref=e385] [cursor=pointer]:
+                  - generic [ref=e387]: Add photo
+              - generic [ref=e388]:
+                - generic [ref=e389]:
+                  - link "View Poster" [ref=e390] [cursor=pointer]:
+                    - /url: /title/tt12637874/mediaviewer/rm1693949954/?ref_=tt_ph_1
+                    - img "View Poster" [ref=e392]
+                  - link "View Poster" [ref=e393] [cursor=pointer]:
+                    - /url: /title/tt12637874/mediaviewer/rm2448401154/?ref_=tt_ph_2
+                    - img "View Poster" [ref=e395]
+                  - link "View Poster" [ref=e396] [cursor=pointer]:
+                    - /url: /title/tt12637874/mediaviewer/rm2431623938/?ref_=tt_ph_3
+                    - img "View Poster" [ref=e398]
+                - generic [ref=e399]:
+                  - link "View Poster" [ref=e400] [cursor=pointer]:
+                    - /url: /title/tt12637874/mediaviewer/rm2465178370/?ref_=tt_ph_1_1
+                    - img "View Poster" [ref=e402]
+                  - link "View Poster" [ref=e403] [cursor=pointer]:
+                    - /url: /title/tt12637874/mediaviewer/rm2481955586/?ref_=tt_ph_1_2
+                    - img "View Poster" [ref=e405]
+                  - link "View Poster" [ref=e406] [cursor=pointer]:
+                    - /url: /title/tt12637874/mediaviewer/rm2498732802/?ref_=tt_ph_1_3
+                    - img "View Poster" [ref=e408]
+                  - link "+ 258 View Poster" [ref=e409] [cursor=pointer]:
+                    - /url: /title/tt12637874/mediaviewer/rm2515510018/?ref_=tt_ph_more
+                    - generic [ref=e410]: + 258
+                    - img "View Poster" [ref=e412]
+            - complementary "Sponsored Content" [ref=e2186]:
+              - iframe [ref=e2189]:
+                - generic [active] [ref=f7e1] [cursor=pointer]:
+                  - iframe [ref=f7e3]:
+                    - generic [active] [ref=f38e1]:
+                      - generic [ref=f38e5]:
+                        - insertion [ref=f38e7]:
+                          - iframe [ref=f38e8]:
+                            - iframe [ref=f45e5]:
+                              - generic [active]:
+                                - link:
+                                  - /url: javascript:void(0);
+                                  - generic [ref=f48e2] [cursor=pointer]:
+                                    - img [ref=f48e7]
+                                    - img [ref=f48e9]
+                                    - img [ref=f48e11]
+                                    - img [ref=f48e13]
+                                    - img [ref=f48e15]
+                                    - img [ref=f48e17]
+                                    - img [ref=f48e19]
+                                    - img [ref=f48e21]
+                                    - img [ref=f48e23]
+                                    - img [ref=f48e25]
+                                    - img [ref=f48e27]
+                                    - img [ref=f48e29]
+                                    - img [ref=f48e31]
+                        - link [ref=f38e9] [cursor=pointer]:
+                          - /url: https://pixel.quantcount.com/r?a=p-9fYuixa7g_Hm2;rand=1674471098;labels=_click.creative.iab,_qc.iab.clk.p-pBekKpzLPLnbf.0.10510133;redirecturl2=http://www.quantcast.com/adchoices
+                          - img [ref=f38e11]
+                      - generic:
+                        - iframe
+                      - iframe
+                  - main:
+                    - img [ref=f7e4]
+                  - img
+                  - iframe
+                  - img
+              - button "Get information, provide feedback or report sponsored ad" [ref=e2190] [cursor=pointer]: SPONSORED
+            - generic [ref=e416]:
+              - generic [ref=e418]:
+                - link "Top Cast 99+" [ref=e419] [cursor=pointer]:
+                  - /url: /title/tt12637874/fullcredits/?ref_=tt_cst_sm
+                  - heading "Top Cast 99+" [level=3] [ref=e420]:
+                    - generic [ref=e421]: Top Cast
+                    - generic [ref=e422]: 99+
+                - 'link "Top Cast: edit" [ref=e425] [cursor=pointer]':
+                  - /url: https://contribute.imdb.com/updates?edit=tt12637874/cast&ref_=tt_cst
+                  - generic [ref=e428]: Edit
+              - group [ref=e429]:
+                - generic [ref=e430]:
+                  - generic [ref=e431]:
+                    - group [ref=e433]:
+                      - img "Ella Purnell" [ref=e2191]
+                      - button "Add Ella Purnell to favorite people" [ref=e435] [cursor=pointer]
+                      - link "Go to Ella Purnell" [ref=e438] [cursor=pointer]:
+                        - /url: /name/nm3480246/?ref_=tt_cst_i_1
+                    - generic [ref=e440]:
+                      - link "Ella Purnell" [ref=e441] [cursor=pointer]:
+                        - /url: /name/nm3480246/?ref_=tt_cst_t_1
+                      - link "Lucy MacLean" [ref=e443] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm3480246/?ref_=tt_cst_c_1
+                      - generic [ref=e444]:
+                        - button "16 episodes" [ref=e445]
+                        - text: • 2024–2026
+                  - generic [ref=e446]:
+                    - group [ref=e448]:
+                      - img "Aaron Moten" [ref=e2192]
+                      - button "Add Aaron Moten to favorite people" [ref=e450] [cursor=pointer]
+                      - link "Go to Aaron Moten" [ref=e453] [cursor=pointer]:
+                        - /url: /name/nm2343418/?ref_=tt_cst_i_2
+                    - generic [ref=e455]:
+                      - link "Aaron Moten" [ref=e456] [cursor=pointer]:
+                        - /url: /name/nm2343418/?ref_=tt_cst_t_2
+                      - link "Maximus" [ref=e458] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm2343418/?ref_=tt_cst_c_2
+                      - generic [ref=e459]:
+                        - button "16 episodes" [ref=e460]
+                        - text: • 2024–2026
+                  - generic [ref=e461]:
+                    - group [ref=e463]:
+                      - generic [ref=e464]:
+                        - img "Walton Goggins"
+                      - button "Add Walton Goggins to favorite people" [ref=e465] [cursor=pointer]
+                      - link "Go to Walton Goggins" [ref=e468] [cursor=pointer]:
+                        - /url: /name/nm0324658/?ref_=tt_cst_i_3
+                    - generic [ref=e470]:
+                      - link "Walton Goggins" [ref=e471] [cursor=pointer]:
+                        - /url: /name/nm0324658/?ref_=tt_cst_t_3
+                      - generic [ref=e472]:
+                        - link "The Ghoul" [ref=e473] [cursor=pointer]:
+                          - /url: /title/tt12637874/characters/nm0324658/?ref_=tt_cst_c_3
+                        - text: …
+                      - generic [ref=e474]:
+                        - button "16 episodes" [ref=e475]
+                        - text: • 2024–2026
+                  - generic [ref=e476]:
+                    - group [ref=e478]:
+                      - generic [ref=e479]:
+                        - img "Moises Arias"
+                      - button "Add Moises Arias to favorite people" [ref=e480] [cursor=pointer]
+                      - link "Go to Moises Arias" [ref=e483] [cursor=pointer]:
+                        - /url: /name/nm2030779/?ref_=tt_cst_i_4
+                    - generic [ref=e485]:
+                      - link "Moises Arias" [ref=e486] [cursor=pointer]:
+                        - /url: /name/nm2030779/?ref_=tt_cst_t_4
+                      - link "Norm MacLean" [ref=e488] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm2030779/?ref_=tt_cst_c_4
+                      - generic [ref=e489]:
+                        - button "14 episodes" [ref=e490]
+                        - text: • 2024–2026
+                  - generic [ref=e491]:
+                    - group [ref=e493]:
+                      - generic [ref=e494]:
+                        - img "Frances Turner"
+                      - button "Add Frances Turner to favorite people" [ref=e495] [cursor=pointer]
+                      - link "Go to Frances Turner" [ref=e498] [cursor=pointer]:
+                        - /url: /name/nm2204675/?ref_=tt_cst_i_5
+                    - generic [ref=e500]:
+                      - link "Frances Turner" [ref=e501] [cursor=pointer]:
+                        - /url: /name/nm2204675/?ref_=tt_cst_t_5
+                      - link "Barb Howard" [ref=e503] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm2204675/?ref_=tt_cst_c_5
+                      - generic [ref=e504]:
+                        - button "12 episodes" [ref=e505]
+                        - text: • 2024–2026
+                  - generic [ref=e506]:
+                    - group [ref=e508]:
+                      - generic [ref=e509]:
+                        - img "Kyle MacLachlan"
+                      - button "Add Kyle MacLachlan to favorite people" [ref=e510] [cursor=pointer]
+                      - link "Go to Kyle MacLachlan" [ref=e513] [cursor=pointer]:
+                        - /url: /name/nm0001492/?ref_=tt_cst_i_6
+                    - generic [ref=e515]:
+                      - link "Kyle MacLachlan" [ref=e516] [cursor=pointer]:
+                        - /url: /name/nm0001492/?ref_=tt_cst_t_6
+                      - link "Overseer Hank MacLean" [ref=e518] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm0001492/?ref_=tt_cst_c_6
+                      - generic [ref=e519]:
+                        - button "11 episodes" [ref=e520]
+                        - text: • 2024–2026
+                  - generic [ref=e521]:
+                    - group [ref=e523]:
+                      - generic [ref=e524]:
+                        - img "Dave Register"
+                      - button "Add Dave Register to favorite people" [ref=e525] [cursor=pointer]
+                      - link "Go to Dave Register" [ref=e528] [cursor=pointer]:
+                        - /url: /name/nm5750747/?ref_=tt_cst_i_7
+                    - generic [ref=e530]:
+                      - link "Dave Register" [ref=e531] [cursor=pointer]:
+                        - /url: /name/nm5750747/?ref_=tt_cst_t_7
+                      - link "Chet" [ref=e533] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm5750747/?ref_=tt_cst_c_7
+                      - generic [ref=e534]:
+                        - button "10 episodes" [ref=e535]
+                        - text: • 2024–2026
+                  - generic [ref=e536]:
+                    - group [ref=e538]:
+                      - generic [ref=e539]:
+                        - img "Johnny Pemberton"
+                      - button "Add Johnny Pemberton to favorite people" [ref=e540] [cursor=pointer]
+                      - link "Go to Johnny Pemberton" [ref=e543] [cursor=pointer]:
+                        - /url: /name/nm2922572/?ref_=tt_cst_i_8
+                    - generic [ref=e545]:
+                      - link "Johnny Pemberton" [ref=e546] [cursor=pointer]:
+                        - /url: /name/nm2922572/?ref_=tt_cst_t_8
+                      - link "Thaddeus" [ref=e548] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm2922572/?ref_=tt_cst_c_8
+                      - generic [ref=e549]:
+                        - button "9 episodes" [ref=e550]
+                        - text: • 2024–2026
+                  - generic [ref=e551]:
+                    - group [ref=e553]:
+                      - generic [ref=e554]:
+                        - img "Leslie Uggams"
+                      - button "Add Leslie Uggams to favorite people" [ref=e555] [cursor=pointer]
+                      - link "Go to Leslie Uggams" [ref=e558] [cursor=pointer]:
+                        - /url: /name/nm0880081/?ref_=tt_cst_i_9
+                    - generic [ref=e560]:
+                      - link "Leslie Uggams" [ref=e561] [cursor=pointer]:
+                        - /url: /name/nm0880081/?ref_=tt_cst_t_9
+                      - link "Betty Pearson" [ref=e563] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm0880081/?ref_=tt_cst_c_9
+                      - generic [ref=e564]:
+                        - button "9 episodes" [ref=e565]
+                        - text: • 2024–2026
+                  - generic [ref=e566]:
+                    - group [ref=e568]:
+                      - generic [ref=e569]:
+                        - img "Annabel O'Hagan"
+                      - button "Add Annabel O'Hagan to favorite people" [ref=e570] [cursor=pointer]
+                      - link "Go to Annabel O'Hagan" [ref=e573] [cursor=pointer]:
+                        - /url: /name/nm11331875/?ref_=tt_cst_i_10
+                    - generic [ref=e575]:
+                      - link "Annabel O'Hagan" [ref=e576] [cursor=pointer]:
+                        - /url: /name/nm11331875/?ref_=tt_cst_t_10
+                      - link "Stephanie Harper" [ref=e578] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm11331875/?ref_=tt_cst_c_10
+                      - generic [ref=e579]:
+                        - button "9 episodes" [ref=e580]
+                        - text: • 2024–2026
+                  - generic [ref=e581]:
+                    - group [ref=e583]:
+                      - generic [ref=e584]:
+                        - img "Leer Leary"
+                      - button "Add Leer Leary to favorite people" [ref=e585] [cursor=pointer]
+                      - link "Go to Leer Leary" [ref=e588] [cursor=pointer]:
+                        - /url: /name/nm3909380/?ref_=tt_cst_i_11
+                    - generic [ref=e590]:
+                      - link "Leer Leary" [ref=e591] [cursor=pointer]:
+                        - /url: /name/nm3909380/?ref_=tt_cst_t_11
+                      - link "Davey" [ref=e593] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm3909380/?ref_=tt_cst_c_11
+                      - generic [ref=e594]:
+                        - button "9 episodes" [ref=e595]
+                        - text: • 2024–2026
+                  - generic [ref=e596]:
+                    - group [ref=e598]:
+                      - generic [ref=e599]:
+                        - img "Rodrigo Luzzi"
+                      - button "Add Rodrigo Luzzi to favorite people" [ref=e600] [cursor=pointer]
+                      - link "Go to Rodrigo Luzzi" [ref=e603] [cursor=pointer]:
+                        - /url: /name/nm2122471/?ref_=tt_cst_i_12
+                    - generic [ref=e605]:
+                      - link "Rodrigo Luzzi" [ref=e606] [cursor=pointer]:
+                        - /url: /name/nm2122471/?ref_=tt_cst_t_12
+                      - link "Reg McPhee" [ref=e608] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm2122471/?ref_=tt_cst_c_12
+                      - generic [ref=e609]:
+                        - button "8 episodes" [ref=e610]
+                        - text: • 2024–2026
+                  - generic [ref=e611]:
+                    - group [ref=e613]:
+                      - generic [ref=e614]:
+                        - img "Sarita Choudhury"
+                      - button "Add Sarita Choudhury to favorite people" [ref=e615] [cursor=pointer]
+                      - link "Go to Sarita Choudhury" [ref=e618] [cursor=pointer]:
+                        - /url: /name/nm0002004/?ref_=tt_cst_i_13
+                    - generic [ref=e620]:
+                      - link "Sarita Choudhury" [ref=e621] [cursor=pointer]:
+                        - /url: /name/nm0002004/?ref_=tt_cst_t_13
+                      - generic [ref=e622]:
+                        - link "Lee Moldaver" [ref=e623] [cursor=pointer]:
+                          - /url: /title/tt12637874/characters/nm0002004/?ref_=tt_cst_c_13
+                        - text: …
+                      - generic [ref=e624]:
+                        - button "6 episodes" [ref=e625]
+                        - text: • 2024–2026
+                  - generic [ref=e626]:
+                    - group [ref=e628]:
+                      - generic [ref=e629]:
+                        - img "Michael Cristofer"
+                      - button "Add Michael Cristofer to favorite people" [ref=e630] [cursor=pointer]
+                      - link "Go to Michael Cristofer" [ref=e633] [cursor=pointer]:
+                        - /url: /name/nm0188165/?ref_=tt_cst_i_14
+                    - generic [ref=e635]:
+                      - link "Michael Cristofer" [ref=e636] [cursor=pointer]:
+                        - /url: /name/nm0188165/?ref_=tt_cst_t_14
+                      - link "Elder Cleric Quintus" [ref=e638] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm0188165/?ref_=tt_cst_c_14
+                      - generic [ref=e639]:
+                        - button "6 episodes" [ref=e640]
+                        - text: • 2024–2026
+                  - generic [ref=e641]:
+                    - group [ref=e643]:
+                      - generic [ref=e644]:
+                        - img "Zach Cherry"
+                      - button "Add Zach Cherry to favorite people" [ref=e645] [cursor=pointer]
+                      - link "Go to Zach Cherry" [ref=e648] [cursor=pointer]:
+                        - /url: /name/nm7100086/?ref_=tt_cst_i_15
+                    - generic [ref=e650]:
+                      - link "Zach Cherry" [ref=e651] [cursor=pointer]:
+                        - /url: /name/nm7100086/?ref_=tt_cst_t_15
+                      - link "Woody Thomas" [ref=e653] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm7100086/?ref_=tt_cst_c_15
+                      - generic [ref=e654]:
+                        - button "6 episodes" [ref=e655]
+                        - text: • 2024–2026
+                  - generic [ref=e656]:
+                    - group [ref=e658]:
+                      - generic [ref=e659]:
+                        - img "Rachel Marsh"
+                      - button "Add Rachel Marsh to favorite people" [ref=e660] [cursor=pointer]
+                      - link "Go to Rachel Marsh" [ref=e663] [cursor=pointer]:
+                        - /url: /name/nm5431966/?ref_=tt_cst_i_16
+                    - generic [ref=e665]:
+                      - link "Rachel Marsh" [ref=e666] [cursor=pointer]:
+                        - /url: /name/nm5431966/?ref_=tt_cst_t_16
+                      - link "Claudia" [ref=e668] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm5431966/?ref_=tt_cst_c_16
+                      - generic [ref=e669]:
+                        - button "6 episodes" [ref=e670]
+                        - text: • 2025–2026
+                  - generic [ref=e671]:
+                    - group [ref=e673]:
+                      - generic [ref=e674]:
+                        - img "Amir Carr"
+                      - button "Add Amir Carr to favorite people" [ref=e675] [cursor=pointer]
+                      - link "Go to Amir Carr" [ref=e678] [cursor=pointer]:
+                        - /url: /name/nm10883218/?ref_=tt_cst_i_17
+                    - generic [ref=e680]:
+                      - link "Amir Carr" [ref=e681] [cursor=pointer]:
+                        - /url: /name/nm10883218/?ref_=tt_cst_t_17
+                      - link "Young Maximus" [ref=e683] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm10883218/?ref_=tt_cst_c_17
+                      - generic [ref=e684]:
+                        - button "6 episodes" [ref=e685]
+                        - text: • 2024–2026
+                  - generic [ref=e686]:
+                    - group [ref=e688]:
+                      - generic [ref=e689]:
+                        - img "Xelia Mendes-Jones"
+                      - button "Add Xelia Mendes-Jones to favorite people" [ref=e690] [cursor=pointer]
+                      - link "Go to Xelia Mendes-Jones" [ref=e693] [cursor=pointer]:
+                        - /url: /name/nm11395084/?ref_=tt_cst_i_18
+                    - generic [ref=e695]:
+                      - link "Xelia Mendes-Jones" [ref=e696] [cursor=pointer]:
+                        - /url: /name/nm11395084/?ref_=tt_cst_t_18
+                      - link "Dane" [ref=e698] [cursor=pointer]:
+                        - /url: /title/tt12637874/characters/nm11395084/?ref_=tt_cst_c_18
+                      - generic [ref=e699]:
+                        - button "5 episodes" [ref=e700]
+                        - text: • 2024–2026
+              - generic [ref=e701]: Creators
+              - generic [ref=e702]:
+                - link "Geneva Robertson-Dworet" [ref=e703] [cursor=pointer]:
+                  - /url: /name/nm4039044/?ref_=tt_cst_1_1
+                - link "Graham Wagner" [ref=e704] [cursor=pointer]:
+                  - /url: /name/nm1635415/?ref_=tt_cst_1_2
+              - link "See full cast and crew" [ref=e705] [cursor=pointer]:
+                - /url: /title/tt12637874/fullcredits/?ref_=tt_cst_sm
+                - text: All cast & crew
+              - link "See full cast and crew" [ref=e706] [cursor=pointer]:
+                - /url: /title/tt12637874/fullcredits/?ref_=tt_cst_sm
+              - link "Production, box office & more at IMDbPro" [ref=e709] [cursor=pointer]:
+                - /url: https://pro.imdb.com/title/tt12637874/?rf=cons_tt_btf_cc&ref_=cons_tt_btf_cc
+              - link "Production, box office & more at IMDbPro" [ref=e710] [cursor=pointer]:
+                - /url: https://pro.imdb.com/title/tt12637874/?rf=cons_tt_btf_cc&ref_=cons_tt_btf_cc
+            - generic [ref=e712]:
+              - generic [ref=e714]:
+                - link "User reviews 1.5K" [ref=e715] [cursor=pointer]:
+                  - /url: /title/tt12637874/reviews/?ref_=tt_ururv_genai_sm
+                  - heading "User reviews 1.5K" [level=3] [ref=e716]:
+                    - generic [ref=e717]: User reviews
+                    - generic [ref=e718]: 1.5K
+                - button "Review" [ref=e721] [cursor=pointer]:
+                  - generic [ref=e723]: Review
+              - generic [ref=e724]:
+                - generic [ref=e725]:
+                  - generic [ref=e728]: "8.3"
+                  - generic [ref=e729]: 377.3K
+                - generic [ref=e731]:
+                  - link "3998 1-star reviews. Select to read them." [ref=e732] [cursor=pointer]:
+                    - /url: /title/tt12637874/reviews/?rating=1&ref_=tt_ururv_genai_histo_1
+                    - generic [ref=e736]: "1"
+                  - link "1449 2-star reviews. Select to read them." [ref=e737] [cursor=pointer]:
+                    - /url: /title/tt12637874/reviews/?rating=2&ref_=tt_ururv_genai_histo_2
+                    - generic [ref=e741]: "2"
+                  - link "1769 3-star reviews. Select to read them." [ref=e742] [cursor=pointer]:
+                    - /url: /title/tt12637874/reviews/?rating=3&ref_=tt_ururv_genai_histo_3
+                    - generic [ref=e746]: "3"
+                  - link "2419 4-star reviews. Select to read them." [ref=e747] [cursor=pointer]:
+                    - /url: /title/tt12637874/reviews/?rating=4&ref_=tt_ururv_genai_histo_4
+                    - generic [ref=e751]: "4"
+                  - link "4842 5-star reviews. Select to read them." [ref=e752] [cursor=pointer]:
+                    - /url: /title/tt12637874/reviews/?rating=5&ref_=tt_ururv_genai_histo_5
+                    - generic [ref=e756]: "5"
+                  - link "12250 6-star reviews. Select to read them." [ref=e757] [cursor=pointer]:
+                    - /url: /title/tt12637874/reviews/?rating=6&ref_=tt_ururv_genai_histo_6
+                    - generic [ref=e761]: "6"
+                  - link "41612 7-star reviews. Select to read them." [ref=e762] [cursor=pointer]:
+                    - /url: /title/tt12637874/reviews/?rating=7&ref_=tt_ururv_genai_histo_7
+                    - generic [ref=e766]: "7"
+                  - link "105904 8-star reviews. Select to read them." [ref=e767] [cursor=pointer]:
+                    - /url: /title/tt12637874/reviews/?rating=8&ref_=tt_ururv_genai_histo_8
+                    - generic [ref=e771]: "8"
+                  - link "111327 9-star reviews. Select to read them." [ref=e772] [cursor=pointer]:
+                    - /url: /title/tt12637874/reviews/?rating=9&ref_=tt_ururv_genai_histo_9
+                    - generic [ref=e776]: "9"
+                  - link "91744 10-star reviews. Select to read them." [ref=e777] [cursor=pointer]:
+                    - /url: /title/tt12637874/reviews/?rating=10&ref_=tt_ururv_genai_histo_10
+                    - generic [ref=e781]: "10"
+              - generic [ref=e782]:
+                - heading "Summary" [level=3] [ref=e785]
+                - generic [ref=e786]:
+                  - text: Reviewers say 'Fallout' TV series is acclaimed for its faithful post-apocalyptic setting, dark humor, and intricate characters. The show is celebrated for its meticulous attention to detail, immersive world, and compelling performances. However, some critics note pacing problems, underdeveloped characters, and inconsistent tone. The series delves into survival, morality, and human consequences, generally regarded as a successful adaptation that respects the original material while providing new narratives.
+                  - generic [ref=e787]: AI-generated from the text of user reviews
+                - generic [ref=e790]:
+                  - button "Action sequences positive sentiment" [ref=e791] [cursor=pointer]:
+                    - generic [ref=e794]: Action sequences
+                  - button "Adaptation positive sentiment" [ref=e795] [cursor=pointer]:
+                    - generic [ref=e798]: Adaptation
+                  - button "Character development positive sentiment" [ref=e799] [cursor=pointer]:
+                    - generic [ref=e802]: Character development
+                  - button "Dark humor positive sentiment" [ref=e803] [cursor=pointer]:
+                    - generic [ref=e806]: Dark humor
+                  - button "Lore positive sentiment" [ref=e807] [cursor=pointer]:
+                    - generic [ref=e810]: Lore
+                  - button "Production design positive sentiment" [ref=e811] [cursor=pointer]:
+                    - generic [ref=e814]: Production design
+                  - button "Worldbuilding positive sentiment" [ref=e815] [cursor=pointer]:
+                    - generic [ref=e818]: Worldbuilding
+                  - button "Dystopian elements neutral sentiment" [ref=e819] [cursor=pointer]:
+                    - generic [ref=e822]: Dystopian elements
+                  - button "Pacing neutral sentiment" [ref=e823] [cursor=pointer]:
+                    - generic [ref=e826]: Pacing
+                  - button "Survival neutral sentiment" [ref=e827] [cursor=pointer]:
+                    - generic [ref=e830]: Survival
+              - heading "Featured reviews" [level=3] [ref=e833]
+              - group [ref=e834]:
+                - generic [ref=e835]:
+                  - generic [ref=e836]:
+                    - generic [ref=e837]:
+                      - generic "Author rating is 10" [ref=e838]:
+                        - generic [ref=e840]: "10"
+                      - link "davidchiota" [ref=e841] [cursor=pointer]:
+                        - /url: /user/ur193154294/?ref_=tt_ururv_genai_c_1_uname
+                    - link "FALLOUT" [ref=e843] [cursor=pointer]:
+                      - /url: /title/tt12637874/reviews/?featured=rw10190115&ref_=tt_ururv_genai_c_1_hd
+                      - heading "FALLOUT" [level=3] [ref=e844]
+                    - text: Fallout," the television adaptation of the iconic video game series, brings the post-apocalyptic world to life with a captivating blend of dark humor and action-packed storytelling. Set in a retro-futuristic landscape, the series cleverly explores themes of survival, morality, and humanity through its richly developed characters and intricate plotlines. The attention to detail in production design captures the essence of the game's iconic aesthetics, while the writing balances moments of levity with the gravity of dystopian challenges. Fans of the franchise as well as newcomers will appreciate its engaging narrative and dynamic performances, making "Fallout" a must-watch for those who enjoy thought-provoking science fiction.
+                  - generic [ref=e845]:
+                    - generic [ref=e846]:
+                      - generic "Author rating is 10" [ref=e847]:
+                        - generic [ref=e849]: "10"
+                      - link "caan457" [ref=e850] [cursor=pointer]:
+                        - /url: /user/ur190661672/?ref_=tt_ururv_genai_c_2_uname
+                    - link "War. War never changes" [ref=e852] [cursor=pointer]:
+                      - /url: /title/tt12637874/reviews/?featured=rw10225632&ref_=tt_ururv_genai_c_2_hd
+                      - heading "War. War never changes" [level=3] [ref=e853]
+                    - text: It is never specifically about economic, nor political models and structures with Fallout. It always was and still is, about power. Power and control, and everything people are willing to do, or will do, and how far are they willing to go, or will go for power and control, attempting to achieve their goals masked under (self)righteousness, or ideology.., some even ready to "restart", "save", or destroy the world, only so can surface out on top of the "New World", or be "Kings of the Ashes"..
+                    - text: "Fallout as set in the US, particular (for the Fallout world) political and economic circumstances, will be, and are the part of more detailed view on the state of things, that Fallout indirectly (occasionally directly) tells us, is the state of things everywhere: factions, including those already in power, fighting for power and control, to gain, to keep, sustain, or extend, and that is why"
+                    - text: War. War never changes ...
+                  - generic [ref=e854]:
+                    - generic [ref=e855]:
+                      - generic "Author rating is 10" [ref=e856]:
+                        - generic [ref=e858]: "10"
+                      - link "t-manu8979" [ref=e859] [cursor=pointer]:
+                        - /url: /user/ur193192316/?ref_=tt_ururv_genai_c_3_uname
+                    - link "Spot On And High Quality" [ref=e861] [cursor=pointer]:
+                      - /url: /title/tt12637874/reviews/?featured=rw10451796&ref_=tt_ururv_genai_c_3_hd
+                      - heading "Spot On And High Quality" [level=3] [ref=e862]
+                    - text: Best game adaptation ever! Also very good adaptation in general, and pretty good TV show.
+                    - text: Genuine. Has all the feel and vibe necessary.
+                    - text: Additional seasons will continue the story and provide answers, pay-offs, and resolutions. Let's hope that "the wait" won't be too long, and that there will be several seasons part of overall Series..
+                    - text: "As for the first season in particular, without spoilers: it's pretty good. Visuals, sound, production value, and story. Although it is, as mentioned, mostly setting the larger story.."
+                    - text: Also isn't a regular TV show. Refreshing, in a way different, and of high quality.
+                  - generic [ref=e864]:
+                    - link "kanhalangsycamden" [ref=e866] [cursor=pointer]:
+                      - /url: /user/ur160254257/?ref_=tt_ururv_genai_c_4_uname
+                    - link "A fun, beautifully crafted tv show..." [ref=e868] [cursor=pointer]:
+                      - /url: /title/tt12637874/reviews/?featured=rw9809841&ref_=tt_ururv_genai_c_4_hd
+                      - heading "A fun, beautifully crafted tv show..." [level=3] [ref=e869]
+                    - text: Fallout is really good. It's got its moments that will make you laugh and it's got a comedic tone that, instead of making everything feel cartoony, makes everything feel so fun and just a treat. While fallout may seem like just a fun comedy, it is so much more. Fallout takes the original games to a next step and makes everything funnier, more gory, and a very good written story. The various different plot twists hit the landing perfectly and work extremely well to give you the feeling of surprise with every episode. Fallout is the very rare occasion that a game gets the adaptation it deserves!
+                  - generic [ref=e870]:
+                    - generic [ref=e871]:
+                      - generic "Author rating is 10" [ref=e872]:
+                        - generic [ref=e874]: "10"
+                      - link "chessvscheckers" [ref=e875] [cursor=pointer]:
+                        - /url: /user/ur192524311/?ref_=tt_ururv_genai_c_5_uname
+                    - link "Season One" [ref=e877] [cursor=pointer]:
+                      - /url: /title/tt12637874/reviews/?featured=rw10350087&ref_=tt_ururv_genai_c_5_hd
+                      - heading "Season One" [level=3] [ref=e878]
+                    - text: Turned out excellent. For gamers especially, and for non-gamers alike. It has everything and does everything right. Action, drama, sci-fi, adventure, survival, war, post apocalypse, gritty stuff, serious stuff, heavy stuff, and comedical, satirical stuff that is quite clever. In a way mocks the real world, while the real world (too)often makes a mockery of itself..
+                    - text: All in all, great show, great watch, combines fun and intrigue, highly entertaining, while gloomily, almost depressingly real in some aspects, while those familiarized with the game franchise, will notice abundance of details in all their accuracy..
+            - generic [ref=e881]:
+              - heading "We Grill the \"Fallout\" Cast" [level=2] [ref=e882]
+              - generic [ref=e883]:
+                - generic [ref=e884]:
+                  - text: Walton Goggins, Ella Purnell, and Aaron Moten share their favorite S1 episodes, ideal travel companions, their most-talked about IMDb credits, and more.
+                  - link "Watch now" [ref=e885] [cursor=pointer]:
+                    - /url: /list/ls025720609/videoplayer/vi3585592089?ref_=tt_c_og_fallout_fanqs_cta
+                - group [ref=e887]:
+                  - group [ref=e888]:
+                    - generic [ref=e889]:
+                      - img "\"Fallout\" Cast Answer Fan Questions"
+                    - link "9:40" [ref=e890] [cursor=pointer]:
+                      - /url: /video/vi3585592089/?listId=ls025720609&ref_=tt_og_fallout_fanqs_i
+                      - generic [ref=e895]: 9:40
+                  - generic [ref=e2193]:
+                    - img "824 people liked this video" [ref=e2194]
+                    - text: "824"
+                    - generic [ref=e2196]:
+                      - img "There are 462 reactions to this video from other people, primarily 喜欢 and 鼓掌 emojis" [ref=e2197]
+                      - text: "462"
+            - generic [ref=e898]:
+              - generic [ref=e900]:
+                - heading "More like this" [level=3] [ref=e902]:
+                  - generic [ref=e903]: More like this
+                - link "More information" [ref=e905] [cursor=pointer]:
+                  - /url: https://help.imdb.com/article/imdb/discover-watch/what-is-the-more-like-this-section/GPE7SPGZREKKY7YN?ref_=cons_tt_rec_lm
+              - group [ref=e908]:
+                - generic [ref=e909]:
+                  - group [ref=e910]:
+                    - group [ref=e911]:
+                      - generic [ref=e912]:
+                        - img "The Boys"
+                      - button "Add to Watchlist" [ref=e913] [cursor=pointer]
+                      - link "View title page for The Boys" [ref=e918] [cursor=pointer]:
+                        - /url: /title/tt1190634/?ref_=tt_mlt_i_1
+                    - generic [ref=e920]:
+                      - generic [ref=e923]: "8.6"
+                      - button "Rate The Boys" [ref=e924] [cursor=pointer]
+                    - link "View title page for The Boys" [ref=e927] [cursor=pointer]:
+                      - /url: /title/tt1190634/?ref_=tt_mlt_t_1
+                      - text: The Boys
+                    - generic [ref=e928]:
+                      - button "Watch options" [ref=e2270] [cursor=pointer]:
+                        - generic [ref=e2271]: Watch options
+                      - button "More about this" [ref=e932] [cursor=pointer]
+                  - group [ref=e935]:
+                    - group [ref=e936]:
+                      - generic [ref=e937]:
+                        - img "The Last of Us"
+                      - button "Add to Watchlist" [ref=e938] [cursor=pointer]
+                      - link "View title page for The Last of Us" [ref=e943] [cursor=pointer]:
+                        - /url: /title/tt3581920/?ref_=tt_mlt_i_2
+                    - generic [ref=e945]:
+                      - generic [ref=e948]: "8.5"
+                      - button "Rate The Last of Us" [ref=e949] [cursor=pointer]
+                    - link "View title page for The Last of Us" [ref=e952] [cursor=pointer]:
+                      - /url: /title/tt3581920/?ref_=tt_mlt_t_2
+                      - text: The Last of Us
+                    - generic [ref=e953]:
+                      - button "Watch options" [ref=e2272] [cursor=pointer]:
+                        - generic [ref=e2273]: Watch options
+                      - button "More about this" [ref=e957] [cursor=pointer]
+                  - group [ref=e960]:
+                    - group [ref=e961]:
+                      - generic [ref=e962]:
+                        - img "House of the Dragon"
+                      - button "Add to Watchlist" [ref=e963] [cursor=pointer]
+                      - link "View title page for House of the Dragon" [ref=e968] [cursor=pointer]:
+                        - /url: /title/tt11198330/?ref_=tt_mlt_i_3
+                    - generic [ref=e970]:
+                      - generic [ref=e973]: "8.3"
+                      - button "Rate House of the Dragon" [ref=e974] [cursor=pointer]
+                    - link "View title page for House of the Dragon" [ref=e977] [cursor=pointer]:
+                      - /url: /title/tt11198330/?ref_=tt_mlt_t_3
+                      - text: House of the Dragon
+                    - generic [ref=e978]:
+                      - button "Watch options" [ref=e2274] [cursor=pointer]:
+                        - generic [ref=e2275]: Watch options
+                      - button "More about this" [ref=e982] [cursor=pointer]
+                  - group [ref=e985]:
+                    - group [ref=e986]:
+                      - generic [ref=e987]:
+                        - img "Stranger Things"
+                      - button "Add to Watchlist" [ref=e988] [cursor=pointer]
+                      - link "View title page for Stranger Things" [ref=e993] [cursor=pointer]:
+                        - /url: /title/tt4574334/?ref_=tt_mlt_i_4
+                    - generic [ref=e995]:
+                      - generic [ref=e998]: "8.6"
+                      - button "Rate Stranger Things" [ref=e999] [cursor=pointer]
+                    - link "View title page for Stranger Things" [ref=e1002] [cursor=pointer]:
+                      - /url: /title/tt4574334/?ref_=tt_mlt_t_4
+                      - text: Stranger Things
+                    - generic [ref=e1003]:
+                      - button "Watch options" [ref=e2276] [cursor=pointer]:
+                        - generic [ref=e2277]: Watch options
+                      - button "More about this" [ref=e1007] [cursor=pointer]
+                  - group [ref=e1010]:
+                    - group [ref=e1011]:
+                      - generic [ref=e1012]:
+                        - img "Severance"
+                      - button "Add to Watchlist" [ref=e1013] [cursor=pointer]
+                      - link "View title page for Severance" [ref=e1018] [cursor=pointer]:
+                        - /url: /title/tt11280740/?ref_=tt_mlt_i_5
+                    - generic [ref=e1020]:
+                      - generic [ref=e1023]: "8.6"
+                      - button "Rate Severance" [ref=e1024] [cursor=pointer]
+                    - link "View title page for Severance" [ref=e1027] [cursor=pointer]:
+                      - /url: /title/tt11280740/?ref_=tt_mlt_t_5
+                      - text: Severance
+                    - generic [ref=e1028]:
+                      - button "Watch options" [ref=e2278] [cursor=pointer]:
+                        - generic [ref=e2279]: Watch options
+                      - button "More about this" [ref=e1032] [cursor=pointer]
+                  - group [ref=e1035]:
+                    - group [ref=e1036]:
+                      - generic [ref=e1037]:
+                        - img "A Knight of the Seven Kingdoms"
+                      - button "Add to Watchlist" [ref=e1038] [cursor=pointer]
+                      - link "View title page for A Knight of the Seven Kingdoms" [ref=e1043] [cursor=pointer]:
+                        - /url: /title/tt27497448/?ref_=tt_mlt_i_6
+                    - generic [ref=e1045]:
+                      - generic [ref=e1048]: "8.9"
+                      - button "Rate A Knight of the Seven Kingdoms" [ref=e1049] [cursor=pointer]
+                    - link "View title page for A Knight of the Seven Kingdoms" [ref=e1052] [cursor=pointer]:
+                      - /url: /title/tt27497448/?ref_=tt_mlt_t_6
+                      - text: A Knight of the Seven Kingdoms
+                    - generic [ref=e1053]:
+                      - button "Watch options" [ref=e2280] [cursor=pointer]:
+                        - generic [ref=e2281]: Watch options
+                      - button "More about this" [ref=e1057] [cursor=pointer]
+                  - group [ref=e1060]:
+                    - group [ref=e1061]:
+                      - generic [ref=e1062]:
+                        - img "Breaking Bad"
+                      - button "Add to Watchlist" [ref=e1063] [cursor=pointer]
+                      - link "View title page for Breaking Bad" [ref=e1068] [cursor=pointer]:
+                        - /url: /title/tt0903747/?ref_=tt_mlt_i_7
+                    - generic [ref=e1070]:
+                      - generic [ref=e1073]: "9.5"
+                      - button "Rate Breaking Bad" [ref=e1074] [cursor=pointer]
+                    - link "View title page for Breaking Bad" [ref=e1077] [cursor=pointer]:
+                      - /url: /title/tt0903747/?ref_=tt_mlt_t_7
+                      - text: Breaking Bad
+                    - generic [ref=e1078]:
+                      - button "Watch options" [ref=e2282] [cursor=pointer]:
+                        - generic [ref=e2283]: Watch options
+                      - button "More about this" [ref=e1082] [cursor=pointer]
+                  - group [ref=e1085]:
+                    - group [ref=e1086]:
+                      - generic [ref=e1087]:
+                        - img "Pluribus"
+                      - button "Add to Watchlist" [ref=e1088] [cursor=pointer]
+                      - link "View title page for Pluribus" [ref=e1093] [cursor=pointer]:
+                        - /url: /title/tt22202452/?ref_=tt_mlt_i_8
+                    - generic [ref=e1095]:
+                      - generic [ref=e1098]: "8.0"
+                      - button "Rate Pluribus" [ref=e1099] [cursor=pointer]
+                    - link "View title page for Pluribus" [ref=e1102] [cursor=pointer]:
+                      - /url: /title/tt22202452/?ref_=tt_mlt_t_8
+                      - text: Pluribus
+                    - generic [ref=e1103]:
+                      - button "Watch options" [ref=e2284] [cursor=pointer]:
+                        - generic [ref=e2285]: Watch options
+                      - button "More about this" [ref=e1107] [cursor=pointer]
+                  - group [ref=e1110]:
+                    - group [ref=e1111]:
+                      - generic [ref=e1112]:
+                        - img "Silo"
+                      - button "Add to Watchlist" [ref=e1113] [cursor=pointer]
+                      - link "View title page for Silo" [ref=e1118] [cursor=pointer]:
+                        - /url: /title/tt14688458/?ref_=tt_mlt_i_9
+                    - generic [ref=e1120]:
+                      - generic [ref=e1123]: "8.1"
+                      - button "Rate Silo" [ref=e1124] [cursor=pointer]
+                    - link "View title page for Silo" [ref=e1127] [cursor=pointer]:
+                      - /url: /title/tt14688458/?ref_=tt_mlt_t_9
+                      - text: Silo
+                    - generic [ref=e1128]:
+                      - button "Watch options" [ref=e2286] [cursor=pointer]:
+                        - generic [ref=e2287]: Watch options
+                      - button "More about this" [ref=e1132] [cursor=pointer]
+                  - group [ref=e1135]:
+                    - group [ref=e1136]:
+                      - generic [ref=e1137]:
+                        - img "Game of Thrones"
+                      - button "Add to Watchlist" [ref=e1138] [cursor=pointer]
+                      - link "View title page for Game of Thrones" [ref=e1143] [cursor=pointer]:
+                        - /url: /title/tt0944947/?ref_=tt_mlt_i_10
+                    - generic [ref=e1145]:
+                      - generic [ref=e1148]: "9.2"
+                      - button "Rate Game of Thrones" [ref=e1149] [cursor=pointer]
+                    - link "View title page for Game of Thrones" [ref=e1152] [cursor=pointer]:
+                      - /url: /title/tt0944947/?ref_=tt_mlt_t_10
+                      - text: Game of Thrones
+                    - generic [ref=e1153]:
+                      - button "Watch options" [ref=e2288] [cursor=pointer]:
+                        - generic [ref=e2289]: Watch options
+                      - button "More about this" [ref=e1157] [cursor=pointer]
+                  - group [ref=e1160]:
+                    - group [ref=e1161]:
+                      - generic [ref=e1162]:
+                        - img "Invincible"
+                      - button "Add to Watchlist" [ref=e1163] [cursor=pointer]
+                      - link "View title page for Invincible" [ref=e1168] [cursor=pointer]:
+                        - /url: /title/tt6741278/?ref_=tt_mlt_i_11
+                    - generic [ref=e1170]:
+                      - generic [ref=e1173]: "8.7"
+                      - button "Rate Invincible" [ref=e1174] [cursor=pointer]
+                    - link "View title page for Invincible" [ref=e1177] [cursor=pointer]:
+                      - /url: /title/tt6741278/?ref_=tt_mlt_t_11
+                      - text: Invincible
+                    - generic [ref=e1178]:
+                      - button "Watch options" [ref=e2290] [cursor=pointer]:
+                        - generic [ref=e2291]: Watch options
+                      - button "More about this" [ref=e1182] [cursor=pointer]
+                  - group [ref=e1185]:
+                    - group [ref=e1186]:
+                      - generic [ref=e1187]:
+                        - img "Wonder Man"
+                      - button "Add to Watchlist" [ref=e1188] [cursor=pointer]
+                      - link "View title page for Wonder Man" [ref=e1193] [cursor=pointer]:
+                        - /url: /title/tt21066182/?ref_=tt_mlt_i_12
+                    - generic [ref=e1195]:
+                      - generic [ref=e1198]: "7.5"
+                      - button "Rate Wonder Man" [ref=e1199] [cursor=pointer]
+                    - link "View title page for Wonder Man" [ref=e1202] [cursor=pointer]:
+                      - /url: /title/tt21066182/?ref_=tt_mlt_t_12
+                      - text: Wonder Man
+                    - generic [ref=e1203]:
+                      - button "Watch options" [ref=e2292] [cursor=pointer]:
+                        - generic [ref=e2293]: Watch options
+                      - button "More about this" [ref=e1207] [cursor=pointer]
+            - generic [ref=e1211]:
+              - link "Related interests" [ref=e1213] [cursor=pointer]:
+                - /url: /interest/all/?ref_=tt_rin_sm
+                - heading "Related interests" [level=3] [ref=e1214]:
+                  - generic [ref=e1215]: Related interests
+              - group [ref=e1217]:
+                - generic [ref=e1218]:
+                  - generic [ref=e1219]:
+                    - group [ref=e1220]:
+                      - generic [ref=e1221]:
+                        - img "Clive Owen and Clare-Hope Ashitey in Children of Men (2006)"
+                      - button "Add 反乌托邦科幻 to your interests" [ref=e1222] [cursor=pointer]
+                      - link "反乌托邦科幻" [ref=e1224] [cursor=pointer]:
+                        - /url: /interest/in0000160/?ref_=tt_rin_in_i_1
+                    - link "反乌托邦科幻" [ref=e1226] [cursor=pointer]:
+                      - /url: /interest/in0000160/?ref_=tt_rin_in_t_1
+                      - generic [ref=e1227]: 反乌托邦科幻
+                  - generic [ref=e1228]:
+                    - group [ref=e1229]:
+                      - generic [ref=e1230]:
+                        - img "La sociedad de la nieve (2023)"
+                      - button "Add 生存 to your interests" [ref=e1231] [cursor=pointer]
+                      - link "生存" [ref=e1233] [cursor=pointer]:
+                        - /url: /interest/in0000185/?ref_=tt_rin_in_i_2
+                    - link "生存" [ref=e1235] [cursor=pointer]:
+                      - /url: /interest/in0000185/?ref_=tt_rin_in_t_2
+                      - generic [ref=e1236]: 生存
+                  - generic [ref=e1237]:
+                    - group [ref=e1238]:
+                      - generic [ref=e1239]:
+                        - img "Phoebe Waller-Bridge and Sian Clifford in Fleabag (2016)"
+                      - button "Add 黑色喜剧 to your interests" [ref=e1240] [cursor=pointer]
+                      - link "黑色喜剧" [ref=e1242] [cursor=pointer]:
+                        - /url: /interest/in0000035/?ref_=tt_rin_in_i_3
+                    - link "黑色喜剧" [ref=e1244] [cursor=pointer]:
+                      - /url: /interest/in0000035/?ref_=tt_rin_in_t_3
+                      - generic [ref=e1245]: 黑色喜剧
+                  - generic [ref=e1246]:
+                    - group [ref=e1247]:
+                      - generic [ref=e1248]:
+                        - img "Still frame"
+                      - button "Add 冒险 to your interests" [ref=e1249] [cursor=pointer]
+                      - link "冒险" [ref=e1251] [cursor=pointer]:
+                        - /url: /interest/in0000012/?ref_=tt_rin_in_i_4
+                    - link "冒险" [ref=e1253] [cursor=pointer]:
+                      - /url: /interest/in0000012/?ref_=tt_rin_in_t_4
+                      - generic [ref=e1254]: 冒险
+                  - generic [ref=e1255]:
+                    - group [ref=e1256]:
+                      - generic [ref=e1257]:
+                        - img "Naomie Harris, Mahershala Ali, Janelle Monáe, André Holland, Herman Caheej McGloun, Edson Jean, Alex R. Hibbert, and Tanisha Cidel in Moonlight (2016)"
+                      - button "Add 戏剧 to your interests" [ref=e1258] [cursor=pointer]
+                      - link "戏剧" [ref=e1260] [cursor=pointer]:
+                        - /url: /interest/in0000076/?ref_=tt_rin_in_i_5
+                    - link "戏剧" [ref=e1262] [cursor=pointer]:
+                      - /url: /interest/in0000076/?ref_=tt_rin_in_t_5
+                      - generic [ref=e1263]: 戏剧
+                  - generic [ref=e1264]:
+                    - group [ref=e1265]:
+                      - generic [ref=e1266]:
+                        - 'img "James Earl Jones and David Prowse in Star Wars: Episode V - The Empire Strikes Back (1980)"'
+                      - button "Add 科幻 to your interests" [ref=e1267] [cursor=pointer]
+                      - link "科幻" [ref=e1269] [cursor=pointer]:
+                        - /url: /interest/in0000162/?ref_=tt_rin_in_i_6
+                    - link "科幻" [ref=e1271] [cursor=pointer]:
+                      - /url: /interest/in0000162/?ref_=tt_rin_in_t_6
+                      - generic [ref=e1272]: 科幻
+                  - generic [ref=e1273]:
+                    - group [ref=e1274]:
+                      - generic [ref=e1275]:
+                        - img "Bruce Willis and Taniel in Die Hard (1988)"
+                      - button "Add 行动 to your interests" [ref=e1276] [cursor=pointer]
+                      - link "行动" [ref=e1278] [cursor=pointer]:
+                        - /url: /interest/in0000001/?ref_=tt_rin_in_i_7
+                    - link "行动" [ref=e1280] [cursor=pointer]:
+                      - /url: /interest/in0000001/?ref_=tt_rin_in_t_7
+                      - generic [ref=e1281]: 行动
+            - generic [ref=e1286]:
+              - link "Storyline" [ref=e1287] [cursor=pointer]:
+                - /url: "#storyline"
+                - heading "Storyline" [level=3] [ref=e1288]:
+                  - generic [ref=e1289]: Storyline
+              - 'link "Storyline: edit" [ref=e1293] [cursor=pointer]':
+                - /url: https://contribute.imdb.com/updates?edit=tt12637874/storyline&ref_=tt_stry
+                - generic [ref=e1296]: Edit
+            - generic [ref=e1298]:
+              - generic [ref=e1300]:
+                - heading "Did you know" [level=3] [ref=e1302]:
+                  - generic [ref=e1303]: Did you know
+                - 'link "Did you know: edit" [ref=e1305] [cursor=pointer]':
+                  - /url: https://contribute.imdb.com/updates?edit=tt12637874/fun-facts&tt_dyk
+                  - generic [ref=e1308]: Edit
+              - generic [ref=e1309]:
+                - link "See more" [ref=e1310] [cursor=pointer]:
+                  - /url: /title/tt12637874/trivia/?ref_=tt_dyk_trv
+                  - text: Trivia
+                - generic [ref=e1313] [cursor=pointer]: The town of "Filly" is called that because it is built upon a landfill. It has nothing to do with Philadelphia, PA.
+                - link "See more" [ref=e1314] [cursor=pointer]:
+                  - /url: /title/tt12637874/trivia/?ref_=tt_dyk_trv
+              - generic [ref=e1317]:
+                - link "See more" [ref=e1318] [cursor=pointer]:
+                  - /url: /title/tt12637874/crazycredits/?tab=cz&ref_=tt_dyk_cc
+                  - text: Crazy credits
+                - generic [ref=e1321] [cursor=pointer]:
+                  - text: Each episode,
+                  - link "Geneva Robertson-Dworet" [ref=e1322]:
+                    - /url: /name/nm4039044/?ref_=dyk_cc
+                  - text: and
+                  - link "Graham Wagner" [ref=e1323]:
+                    - /url: /name/nm1635415/?ref_=dyk_cc
+                  - text: alternate top billing as series creators. For episodes that they also wrote, the second-billed creator is the first-billed writer.
+                - link "See more" [ref=e1324] [cursor=pointer]:
+                  - /url: /title/tt12637874/crazycredits/?tab=cz&ref_=tt_dyk_cc
+              - generic [ref=e1327]:
+                - link "See more" [ref=e1328] [cursor=pointer]:
+                  - /url: /title/tt12637874/movieconnections/?ref_=tt_dyk_cnn
+                  - text: Connections
+                - generic [ref=e1331] [cursor=pointer]:
+                  - text: Featured in
+                  - 'link "Tyrone Magnus: Fallout - Teaser Trailer | Prime Video | Reaction!" [ref=e1332]':
+                    - /url: /title/tt30320034/?ref_=tt_dyk_cnn
+                  - text: (2023)
+                - link "See more" [ref=e1333] [cursor=pointer]:
+                  - /url: /title/tt12637874/movieconnections/?ref_=tt_dyk_cnn
+            - generic [ref=e1337]:
+              - generic [ref=e1338]:
+                - link "Top picks" [ref=e1339] [cursor=pointer]:
+                  - /url: /what-to-watch/top-picks/?ref_=tt_tpks_sm
+                  - heading "Top picks" [level=3] [ref=e1340]:
+                    - generic [ref=e1341]: Top picks
+                - generic [ref=e1343]: Sign in to rate and Watchlist for personalized recommendations
+              - link "Sign in" [ref=e1344] [cursor=pointer]:
+                - /url: /registration/signin?ref_=tt_tpks_signin
+                - generic [ref=e1345]: Sign in
+            - generic [ref=e1347]:
+              - link "FAQ 17" [ref=e1349] [cursor=pointer]:
+                - /url: /title/tt12637874/faq/?ref_=tt_faq_sm
+                - heading "FAQ 17" [level=3] [ref=e1350]:
+                  - generic [ref=e1351]: FAQ
+                  - generic [ref=e1352]: "17"
+              - generic [ref=e1354]:
+                - generic [ref=e1355] [cursor=pointer]:
+                  - link "How many seasons does Fallout have?" [ref=e1356]:
+                    - /url: /title/tt12637874/faq/?ref_=tt_faq_1#number-of-seasons
+                  - generic [ref=e1357]: Powered by Alexa
+                - link "See the answer" [ref=e1359] [cursor=pointer]:
+                  - /url: /title/tt12637874/faq/?ref_=tt_faq_1#number-of-seasons
+                - link "Would cockroaches really \"improve\" in radioactive fallout?" [ref=e1363] [cursor=pointer]:
+                  - /url: /title/tt12637874/faq/?ref_=tt_faq_2#fq0216234
+                - link "See the answer" [ref=e1364] [cursor=pointer]:
+                  - /url: /title/tt12637874/faq/?ref_=tt_faq_2#fq0216234
+            - generic [ref=e1367]:
+              - generic [ref=e1369]:
+                - heading "Details" [level=3] [ref=e1371]:
+                  - generic [ref=e1372]: Details
+                - 'link "Details: edit" [ref=e1374] [cursor=pointer]':
+                  - /url: https://contribute.imdb.com/updates?edit=tt12637874/details&ref_=tt_dt_dt
+                  - generic [ref=e1377]: Edit
+              - generic [ref=e1378]:
+                - link "See more" [ref=e1379] [cursor=pointer]:
+                  - /url: /title/tt12637874/releaseinfo/?ref_=tt_dt_rdat
+                  - text: Release date
+                - link "April 10, 2024 (United States)" [ref=e1381] [cursor=pointer]:
+                  - /url: /title/tt12637874/releaseinfo/?ref_=tt_dt_rdat
+                - link "See more" [ref=e1382] [cursor=pointer]:
+                  - /url: /title/tt12637874/releaseinfo/?ref_=tt_dt_rdat
+                - generic [ref=e1385]: Country of origin
+                - link "United States" [ref=e1387] [cursor=pointer]:
+                  - /url: /search/title/?country_of_origin=US&ref_=tt_dt_cnt
+                - generic [ref=e1388]: Language
+                - link "English" [ref=e1390] [cursor=pointer]:
+                  - /url: /search/title/?title_type=feature&primary_language=en&sort=moviemeter%2Casc&ref_=tt_dt_ln
+                - link "See more" [ref=e1391] [cursor=pointer]:
+                  - /url: /title/tt12637874/releaseinfo/?ref_=tt_dt_aka#akas
+                  - text: Also known as
+                - generic [ref=e1392] [cursor=pointer]: 辐射
+                - link "See more" [ref=e1393] [cursor=pointer]:
+                  - /url: /title/tt12637874/releaseinfo/?ref_=tt_dt_aka#akas
+                - link "See more" [ref=e1396] [cursor=pointer]:
+                  - /url: /title/tt12637874/locations/?ref_=tt_dt_loc
+                  - text: Filming locations
+                - link "Kolmanskop, Sperrgebiet, Namibia" [ref=e1398] [cursor=pointer]:
+                  - /url: /search/title/?locations=Kolmanskop%40%40%40%20Sperrgebiet%40%40%40%20Namibia&ref_=tt_dt_loc
+                - link "See more" [ref=e1399] [cursor=pointer]:
+                  - /url: /title/tt12637874/locations/?ref_=tt_dt_loc
+                - link "See more" [ref=e1402] [cursor=pointer]:
+                  - /url: /title/tt12637874/companycredits/?ref_=tt_dt_cmpy
+                  - text: Production companies
+                - generic [ref=e1403] [cursor=pointer]:
+                  - link "Amazon Studios" [ref=e1404]:
+                    - /url: /company/co0319272/?ref_=tt_dt_cmpy_1
+                  - link "Kilter Films" [ref=e1405]:
+                    - /url: /company/co0355349/?ref_=tt_dt_cmpy_2
+                  - link "Amazon MGM Studios" [ref=e1406]:
+                    - /url: /company/co1025982/?ref_=tt_dt_cmpy_3
+                - link "See more" [ref=e1407] [cursor=pointer]:
+                  - /url: /title/tt12637874/companycredits/?ref_=tt_dt_cmpy
+                - link "See more" [ref=e1410] [cursor=pointer]:
+                  - /url: https://pro.imdb.com/title/tt12637874/companycredits?rf=cons_tt_cocred_tt&ref_=cons_tt_cocred_tt
+                  - text: See more company credits at IMDbPro
+                - link "See more" [ref=e1411] [cursor=pointer]:
+                  - /url: https://pro.imdb.com/title/tt12637874/companycredits?rf=cons_tt_cocred_tt&ref_=cons_tt_cocred_tt
+            - generic [ref=e1413]:
+              - generic [ref=e1415]:
+                - link "Tech specs" [ref=e1416] [cursor=pointer]:
+                  - /url: /title/tt12637874/technical/?ref_=tt_spec_sm
+                  - heading "Tech specs" [level=3] [ref=e1417]:
+                    - generic [ref=e1418]: Tech specs
+                - 'link "Tech specs: edit" [ref=e1421] [cursor=pointer]':
+                  - /url: https://contribute.imdb.com/updates?edit=tt12637874/technical&ref_=tt_spec
+                  - generic [ref=e1424]: Edit
+              - generic [ref=e1425]:
+                - generic [ref=e1426]: Runtime
+                - generic [ref=e1427]: 1h(60 min)
+                - generic [ref=e1428]: Color
+                - link "Color" [ref=e1430] [cursor=pointer]:
+                  - /url: /search/title/?colors=color&ref_=tt_spec_att
+                - generic [ref=e1431]: Sound mix
+                - link "Dolby Atmos" [ref=e1433] [cursor=pointer]:
+                  - /url: /search/title/?sound_mixes=dolby_atmos&ref_=tt_spec_att
+                - generic [ref=e1434]: Aspect ratio
+                - generic [ref=e1435]: "2.39 : 1"
+            - generic [ref=e1439]:
+              - generic [ref=e1440]:
+                - link "Contribute to this page" [ref=e1441] [cursor=pointer]:
+                  - /url: https://contribute.imdb.com/updates?ref_=tt_cn_edt&edit=legacy%2Ftitle%2Ftt12637874%2F
+                  - heading "Contribute to this page" [level=3] [ref=e1442]:
+                    - generic [ref=e1443]: Contribute to this page
+                - generic [ref=e1445]: Suggest an edit or add missing content
+              - generic [ref=e1446]:
+                - link "Go to Learn more about contributing" [ref=e1447] [cursor=pointer]:
+                  - /url: https://contribute.imdb.com/czone?ref_=tt_cn_cz
+                  - text: Learn more about contributing
+                - link "Go to Learn more about contributing" [ref=e1448] [cursor=pointer]:
+                  - /url: https://contribute.imdb.com/czone?ref_=tt_cn_cz
+              - generic [ref=e1451]:
+                - link "Edit page" [ref=e1452] [cursor=pointer]:
+                  - /url: https://contribute.imdb.com/updates?ref_=tt_cn_edt&edit=legacy%2Ftitle%2Ftt12637874%2F
+                  - generic [ref=e1455]: Edit page
+                - link "Add episode" [ref=e1456] [cursor=pointer]:
+                  - /url: https://contribute.imdb.com/updates?ref_=tt_cn_ep&update=episode&parent=tt12637874
+                  - generic [ref=e1458]: Add episode
+          - generic [ref=e1463]:
+            - heading "More to explore" [level=3] [ref=e1466]
+            - generic [ref=e1468]:
+              - group [ref=e1470]:
+                - group [ref=e1471]:
+                  - img "Production art" [ref=e2294]
+                  - link "Photos" [ref=e1473] [cursor=pointer]:
+                    - /url: /imdbpicks/hollywood-power-couples/rg3319700224/mediaviewer/rm1639439362/?ref_=tt_sw_g_hpc_i
+                    - generic [ref=e1479]: Photos
+                - generic [ref=e1481]:
+                  - link "Hollywood Power Couples" [ref=e1482] [cursor=pointer]:
+                    - /url: /imdbpicks/hollywood-power-couples/rg3319700224/mediaviewer/rm1639439362/?ref_=tt_sw_g_hpc_t
+                    - generic [ref=e1483]: Hollywood Power Couples
+                  - link "See the gallery" [ref=e1485] [cursor=pointer]:
+                    - /url: /imdbpicks/hollywood-power-couples/rg3319700224/mediaviewer/rm1639439362/?ref_=tt_c_sw_g_hpc_cta
+              - generic [ref=e2296]:
+                - generic [ref=e2298]:
+                  - heading "Editorial lists" [level=3] [ref=e2300]
+                  - generic [ref=e2301]: Related lists created by IMDb editors
+                - generic [ref=e2302]:
+                  - generic [ref=e2303]:
+                    - link "What's New on TV and Streaming in December 2025 updated 1 month ago 140 titles All the Empty Rooms (2025)" [ref=e2305] [cursor=pointer]:
+                      - /url: /list/ls4156374695/?ref_=tt_edls_1
+                      - generic [ref=e2306]:
+                        - generic [ref=e2307]:
+                          - generic [ref=e2308]: What's New on TV and Streaming in December 2025
+                          - generic [ref=e2309]:
+                            - generic [ref=e2310]: updated 1 month ago
+                            - generic [ref=e2311]: 140 titles
+                        - img "All the Empty Rooms (2025)" [ref=e2314]
+                    - link "What's New on Prime Video in January 2026 updated 1 month ago 58 titles Channing Tatum and Jonah Hill in 21 Jump Street (2012)" [ref=e2316] [cursor=pointer]:
+                      - /url: /list/ls4152431808/?ref_=tt_edls_2
+                      - generic [ref=e2317]:
+                        - generic [ref=e2318]:
+                          - generic [ref=e2319]: What's New on Prime Video in January 2026
+                          - generic [ref=e2320]:
+                            - generic [ref=e2321]: updated 1 month ago
+                            - generic [ref=e2322]: 58 titles
+                        - img "Channing Tatum and Jonah Hill in 21 Jump Street (2012)" [ref=e2325]
+                    - link "5 Things to Watch the Week of 12/14/2025 updated 2 months ago 5 titles Walton Goggins, Lana 5, Aaron Moten, and Ella Purnell in Fallout (2024)" [ref=e2327] [cursor=pointer]:
+                      - /url: /list/ls4156837040/?ref_=tt_edls_3
+                      - generic [ref=e2328]:
+                        - generic [ref=e2329]:
+                          - generic [ref=e2330]: 5 Things to Watch the Week of 12/14/2025
+                          - generic [ref=e2331]:
+                            - generic [ref=e2332]: updated 2 months ago
+                            - generic [ref=e2333]: 5 titles
+                        - img "Walton Goggins, Lana 5, Aaron Moten, and Ella Purnell in Fallout (2024)" [ref=e2336]
+                  - generic [ref=e2337]:
+                    - link "What's New on Prime Video in December 2025 updated 2 months ago 61 titles Henry Fonda, Martin Balsam, Jack Klugman, Lee J. Cobb, Ed Begley, Edward Binns, John Fiedler, E.G. Marshall, Joseph Sweeney, George Voskovec, Jack Warden, and Robert Webber in 12 Angry Men (1957)" [ref=e2339] [cursor=pointer]:
+                      - /url: /list/ls4156353409/?ref_=tt_edls_4
+                      - generic [ref=e2340]:
+                        - generic [ref=e2341]:
+                          - generic [ref=e2342]: What's New on Prime Video in December 2025
+                          - generic [ref=e2343]:
+                            - generic [ref=e2344]: updated 2 months ago
+                            - generic [ref=e2345]: 61 titles
+                        - img "Henry Fonda, Martin Balsam, Jack Klugman, Lee J. Cobb, Ed Begley, Edward Binns, John Fiedler, E.G. Marshall, Joseph Sweeney, George Voskovec, Jack Warden, and Robert Webber in 12 Angry Men (1957)" [ref=e2348]
+                    - 'link "New and Upcoming Sci-Fi & Fantasy Movies and Series updated 4 months ago 35 titles Jared Leto in Tron: Ares (2025)" [ref=e2350] [cursor=pointer]':
+                      - /url: /list/ls528776858/?ref_=tt_edls_5
+                      - generic [ref=e2351]:
+                        - generic [ref=e2352]:
+                          - generic [ref=e2353]: New and Upcoming Sci-Fi & Fantasy Movies and Series
+                          - generic [ref=e2354]:
+                            - generic [ref=e2355]: updated 4 months ago
+                            - generic [ref=e2356]: 35 titles
+                        - 'img "Jared Leto in Tron: Ares (2025)" [ref=e2359]'
+                    - link "IMDb's 2024 TV Guide updated 1 year ago 51 titles Harrison Ford and Jason Segel in Shrinking (2023)" [ref=e2361] [cursor=pointer]:
+                      - /url: /list/ls522134381/?ref_=tt_edls_6
+                      - generic [ref=e2362]:
+                        - generic [ref=e2363]:
+                          - generic [ref=e2364]: IMDb's 2024 TV Guide
+                          - generic [ref=e2365]:
+                            - generic [ref=e2366]: updated 1 year ago
+                            - generic [ref=e2367]: 51 titles
+                        - img "Harrison Ford and Jason Segel in Shrinking (2023)" [ref=e2370]
+              - group [ref=e1488]:
+                - group [ref=e1489]:
+                  - img "Production art" [ref=e2371]
+                  - link "List" [ref=e1491] [cursor=pointer]:
+                    - /url: /list/ls4159040995/?ref_=tt_sw_csegosc_26_wtw_i
+                    - generic [ref=e1499]: List
+                - generic [ref=e1501]:
+                  - link "Where to Watch the Oscars Best Picture Nominees" [ref=e1502] [cursor=pointer]:
+                    - /url: /list/ls4159040995/?ref_=tt_sw_csegosc_26_wtw_t
+                    - generic [ref=e1503]: Where to Watch the Oscars Best Picture Nominees
+                  - link "See the list" [ref=e1505] [cursor=pointer]:
+                    - /url: /list/ls4159040995/?ref_=tt_c_sw_csegosc_26_wtw_cta
+              - generic [ref=e2373]:
+                - generic [ref=e2374]:
+                  - generic [ref=e2375]:
+                    - link "User lists" [ref=e2376] [cursor=pointer]:
+                      - /url: /lists/tt12637874/?ref_=tt_urls_sm
+                      - heading "User lists" [level=3] [ref=e2377]: User lists
+                    - generic [ref=e2379]: Related lists from IMDb users
+                  - link "Create a list" [ref=e2381] [cursor=pointer]:
+                    - /url: /list/create/?ref_=tt_urls
+                    - generic [ref=e2383]: Create a list
+                - generic [ref=e2384]:
+                  - generic [ref=e2385]:
+                    - link "On-Going TV Shows created 2 years ago 46 titles Scott McCord, Harold Perrineau, Simon Webster, and Catalina Sandino Moreno in From (2022)" [ref=e2387] [cursor=pointer]:
+                      - /url: /list/ls525876881/?ref_=tt_urls_1
+                      - generic [ref=e2388]:
+                        - generic [ref=e2389]:
+                          - generic [ref=e2390]: On-Going TV Shows
+                          - generic [ref=e2391]:
+                            - generic [ref=e2392]: created 2 years ago
+                            - generic [ref=e2393]: 46 titles
+                        - img "Scott McCord, Harold Perrineau, Simon Webster, and Catalina Sandino Moreno in From (2022)" [ref=e2396]
+                    - link "Series created 7 months ago 20 titles Sam Neill, Charles Dance, Miranda Richardson, Maeve Dermody, and Aidan Turner in And Then There Were None (2015)" [ref=e2398] [cursor=pointer]:
+                      - /url: /list/ls599471496/?ref_=tt_urls_2
+                      - generic [ref=e2399]:
+                        - generic [ref=e2400]:
+                          - generic [ref=e2401]: Series
+                          - generic [ref=e2402]:
+                            - generic [ref=e2403]: created 7 months ago
+                            - generic [ref=e2404]: 20 titles
+                        - generic [ref=e2406]:
+                          - img "Sam Neill, Charles Dance, Miranda Richardson, Maeve Dermody, and Aidan Turner in And Then There Were None (2015)"
+                    - link "sci fi series created 1 year ago 43 titles Jamie Campbell Bower, Caleb McLaughlin, Millie Bobby Brown, Finn Wolfhard, Noah Schnapp, and Gaten Matarazzo in Stranger Things (2016)" [ref=e2408] [cursor=pointer]:
+                      - /url: /list/ls595082242/?ref_=tt_urls_3
+                      - generic [ref=e2409]:
+                        - generic [ref=e2410]:
+                          - generic [ref=e2411]: sci fi series
+                          - generic [ref=e2412]:
+                            - generic [ref=e2413]: created 1 year ago
+                            - generic [ref=e2414]: 43 titles
+                        - generic [ref=e2416]:
+                          - img "Jamie Campbell Bower, Caleb McLaughlin, Millie Bobby Brown, Finn Wolfhard, Noah Schnapp, and Gaten Matarazzo in Stranger Things (2016)"
+                  - generic [ref=e2417]:
+                    - link "TV Shows Completed (2024) created 2 years ago 29 titles Vincent D'Onofrio and Alaqua Cox in Echo (2023)" [ref=e2419] [cursor=pointer]:
+                      - /url: /list/ls524532065/?ref_=tt_urls_4
+                      - generic [ref=e2420]:
+                        - generic [ref=e2421]:
+                          - generic [ref=e2422]: TV Shows Completed (2024)
+                          - generic [ref=e2423]:
+                            - generic [ref=e2424]: created 2 years ago
+                            - generic [ref=e2425]: 29 titles
+                        - generic [ref=e2427]:
+                          - img "Vincent D'Onofrio and Alaqua Cox in Echo (2023)"
+                    - link "TV series I watched in 2024 created 1 year ago 20 titles Ebon Moss-Bachrach, Liza Colón-Zayas, Jeremy Allen White, Abby Elliott, Edwin Lee Gibson, Lionel Boyce, Matty Matheson, and Ayo Edebiri in The Bear (2022)" [ref=e2429] [cursor=pointer]:
+                      - /url: /list/ls595242195/?ref_=tt_urls_5
+                      - generic [ref=e2430]:
+                        - generic [ref=e2431]:
+                          - generic [ref=e2432]: TV series I watched in 2024
+                          - generic [ref=e2433]:
+                            - generic [ref=e2434]: created 1 year ago
+                            - generic [ref=e2435]: 20 titles
+                        - generic [ref=e2437]:
+                          - img "Ebon Moss-Bachrach, Liza Colón-Zayas, Jeremy Allen White, Abby Elliott, Edwin Lee Gibson, Lionel Boyce, Matty Matheson, and Ayo Edebiri in The Bear (2022)"
+                    - link "Stormie and Bryll created 1 year ago 24 titles Varada Sethu and Ncuti Gatwa in Doctor Who (2023)" [ref=e2439] [cursor=pointer]:
+                      - /url: /list/ls548343648/?ref_=tt_urls_6
+                      - generic [ref=e2440]:
+                        - generic [ref=e2441]:
+                          - generic [ref=e2442]: Stormie and Bryll
+                          - generic [ref=e2443]:
+                            - generic [ref=e2444]: created 1 year ago
+                            - generic [ref=e2445]: 24 titles
+                        - generic [ref=e2447]:
+                          - img "Varada Sethu and Ncuti Gatwa in Doctor Who (2023)"
+              - generic [ref=e2449]:
+                - generic [ref=e2451]:
+                  - link "User polls" [ref=e2452] [cursor=pointer]:
+                    - /url: /poll/?ref_=tt_urpl_sm
+                    - heading "User polls" [level=3] [ref=e2453]: User polls
+                  - generic [ref=e2455]: Related polls from IMDb users
+                - generic [ref=e2456]:
+                  - generic [ref=e2457]:
+                    - link "Emmys 2024 — Most Nominations Hiroyuki Sanada in Shogun (2024)" [ref=e2459] [cursor=pointer]:
+                      - /url: /poll/5T7-94PlIWM/?ref_=tt_urpl_1
+                      - generic [ref=e2460]:
+                        - generic [ref=e2462]: Emmys 2024 — Most Nominations
+                        - generic [ref=e2464]:
+                          - img "Hiroyuki Sanada in Shogun (2024)"
+                    - link "IMDb Poll Board's TV Series Seen in 2024 Anna Madeley, Samuel West, Nicholas Ralph, Rachel Shenton, and Callum Woodhouse in All Creatures Great & Small (2020)" [ref=e2466] [cursor=pointer]:
+                      - /url: /poll/JEylx4aek2Q/?ref_=tt_urpl_2
+                      - generic [ref=e2467]:
+                        - generic [ref=e2469]: IMDb Poll Board's TV Series Seen in 2024
+                        - generic [ref=e2471]:
+                          - img "Anna Madeley, Samuel West, Nicholas Ralph, Rachel Shenton, and Callum Woodhouse in All Creatures Great & Small (2020)"
+                    - link "Most Searched TV Shows 2024 Jessica Gunning and Richard Gadd in Baby Reindeer (2024)" [ref=e2473] [cursor=pointer]:
+                      - /url: /poll/UrhojZnXVJ4/?ref_=tt_urpl_3
+                      - generic [ref=e2474]:
+                        - generic [ref=e2476]: Most Searched TV Shows 2024
+                        - generic [ref=e2478]:
+                          - img "Jessica Gunning and Richard Gadd in Baby Reindeer (2024)"
+                  - generic [ref=e2479]:
+                    - link "Most Watchlisted TV Vincent D'Onofrio and Alaqua Cox in Echo (2023)" [ref=e2481] [cursor=pointer]:
+                      - /url: /poll/23jHn3VHg_Y/?ref_=tt_urpl_4
+                      - generic [ref=e2482]:
+                        - generic [ref=e2484]: Most Watchlisted TV
+                        - generic [ref=e2486]:
+                          - img "Vincent D'Onofrio and Alaqua Cox in Echo (2023)"
+                    - link "IMDb Staff Picks to Watch in December 2025 Gillian Anderson and Lena Headey in The Abandons (2025)" [ref=e2488] [cursor=pointer]:
+                      - /url: /poll/U9vSrxrRUzbT9AVzeLv4vg/?ref_=tt_urpl_5
+                      - generic [ref=e2489]:
+                        - generic [ref=e2491]: IMDb Staff Picks to Watch in December 2025
+                        - generic [ref=e2493]:
+                          - img "Gillian Anderson and Lena Headey in The Abandons (2025)"
+                    - link "Memorable TV Series Based on Video Games Johnny Yong Bosch in Devil May Cry (2025)" [ref=e2495] [cursor=pointer]:
+                      - /url: /poll/DxynxinGwTw/?ref_=tt_urpl_6
+                      - generic [ref=e2496]:
+                        - generic [ref=e2498]: Memorable TV Series Based on Video Games
+                        - generic [ref=e2500]:
+                          - img "Johnny Yong Bosch in Devil May Cry (2025)"
+              - group [ref=e1509]:
+                - group [ref=e1510]:
+                  - img "Production art" [ref=e2501]
+                  - link "List" [ref=e1512] [cursor=pointer]:
+                    - /url: /list/ls534685277/?ref_=tt_csegspot_horror_i
+                    - generic [ref=e1520]: List
+                - generic [ref=e1522]:
+                  - link "Essential Horror Films From Black Directors" [ref=e1523] [cursor=pointer]:
+                    - /url: /list/ls534685277/?ref_=tt_csegspot_horror_t
+                    - generic [ref=e1524]: Essential Horror Films From Black Directors
+                  - link "See the full list" [ref=e1526] [cursor=pointer]:
+                    - /url: /list/ls534685277/?ref_=tt_c_csegspot_horror_cta
+    - generic [ref=e2502]:
+      - generic [ref=e2504]:
+        - heading "Recently viewed" [level=3] [ref=e2506]
+        - button "Clear all" [ref=e2508] [cursor=pointer]:
+          - generic [ref=e2509]: Clear all
+      - group [ref=e2510]:
+        - group [ref=e2512]:
+          - group [ref=e2513]:
+            - generic [ref=e2514]:
+              - img "Walton Goggins, Lana 5, Aaron Moten, and Ella Purnell in Fallout (2024)"
+            - button "Add to Watchlist" [ref=e2515] [cursor=pointer]
+            - link "Navigation to Fallout Title Page" [ref=e2520] [cursor=pointer]:
+              - /url: /title/tt12637874/?ref_=tt_rvi_i_1
+          - link "Fallout" [ref=e2522] [cursor=pointer]:
+            - /url: /title/tt12637874/?ref_=tt_rvi_t_1
+    - contentinfo [ref=e1536]:
+      - link "Sign in for more access" [ref=e1538] [cursor=pointer]:
+        - /url: /registration/signin/?u=%2Ftitle%2Ftt12637874%2F&ref_=tt_ftr_reg
+        - generic [ref=e1539]: Sign in for more access
+      - generic [ref=e1540]:
+        - generic [ref=e1541]:
+          - generic [ref=e1542]:
+            - generic [ref=e1543]: Follow IMDb on social
+            - link "TikTok" [ref=e1544] [cursor=pointer]:
+              - /url: https://www.tiktok.com/@imdb
+            - link "Instagram" [ref=e1546] [cursor=pointer]:
+              - /url: https://instagram.com/imdb
+            - link "Twitter" [ref=e1549] [cursor=pointer]:
+              - /url: https://twitter.com/imdb
+            - link "YouTube" [ref=e1551] [cursor=pointer]:
+              - /url: https://youtube.com/imdb/
+            - link "Facebook" [ref=e1553] [cursor=pointer]:
+              - /url: https://facebook.com/imdb
+          - generic [ref=e1555]:
+            - generic [ref=e1556]:
+              - generic [ref=e1557]: Get the IMDb App
+              - generic [ref=e1558]: For Android and iOS
+            - group [ref=e1560]:
+              - generic [ref=e1561]:
+                - img "Get the IMDb App"
+              - link "For Android and iOS" [ref=e1562] [cursor=pointer]:
+                - /url: https://slyb.app.link/Aa96cLcBeAb
+        - generic [ref=e1564]:
+          - link "Help" [ref=e1565] [cursor=pointer]:
+            - /url: https://help.imdb.com/imdb
+            - text: Help
+          - link "Site Index" [ref=e1567] [cursor=pointer]:
+            - /url: https://help.imdb.com/article/imdb/general-information/imdb-site-index/GNCX7BHNSPBTFALQ#so
+            - text: Site Index
+          - link "IMDbPro" [ref=e1569] [cursor=pointer]:
+            - /url: https://pro.imdb.com?ref_=cons_tf_pro&rf=cons_tf_pro
+            - text: IMDbPro
+          - link "Box Office Mojo" [ref=e1571] [cursor=pointer]:
+            - /url: https://www.boxofficemojo.com
+            - text: Box Office Mojo
+          - link "License IMDb Data" [ref=e1573] [cursor=pointer]:
+            - /url: https://developer.imdb.com/
+            - text: License IMDb Data
+        - generic [ref=e1575]:
+          - link "Press Room" [ref=e1576] [cursor=pointer]:
+            - /url: /pressroom/?ref_=tt_ftr
+          - link "Advertising" [ref=e1577] [cursor=pointer]:
+            - /url: https://advertising.amazon.com/resources/ad-specs/imdb/
+            - text: Advertising
+          - link "Jobs" [ref=e1579] [cursor=pointer]:
+            - /url: https://www.amazon.jobs/en/teams/imdb
+            - text: Jobs
+          - link "Conditions of Use" [ref=e1581] [cursor=pointer]:
+            - /url: /conditions/?ref_=tt_ftr
+          - link "Privacy Policy" [ref=e1582] [cursor=pointer]:
+            - /url: /privacy/?ref_=tt_ftr
+          - generic [ref=e1583]:
+            - link "Your Ads Privacy Choices" [ref=e1584] [cursor=pointer]:
+              - /url: /privacy/redirect/?ref_=tt_ftr
+              - img [ref=e1585]
+            - link "Your Ads Privacy Choices" [ref=e1597] [cursor=pointer]:
+              - /url: /privacy/redirect/?ref_=tt_ftr
+      - img "IMDb, an Amazon company" [ref=e1599]
+      - paragraph [ref=e1635]: © 1990-2026 by IMDb.com, Inc.
+    - button "Back to top" [ref=e1636] [cursor=pointer]:
+      - generic [ref=e1639]: Back to top
+    - img
+    - status
+    - img
+  - alert [ref=e1640]
