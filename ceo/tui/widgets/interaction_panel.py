@@ -64,6 +64,12 @@ class InteractionPanel(Vertical):
     def hide(self) -> None:
         """Hide the interaction panel."""
         self.remove_class("visible")
+        # Remove dynamic buttons to prevent focus-chain errors during shutdown
+        try:
+            container = self.query_one("#interaction-options", Horizontal)
+            container.remove_children()
+        except Exception:
+            pass
         # Blur the input to prevent focus issues during shutdown
         try:
             inp = self.query_one("#interaction-input", Input)

@@ -174,10 +174,6 @@ class ExecutionLog(Vertical):
             if ex.tool_results:
                 for tr in ex.tool_results:
                     self._write_tool_result(tr)
-            if ex.human_decision:
-                self._write(f"    [yellow]\U0001f464 Decision: {ex.human_decision}[/yellow]")
-            if ex.human_input:
-                self._write(f"    [yellow]\U0001f4ac Feedback: {ex.human_input}[/yellow]")
         else:
             self._write_execution(ex)
 
