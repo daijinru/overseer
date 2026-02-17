@@ -24,23 +24,23 @@ Footer {
 }
 
 #co-list-panel {
-    width: 25%;
-    min-width: 24;
-    max-width: 40;
+    width: 30%;
+    min-width: 26;
+    max-width: 45;
     border-right: thick $primary-background;
     padding: 0 1;
 }
 
-#co-list-panel .panel-title {
+.panel-title {
     text-style: bold;
     color: $text;
     padding: 1 0;
 }
 
-#co-list-panel .filter-label {
-    color: $text-muted;
+.filter-label {
+    color: $accent;
     padding: 0 0 1 0;
-    text-style: italic;
+    text-style: bold italic;
 }
 
 #detail-panel {
@@ -48,18 +48,16 @@ Footer {
     padding: 0 1;
 }
 
-/* ── CO List ── */
-#co-listview {
-    height: 1fr;
-}
-
-.co-item {
-    height: 2;
+/* ── Shared list-item card ── */
+.item-card {
+    height: 3;
     padding: 0 1;
 }
 
-.co-item.--highlight {
-    background: $accent;
+
+.item-label {
+    height: 2;
+    padding: 0 1;
 }
 
 .co-status-created {
@@ -365,20 +363,15 @@ ToolResultListScreen {
 }
 
 #memory-list-panel {
-    width: 35%;
-    min-width: 30;
-    max-width: 50;
+    width: 30%;
+    min-width: 26;
+    max-width: 45;
     border-right: thick $primary-background;
     padding: 0 1;
 }
 
 #memory-listview {
     height: 1fr;
-}
-
-.memory-item-label {
-    height: 2;
-    padding: 0 1;
 }
 
 #memory-detail-panel {
@@ -396,11 +389,6 @@ ToolResultListScreen {
     height: 1fr;
     border: round $primary-background;
     padding: 1 2;
-}
-
-#memory-count-label {
-    color: $text-muted;
-    padding: 0 0 1 0;
 }
 
 /* ── Memory edit screen ── */

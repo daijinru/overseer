@@ -28,7 +28,7 @@ class MemoryListItem(ListItem):
     """A single Memory entry in the list."""
 
     def __init__(self, memory: Memory) -> None:
-        super().__init__()
+        super().__init__(classes="item-card")
         self.memory_id = memory.id
         self._memory = memory
 
@@ -39,7 +39,7 @@ class MemoryListItem(ListItem):
         preview = content[:MAX_PREVIEW_LEN] + "…" if len(content) > MAX_PREVIEW_LEN else content
         preview = preview.replace("\n", " ")
         created = self._memory.created_at.strftime("%m-%d %H:%M") if self._memory.created_at else ""
-        yield Label(f"{styled_cat}  [dim]{created}[/dim]\n{preview}", classes="memory-item-label")
+        yield Label(f"{styled_cat}  [dim]{created}[/dim]\n{preview}", classes="item-label")
 
 
 class MemoryScreen(Screen):

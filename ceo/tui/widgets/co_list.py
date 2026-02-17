@@ -27,22 +27,24 @@ FILTER_LABELS = {
     "failed": "Failed",
 }
 
-MAX_TITLE_LEN = 22
+MAX_TITLE_LEN = 32
 
 
 class COListItem(ListItem):
     """A single CognitiveObject in the list."""
 
-    def __init__(self, co_id: str, title: str, status: str) -> None:
-        super().__init__()
+    def __init__(self, co_id: str, title: str, status: str, updated_at: str = "") -> None:
+        super().__init__(classes="item-card")
         self.co_id = co_id
         self.co_title = title
         self.co_status = status
+        self.co_updated_at = updated_at
 
     def compose(self) -> ComposeResult:
         icon = STATUS_ICONS.get(self.co_status, "\u25cb")
         display_title = self.co_title if len(self.co_title) <= MAX_TITLE_LEN else self.co_title[:MAX_TITLE_LEN - 1] + "\u2026"
-        yield Label(f"{icon} {display_title}", classes=f"co-status-{self.co_status}")
+        subtitle = f"[dim]{self.co_status}  {self.co_updated_at}[/dim]"
+        yield Label(f"{icon} {display_title}\n{subtitle}", classes="item-label")
 
 
 class COList(Static):
@@ -104,7 +106,8 @@ class COList(Static):
         listview.clear()
         for co in cos:
             status = co.status.value if hasattr(co.status, 'value') else str(co.status)
-            listview.append(COListItem(co.id, co.title, status))
+            updated = co.updated_at.strftime("%m-%d %H:%M") if co.updated_at else ""
+            listview.append(COListItem(co.id, co.title, status, updated))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         item = event.item
@@ -148,7 +151,8 @@ class COList(Static):
                 label = item.query_one(Label)
                 icon = STATUS_ICONS.get(new_status, "\u25cb")
                 display_title = item.co_title if len(item.co_title) <= MAX_TITLE_LEN else item.co_title[:MAX_TITLE_LEN - 1] + "\u2026"
-                label.update(f"{icon} {display_title}")
+                subtitle = f"[dim]{new_status}  {item.co_updated_at}[/dim]"
+                label.update(f"{icon} {display_title}\n{subtitle}")
                 break
 
     def mark_awaiting(self, co_id: str) -> None:
@@ -159,5 +163,6 @@ class COList(Static):
                 label = item.query_one(Label)
                 icon = STATUS_ICONS.get(item.co_status, "\u25cb")
                 display_title = item.co_title if len(item.co_title) <= MAX_TITLE_LEN else item.co_title[:MAX_TITLE_LEN - 1] + "\u2026"
-                label.update(f"{icon} [bold yellow]![/bold yellow] {display_title}")
+                subtitle = f"[dim]{item.co_status}  {item.co_updated_at}[/dim]"
+                label.update(f"{icon} [bold yellow]![/bold yellow] {display_title}\n{subtitle}")
                 break
