@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 class ContextService:
     def __init__(self, session: Session | None = None):
         self._session = session
+        # Phase 2: Track last tool outputs per tool name for diff detection
+        self._last_tool_outputs: Dict[str, str] = {}
 
     @property
     def session(self) -> Session:
@@ -29,6 +31,7 @@ class ContextService:
         co: CognitiveObject,
         memories: list[str] | None = None,
         available_tools: list[dict] | None = None,
+        elapsed_seconds: float = 0.0,
     ) -> str:
         """Build a complete prompt for the LLM from CO context + memories + tools."""
         ctx = co.context or {}
@@ -43,6 +46,14 @@ class ContextService:
 
         if co.description:
             parts.append(f"\n## Description\n{co.description}")
+
+        # Phase 1: Resource awareness — let LLM know how much it has spent
+        elapsed_min = elapsed_seconds / 60.0
+        parts.append(
+            f"\n## Resource Status\n"
+            f"- Steps completed: {step_count}\n"
+            f"- Elapsed time: {elapsed_min:.1f} min"
+        )
 
         if available_tools:
             tool_lines = []
@@ -107,13 +118,82 @@ class ContextService:
         self.session.commit()
         return ctx
 
+    @staticmethod
+    def classify_tool_result(result: dict) -> str:
+        """Classify a tool result into a semantic category.
+
+        Returns one of: 'success', 'error', 'empty', 'partial'.
+        """
+        status = result.get("status", "")
+        if status == "error":
+            return "error"
+        if status == "ok":
+            output = result.get("output", result.get("content", ""))
+            if not output or output.strip() == "":
+                return "empty"
+            return "success"
+        # Fallback: check for error indicators in string representation
+        result_str = json.dumps(result, ensure_ascii=False)
+        if '"error"' in result_str or '"status": "error"' in result_str:
+            return "error"
+        return "partial"
+
     def merge_tool_result(
-        self, co: CognitiveObject, step_number: int, tool_name: str, result: str
+        self, co: CognitiveObject, step_number: int, tool_name: str, result: str,
+        raw_result: dict | None = None,
     ) -> Dict[str, Any]:
-        """Merge a tool execution result into context."""
+        """Merge a tool execution result into context with semantic classification."""
+        # Phase 2: Classify the result
+        classification = "success"
+        if raw_result is not None:
+            classification = self.classify_tool_result(raw_result)
+
+        # Phase 2: Diff detection — compare with last output from same tool
+        diff_note = ""
+        tool_key = tool_name
+        prev_output = self._last_tool_outputs.get(tool_key)
+        if prev_output is not None:
+            if result == prev_output:
+                diff_note = " [SAME as previous call — no new information]"
+            else:
+                diff_note = " [CHANGED from previous call]"
+        self._last_tool_outputs[tool_key] = result
+
+        # Build enriched value with classification prefix
+        prefix = f"[{classification}]"
+        enriched_result = f"{prefix}{diff_note} {result}"
+
         return self.merge_step_result(
-            co, step_number, f"tool:{tool_name}", result
+            co, step_number, f"tool:{tool_name}", enriched_result
         )
+
+    def check_intent_deviation(
+        self, intent_description: str, tool_results: list[dict],
+    ) -> str | None:
+        """Check if tool results deviate from the stated intent.
+
+        Returns a deviation warning string, or None if results look aligned.
+        """
+        if not intent_description or not tool_results:
+            return None
+
+        all_errors = all(r.get("status") == "error" for r in tool_results)
+        if all_errors:
+            return (
+                f"Intent was '{intent_description}', but all tool calls failed. "
+                f"The current approach is not working."
+            )
+
+        all_empty = all(
+            self.classify_tool_result(r) == "empty" for r in tool_results
+        )
+        if all_empty:
+            return (
+                f"Intent was '{intent_description}', but all tools returned empty results. "
+                f"The data or resource may not exist."
+            )
+
+        return None
 
     def merge_reflection(
         self, co: CognitiveObject, reflection: str

@@ -85,6 +85,18 @@ class ExecutionService:
         self._human_response = {}
         return response
 
+    _NO_PROGRESS_INDICATORS = [
+        "没有进展", "未取得进展", "停滞", "陷入", "原地踏步",
+        "no progress", "stuck", "stagnant", "not making progress",
+        "going in circles", "没有推进", "无法推进", "效果不佳",
+        "repeated", "重复", "ineffective", "无效",
+    ]
+
+    def _detect_no_progress(self, reflection_text: str) -> bool:
+        """Check if a reflection indicates lack of progress."""
+        text_lower = reflection_text.lower()
+        return any(ind in text_lower for ind in self._NO_PROGRESS_INDICATORS)
+
     def _drain_mcp_stderr(self, co_id: str) -> None:
         """Forward any new MCP subprocess stderr lines to the TUI."""
         lines = self.tool_service.drain_stderr()
@@ -116,6 +128,12 @@ class ExecutionService:
         _last_tool_names: str | None = None  # for same-tool-name detection
         _name_repeat_count = 0
 
+        # Phase 1: Meta-perception state
+        _confidence_history: list[float] = []  # sliding window of recent confidence values
+        _low_confidence_window = 3  # how many consecutive low-confidence steps trigger HITL
+        _low_confidence_threshold = 0.4  # confidence below this is considered "low"
+        _loop_start_time = asyncio.get_event_loop().time()
+
         try:
             while True:
                 step_number += 1
@@ -143,7 +161,10 @@ class ExecutionService:
                     co.title + " " + co.description, limit=3
                 )
                 available_tools = self.tool_service.list_tools()
-                prompt = self.context_service.build_prompt(co, memories, available_tools)
+                elapsed = asyncio.get_event_loop().time() - _loop_start_time
+                prompt = self.context_service.build_prompt(
+                    co, memories, available_tools, elapsed_seconds=elapsed,
+                )
                 execution.prompt = prompt
                 self.session.commit()
 
@@ -177,6 +198,37 @@ class ExecutionService:
                 # Notify TUI with LLM response
                 if self._on_step_update:
                     self._on_step_update(execution, "llm_done")
+
+                # 4.5 Meta-perception: confidence monitoring
+                _confidence_history.append(decision.confidence)
+                if len(_confidence_history) > _low_confidence_window:
+                    _confidence_history = _confidence_history[-_low_confidence_window:]
+
+                # Check for sustained low confidence → auto-trigger HITL
+                if (
+                    len(_confidence_history) >= _low_confidence_window
+                    and all(c < _low_confidence_threshold for c in _confidence_history)
+                    and not decision.human_required
+                    and not decision.task_complete
+                ):
+                    avg_conf = sum(_confidence_history) / len(_confidence_history)
+                    logger.warning(
+                        "Low confidence detected: avg=%.2f over last %d steps",
+                        avg_conf, _low_confidence_window,
+                    )
+                    self.context_service.merge_step_result(
+                        co, step_number, "meta_perception",
+                        f"System: confidence has been low (avg {avg_conf:.2f}) for "
+                        f"{_low_confidence_window} consecutive steps. "
+                        f"The current approach may not be effective.",
+                    )
+                    decision.human_required = True
+                    decision.human_reason = (
+                        f"系统检测到连续 {_low_confidence_window} 步置信度偏低"
+                        f"（平均 {avg_conf:.2f}），当前策略可能无效。请决定下一步方向。"
+                    )
+                    decision.options = ["换一种方式继续", "提供更多信息", "终止"]
+                    _confidence_history.clear()
 
                 # 5. Handle tool calls
                 if decision.tool_calls:
@@ -212,7 +264,17 @@ class ExecutionService:
                         _name_repeat_count = 0
                         _last_tool_names = tool_names
 
-                    is_loop = _repeat_count >= 2 or _name_repeat_count >= 3
+                    # Phase 1: Dynamic loop detection — lower thresholds when confidence is low
+                    avg_conf = (
+                        sum(_confidence_history) / len(_confidence_history)
+                        if _confidence_history else 0.5
+                    )
+                    # High confidence (>0.7): use default thresholds (2/3)
+                    # Low confidence (<0.4): tighten to (1/2)
+                    exact_threshold = 2 if avg_conf >= 0.5 else 1
+                    name_threshold = 3 if avg_conf >= 0.5 else 2
+
+                    is_loop = _repeat_count >= exact_threshold or _name_repeat_count >= name_threshold
                     if is_loop:
                         reason = "exact args" if _repeat_count >= 2 else "same tool"
                         logger.warning(
@@ -282,11 +344,29 @@ class ExecutionService:
                                 f"in the tool schema.] {result_summary}"
                             )
                         self.context_service.merge_tool_result(
-                            co, step_number, tc.tool, result_summary
+                            co, step_number, tc.tool, result_summary,
+                            raw_result=result,
                         )
 
                     execution.tool_results = all_results
                     self.session.commit()
+
+                    # Phase 2: Intent-result deviation detection
+                    intent_desc = (
+                        decision.next_action.description
+                        if decision.next_action else ""
+                    )
+                    deviation = self.context_service.check_intent_deviation(
+                        intent_desc, all_results,
+                    )
+                    if deviation:
+                        logger.info("Intent-result deviation: %s", deviation)
+                        self.context_service.merge_step_result(
+                            co, step_number, "perception:deviation",
+                            f"System: {deviation}",
+                        )
+                        if self._on_info:
+                            self._on_info(co_id, f"[Perception] {deviation}")
 
                 # 6. Handle human decision request
                 if decision.human_required:
@@ -351,6 +431,20 @@ class ExecutionService:
                         reflection_decision = self.llm_service.parse_decision(reflection_response)
                         reflection_text = reflection_decision.reflection or reflection_response[:200]
                         self.context_service.merge_reflection(co, reflection_text)
+
+                        # Phase 1: Detect "no progress" signals in reflection
+                        _no_progress = self._detect_no_progress(reflection_text)
+                        if _no_progress:
+                            logger.warning("Reflection indicates no progress: %s", reflection_text[:100])
+                            self.context_service.merge_step_result(
+                                co, step_number, "meta_perception",
+                                "System: self-reflection indicates lack of progress. "
+                                "Consider changing your approach entirely — "
+                                "use different tools, reframe the problem, "
+                                "or ask the user for clarification.",
+                            )
+                            if self._on_info:
+                                self._on_info(co_id, "[Meta] Reflection detected stagnation, strategy switch hint injected")
                     except Exception as e:
                         logger.warning("Reflection failed: %s", e)
 
