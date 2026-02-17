@@ -141,6 +141,7 @@ CODetail {
     border: round $accent;
     padding: 1;
     display: none;
+    overflow-y: auto;
 }
 
 #interaction-panel.visible {
@@ -174,6 +175,7 @@ CODetail {
     border: round $warning;
     padding: 1;
     display: none;
+    overflow-y: auto;
 }
 
 #tool-preview-panel.visible {

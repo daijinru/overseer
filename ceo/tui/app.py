@@ -114,6 +114,7 @@ class CeoApp(App):
         self._execution_services: dict[str, ExecutionService] = {}
         self._co_workers: dict[str, object] = {}
         self._awaiting_count = 0
+        self._shutting_down = False
 
     def on_mount(self) -> None:
         self.push_screen(HomeScreen())
@@ -122,6 +123,8 @@ class CeoApp(App):
     # ── CO List ──
 
     def _refresh_co_list(self) -> None:
+        if self._shutting_down:
+            return
         self._co_service.session.expire_all()
         cos = self._co_service.list_all()
         try:
@@ -140,6 +143,8 @@ class CeoApp(App):
         self._show_co_detail(message.co_id)
 
     def _show_co_detail(self, co_id: str) -> None:
+        if self._shutting_down:
+            return
         # If this CO has a running ExecutionService, use its session
         # to see the latest execution data; otherwise use the app session.
         exec_service = self._execution_services.get(co_id)
@@ -373,6 +378,8 @@ class CeoApp(App):
     # ── Message handlers from execution service ──
 
     def on_step_update(self, message: StepUpdate) -> None:
+        if self._shutting_down:
+            return
         # Use the ExecutionService's own session to read its Execution objects
         exec_service = self._execution_services.get(message.co_id)
         if exec_service is None:
@@ -397,6 +404,8 @@ class CeoApp(App):
             logger.debug("COList widget not available", exc_info=True)
 
     def on_human_required(self, message: HumanRequired) -> None:
+        if self._shutting_down:
+            return
         self._awaiting_count += 1
         self._update_subtitle()
 
@@ -422,6 +431,8 @@ class CeoApp(App):
         self._refresh_co_list()
 
     def on_tool_confirm_required(self, message: ToolConfirmRequired) -> None:
+        if self._shutting_down:
+            return
         if message.co_id == self._selected_co_id:
             try:
                 preview = self.screen.query_one(ToolPreview)
@@ -430,14 +441,20 @@ class CeoApp(App):
                 logger.debug("ToolPreview widget not available", exc_info=True)
 
     def on_execution_complete(self, message: ExecutionComplete) -> None:
-        self.notify(f"Event {message.status}: {message.co_id[:8]}")
         self._execution_services.pop(message.co_id, None)
         self._co_workers.pop(message.co_id, None)
+        if self._shutting_down:
+            return
+        self.notify(f"Event {message.status}: {message.co_id[:8]}")
         self._refresh_co_list()
         if message.co_id == self._selected_co_id:
             self._show_co_detail(message.co_id)
 
     def on_execution_error(self, message: ExecutionError) -> None:
+        self._execution_services.pop(message.co_id, None)
+        self._co_workers.pop(message.co_id, None)
+        if self._shutting_down:
+            return
         self.notify(f"Error: {message.error}", severity="error")
         # Write error to execution log for persistence
         if message.co_id == self._selected_co_id:
@@ -446,11 +463,11 @@ class CeoApp(App):
                 log.add_error(message.error)
             except Exception:
                 logger.debug("ExecutionLog widget not available", exc_info=True)
-        self._execution_services.pop(message.co_id, None)
-        self._co_workers.pop(message.co_id, None)
         self._refresh_co_list()
 
     def on_info_message(self, message: InfoMessage) -> None:
+        if self._shutting_down:
+            return
         if message.co_id == self._selected_co_id:
             try:
                 log = self.screen.query_one(ExecutionLog)
@@ -470,6 +487,8 @@ class CeoApp(App):
             if co_id:
                 self._execution_services.pop(co_id, None)
                 self._co_workers.pop(co_id, None)
+                if self._shutting_down:
+                    return
                 self.notify(f"Stopped: {co_id[:8]}")
                 self._refresh_co_list()
                 if co_id == self._selected_co_id:
@@ -477,6 +496,7 @@ class CeoApp(App):
 
     async def action_quit(self) -> None:
         """Gracefully shut down all MCP connections before quitting."""
+        self._shutting_down = True
         for worker in list(self._co_workers.values()):
             worker.cancel()
         for exec_service in list(self._execution_services.values()):

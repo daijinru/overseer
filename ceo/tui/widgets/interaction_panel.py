@@ -64,6 +64,12 @@ class InteractionPanel(Vertical):
     def hide(self) -> None:
         """Hide the interaction panel."""
         self.remove_class("visible")
+        # Blur the input to prevent focus issues during shutdown
+        try:
+            inp = self.query_one("#interaction-input", Input)
+            inp.blur()
+        except Exception:
+            pass
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if isinstance(event.button, OptionButton):
