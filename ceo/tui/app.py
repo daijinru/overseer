@@ -516,16 +516,34 @@ class CeoApp(App):
             exec_service.provide_human_response(message.choice, message.text)
             self._awaiting_count = max(0, self._awaiting_count - 1)
             self._update_subtitle()
+            # Show user's HITL decision in the execution log
+            try:
+                log = self.screen.query_one(ExecutionLog)
+                log.add_human_decision(message.choice, message.text)
+            except Exception:
+                pass
 
     def on_tool_preview_approved(self, message: ToolPreview.Approved) -> None:
         if self._selected_co_id and self._selected_co_id in self._execution_services:
             exec_service = self._execution_services[self._selected_co_id]
             exec_service.provide_human_response("approve")
+            # Show tool approval in execution log
+            try:
+                log = self.screen.query_one(ExecutionLog)
+                log.add_tool_approval(approved=True)
+            except Exception:
+                pass
 
     def on_tool_preview_rejected(self, message: ToolPreview.Rejected) -> None:
         if self._selected_co_id and self._selected_co_id in self._execution_services:
             exec_service = self._execution_services[self._selected_co_id]
             exec_service.provide_human_response("reject", message.reason)
+            # Show tool rejection in execution log
+            try:
+                log = self.screen.query_one(ExecutionLog)
+                log.add_tool_approval(approved=False, reason=message.reason)
+            except Exception:
+                pass
 
     def _update_subtitle(self, cos: list | None = None) -> None:
         """Update subtitle with comprehensive status counts."""
