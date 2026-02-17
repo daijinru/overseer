@@ -357,3 +357,93 @@ ToolResultListScreen {
     color: $text-muted;
     padding: 4;
 }
+
+/* ── Memory screen ── */
+#memory-container {
+    layout: horizontal;
+    height: 1fr;
+}
+
+#memory-list-panel {
+    width: 35%;
+    min-width: 30;
+    max-width: 50;
+    border-right: thick $primary-background;
+    padding: 0 1;
+}
+
+#memory-listview {
+    height: 1fr;
+}
+
+.memory-item-label {
+    height: 2;
+    padding: 0 1;
+}
+
+#memory-detail-panel {
+    width: 1fr;
+    padding: 0 1;
+}
+
+#memory-detail-header {
+    height: auto;
+    padding: 1 0;
+    text-style: bold;
+}
+
+#memory-detail-scroll {
+    height: 1fr;
+    border: round $primary-background;
+    padding: 1 2;
+}
+
+#memory-count-label {
+    color: $text-muted;
+    padding: 0 0 1 0;
+}
+
+/* ── Memory edit screen ── */
+MemoryEditScreen {
+    align: center middle;
+}
+
+#memory-edit-container {
+    width: 70%;
+    max-width: 80;
+    min-width: 40;
+    height: auto;
+    max-height: 80%;
+    border: round $primary;
+    padding: 1 2;
+    background: $surface;
+}
+
+#memory-edit-container .title {
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#memory-edit-container Select {
+    margin-bottom: 1;
+}
+
+#memory-edit-container TextArea {
+    height: auto;
+    min-height: 4;
+    max-height: 12;
+    margin-bottom: 1;
+}
+
+#memory-edit-container Input {
+    margin-bottom: 1;
+}
+
+#memory-edit-buttons {
+    layout: horizontal;
+    height: auto;
+}
+
+#memory-edit-buttons Button {
+    margin-right: 1;
+}

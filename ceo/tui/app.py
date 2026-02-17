@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from textual.app import App
+from textual.binding import Binding
 from textual.message import Message
 from textual.worker import Worker, WorkerState
 
@@ -20,6 +21,7 @@ from ceo.services.execution_service import ExecutionService
 from ceo.tui.screens.confirm import ConfirmScreen
 from ceo.tui.screens.create import CreateScreen
 from ceo.tui.screens.home import HomeScreen
+from ceo.tui.screens.memory import MemoryScreen
 from ceo.tui.widgets.co_detail import CODetail
 from ceo.tui.widgets.co_list import COList
 from ceo.tui.widgets.execution_log import ExecutionLog
@@ -87,17 +89,20 @@ class CeoApp(App):
     SUB_TITLE = "Cognitive Operating System"
     CSS_PATH = CSS_PATH
 
+    # App-level bindings are hidden from Footer (show=False).
+    # Each Screen defines its own visible BINDINGS for the Footer.
     BINDINGS = [
-        ("n", "new_co", "New"),
-        ("s", "start_co", "Start"),
-        ("c", "complete_co", "Complete"),
-        ("x", "stop_co", "Stop"),
-        ("d", "delete_co", "Delete"),
-        ("D", "clear_all_co", "Clear All"),
-        ("j", "next_co", "Next"),
-        ("k", "prev_co", "Prev"),
-        ("f", "filter_co", "Filter"),
-        ("q", "quit", "Quit"),
+        Binding("n", "new_co", "New", show=False),
+        Binding("s", "start_co", "Start", show=False),
+        Binding("c", "complete_co", "Complete", show=False),
+        Binding("x", "stop_co", "Stop", show=False),
+        Binding("d", "delete_co", "Delete", show=False),
+        Binding("D", "clear_all_co", "Clear All", show=False),
+        Binding("j", "next_co", "Next", show=False),
+        Binding("k", "prev_co", "Prev", show=False),
+        Binding("f", "filter_co", "Filter", show=False),
+        Binding("m", "view_memories", "Memories", show=False),
+        Binding("q", "quit", "Quit"),
     ]
 
     def __init__(self) -> None:
@@ -360,6 +365,10 @@ class CeoApp(App):
             co_list.cycle_filter()
         except Exception:
             pass
+
+    def action_view_memories(self) -> None:
+        """Open the Memory browser screen."""
+        self.push_screen(MemoryScreen())
 
     # ── Message handlers from execution service ──
 

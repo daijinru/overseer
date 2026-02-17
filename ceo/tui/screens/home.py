@@ -29,6 +29,7 @@ class HomeScreen(Screen):
         ("f", "filter_co", "Filter"),
         ("t", "view_tool_result", "Tool Result"),
         ("y", "copy_log", "Copy Log"),
+        ("m", "view_memories", "Memories"),
         ("q", "quit_app", "Quit"),
     ]
 
@@ -84,6 +85,9 @@ class HomeScreen(Screen):
             log.copy_log()
         except Exception:
             pass
+
+    def action_view_memories(self) -> None:
+        self.app.action_view_memories()
 
     async def action_quit_app(self) -> None:
         await self.app.action_quit()

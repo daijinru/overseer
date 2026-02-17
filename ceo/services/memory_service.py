@@ -112,5 +112,37 @@ class MemoryService:
                 )
         return None
 
+    def update(
+        self,
+        memory_id: str,
+        category: str | None = None,
+        content: str | None = None,
+        tags: list[str] | None = None,
+    ) -> Memory | None:
+        """Update an existing memory. Returns the updated Memory or None."""
+        mem = self.session.get(Memory, memory_id)
+        if mem is None:
+            return None
+        if category is not None:
+            mem.category = category
+        if content is not None:
+            mem.content = content
+        if tags is not None:
+            mem.relevance_tags = tags
+        self.session.commit()
+        self.session.refresh(mem)
+        logger.info("Updated memory %s", memory_id)
+        return mem
+
+    def delete(self, memory_id: str) -> bool:
+        """Delete a single memory by ID. Returns True if deleted."""
+        mem = self.session.get(Memory, memory_id)
+        if mem is None:
+            return False
+        self.session.delete(mem)
+        self.session.commit()
+        logger.info("Deleted memory %s", memory_id)
+        return True
+
     def list_all(self) -> List[Memory]:
         return self.session.query(Memory).order_by(Memory.created_at.desc()).all()
