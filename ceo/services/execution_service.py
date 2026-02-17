@@ -25,6 +25,10 @@ from ceo.config import get_config
 
 logger = logging.getLogger(__name__)
 
+# Keywords that indicate the user wants to stop/abort execution.
+# Covers both Chinese and English variants used by the UI.
+_ABORT_KEYWORDS = frozenset({"abort", "终止", "停止", "取消"})
+
 
 class ExecutionService:
     """Core orchestration engine that drives the cognitive loop."""
@@ -59,6 +63,9 @@ class ExecutionService:
         self._auto_escalate_threshold = 3
         # Hesitation threshold in seconds — response slower than this injects a signal
         self._hesitation_threshold = 30.0
+
+        # HITL consecutive stop counter — force abort if user repeatedly says "终止"
+        self._consecutive_hitl_stops: int = 0
 
     @property
     def session(self) -> Session:
@@ -520,13 +527,14 @@ class ExecutionService:
 
                     execution.human_decision = human["decision"]
                     execution.human_input = human.get("text", "")
-                    execution.status = ExecutionStatus.APPROVED
-                    self.session.commit()
 
-                    # Resume CO
-                    self.co_service.update_status(co_id, COStatus.RUNNING)
-
-                    if human["decision"].lower() == "abort":
+                    # Check abort BEFORE setting APPROVED status
+                    if human["decision"].lower().strip() in _ABORT_KEYWORDS:
+                        self._consecutive_hitl_stops += 1
+                        logger.info(
+                            "User chose to abort (decision=%r, consecutive=%d)",
+                            human["decision"], self._consecutive_hitl_stops,
+                        )
                         execution.status = ExecutionStatus.REJECTED
                         self.session.commit()
                         self.co_service.update_status(co_id, COStatus.ABORTED)
@@ -535,11 +543,34 @@ class ExecutionService:
                             self._on_complete(co_id, "aborted")
                         return
 
-                    # Merge human input into context
+                    # Non-abort: reset consecutive stop counter
+                    self._consecutive_hitl_stops = 0
+                    execution.status = ExecutionStatus.APPROVED
+                    self.session.commit()
+
+                    # Resume CO
+                    self.co_service.update_status(co_id, COStatus.RUNNING)
+
+                    # Detect implicit stop intent in user's free-text feedback
+                    _user_text = human.get("text", "").lower()
+                    _implicit_stop_cues = (
+                        "停", "不要", "别做了", "别继续", "算了",
+                        "不用了", "放弃", "stop", "quit", "enough",
+                    )
+                    _has_implicit_stop = any(kw in _user_text for kw in _implicit_stop_cues)
+
+                    # Merge human input into context (with amplified signal if implicit stop detected)
+                    decision_text = f"{human['decision']}: {human.get('text', '')}"
+                    if _has_implicit_stop:
+                        decision_text += (
+                            "\n[System: user's feedback contains stop/abort intent. "
+                            "Strongly respect the user's wish — wrap up immediately "
+                            "or set task_complete: true.]"
+                        )
                     self.context_service.merge_step_result(
                         co, step_number,
                         "human_decision",
-                        f"{human['decision']}: {human.get('text', '')}",
+                        decision_text,
                     )
 
                 # 7. Merge step result into context (for non-tool steps)
