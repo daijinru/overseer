@@ -85,17 +85,36 @@ BUILTIN_TOOLS = {
     "file_read": {
         "name": "file_read",
         "description": "Read contents of a file",
-        "parameters": {"path": "string"},
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "File path to read"},
+            },
+            "required": ["path"],
+        },
     },
     "file_write": {
         "name": "file_write",
-        "description": "Write contents to a file",
-        "parameters": {"path": "string", "content": "string"},
+        "description": "Write contents to a file. Relative paths are resolved against the configured output directory.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "File path to write (relative paths resolve to output directory)"},
+                "content": {"type": "string", "description": "Text content to write"},
+            },
+            "required": ["path", "content"],
+        },
     },
     "file_list": {
         "name": "file_list",
         "description": "List files in a directory",
-        "parameters": {"path": "string"},
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Directory path to list"},
+            },
+            "required": ["path"],
+        },
     },
 }
 
@@ -366,6 +385,10 @@ class ToolService:
         try:
             from pathlib import Path
             p = Path(path)
+            # Resolve relative paths against configured output_dir
+            if not p.is_absolute():
+                output_dir = Path(self._cfg.context.output_dir)
+                p = output_dir / p
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
             return {"status": "ok", "path": str(p.resolve()), "bytes_written": len(content)}

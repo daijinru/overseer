@@ -34,5 +34,5 @@ reflection:
 
 context:
   max_tokens: 8000     # StateDict 压缩阈值
-  output_dir: "output"  # 默认产出物输出目录
+  output_dir: "output"  # file_write 相对路径的基准目录，也用于产出物归档
 
