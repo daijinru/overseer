@@ -30,6 +30,7 @@ class HomeScreen(Screen):
         ("k", "prev_co", "Prev"),
         ("f", "filter_co", "Filter"),
         ("t", "view_tool_result", "Tool Result"),
+        ("a", "view_artifacts", "Artifacts"),
         ("y", "copy_log", "Copy Log"),
         ("m", "view_memories", "Memories"),
         ("q", "quit_app", "Quit"),
@@ -91,6 +92,9 @@ class HomeScreen(Screen):
 
     def action_view_memories(self) -> None:
         self.app.action_view_memories()
+
+    def action_view_artifacts(self) -> None:
+        self.app.action_view_artifacts()
 
     async def action_quit_app(self) -> None:
         await self.app.action_quit()

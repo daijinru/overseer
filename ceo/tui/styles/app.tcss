@@ -366,6 +366,88 @@ ToolResultListScreen {
     margin-bottom: 1;
 }
 
+/* ── Artifact list screen ── */
+ArtifactListScreen {
+    align: center middle;
+}
+
+#artifact-list-container {
+    width: 60%;
+    max-width: 70;
+    min-width: 30;
+    height: auto;
+    max-height: 80%;
+    border: double $primary;
+    padding: 1 2;
+    background: $surface;
+}
+
+#artifact-list-title {
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.artifact-item-row {
+    layout: horizontal;
+    height: auto;
+    margin-bottom: 1;
+}
+
+.artifact-item-btn {
+    width: 1fr;
+}
+
+.artifact-open-btn {
+    width: auto;
+    min-width: 8;
+    margin-left: 1;
+}
+
+#artifact-list-container > Button {
+    margin-bottom: 1;
+}
+
+/* ── Artifact preview screen ── */
+ArtifactPreviewScreen {
+    align: center middle;
+}
+
+#artifact-preview-container {
+    width: 80%;
+    max-width: 100;
+    min-width: 40;
+    height: 80%;
+    border: double $primary;
+    padding: 1 2;
+    background: $surface;
+}
+
+#artifact-preview-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 0;
+}
+
+#artifact-preview-path {
+    margin-bottom: 1;
+}
+
+#artifact-preview-scroll {
+    height: 1fr;
+    border: double $primary-background;
+    padding: 0 1;
+}
+
+#artifact-preview-buttons {
+    layout: horizontal;
+    height: auto;
+    margin-top: 1;
+}
+
+#artifact-preview-buttons Button {
+    margin-right: 1;
+}
+
 /* ── Empty state ── */
 .empty-state {
     text-align: center;

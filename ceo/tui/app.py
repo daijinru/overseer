@@ -22,6 +22,7 @@ from ceo.tui.screens.confirm import ConfirmScreen
 from ceo.tui.screens.create import CreateScreen
 from ceo.tui.screens.home import HomeScreen
 from ceo.tui.screens.memory import MemoryScreen
+from ceo.tui.screens.artifact_viewer import ArtifactListScreen
 from ceo.tui.theme import FALLOUT_THEME
 from ceo.tui.widgets.co_detail import CODetail
 from ceo.tui.widgets.co_list import COList
@@ -102,6 +103,7 @@ class CeoApp(App):
         Binding("j", "next_co", "Next", show=False),
         Binding("k", "prev_co", "Prev", show=False),
         Binding("f", "filter_co", "Filter", show=False),
+        Binding("a", "view_artifacts", "Artifacts", show=False),
         Binding("m", "view_memories", "Memories", show=False),
         Binding("q", "quit", "Quit"),
     ]
@@ -377,6 +379,24 @@ class CeoApp(App):
     def action_view_memories(self) -> None:
         """Open the Memory browser screen."""
         self.push_screen(MemoryScreen())
+
+    def action_view_artifacts(self) -> None:
+        """Open the Artifact viewer for the selected CO."""
+        if self._selected_co_id is None:
+            self.notify("No event selected", severity="warning")
+            return
+
+        co = self._co_service.get(self._selected_co_id)
+        if co is None:
+            self.notify("Event not found", severity="error")
+            return
+
+        artifacts = list(co.artifacts) if co.artifacts else []
+        if not artifacts:
+            self.notify("No artifacts for this event", severity="warning")
+            return
+
+        self.push_screen(ArtifactListScreen(artifacts))
 
     # ── Message handlers from execution service ──
 
