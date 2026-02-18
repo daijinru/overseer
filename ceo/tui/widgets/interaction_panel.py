@@ -98,16 +98,11 @@ class InteractionPanel(Vertical):
                 event.prevent_default()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Allow Enter in the input to submit with the first option as default."""
+        """Allow Enter in the input to submit user feedback as the decision."""
         text = event.value.strip()
         if not text:
             return
-        # Use the first option as the default choice
-        container = self.query_one("#interaction-options", Horizontal)
-        buttons = [c for c in container.children if isinstance(c, OptionButton)]
-        if buttons:
-            option_value = buttons[0].option_value
-        else:
-            option_value = "continue"
+        # User wrote feedback — treat it as the primary intent,
+        # don't attach an arbitrary default button choice.
         self.hide()
-        self.post_message(self.Decision(option_value, text))
+        self.post_message(self.Decision("feedback", text))

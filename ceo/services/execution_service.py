@@ -567,7 +567,12 @@ class ExecutionService:
                     _has_implicit_stop = any(kw in _user_text for kw in _implicit_stop_cues)
 
                     # Merge human input into context (with amplified signal if implicit stop detected)
-                    decision_text = f"{human['decision']}: {human.get('text', '')}"
+                    # When decision is "feedback", the user typed free-text and hit Enter
+                    # — use the text itself as the primary intent, not an arbitrary button label.
+                    if human["decision"] == "feedback":
+                        decision_text = human.get("text", "")
+                    else:
+                        decision_text = f"{human['decision']}: {human.get('text', '')}"
                     if _has_implicit_stop:
                         decision_text += (
                             "\n[System: user's feedback contains stop/abort intent. "

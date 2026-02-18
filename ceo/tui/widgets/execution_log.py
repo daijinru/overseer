@@ -187,9 +187,13 @@ class ExecutionLog(Vertical):
 
     def add_human_decision(self, choice: str, text: str = "") -> None:
         """Add a user's HITL form decision to the log."""
-        self._write(f"    [bold italic]\U0001f464 Decision: {choice}[/bold italic]")
-        if text:
+        if choice == "feedback":
+            # User submitted free-text only — show feedback as the decision
             self._write(f"    [bold italic]\U0001f4ac Feedback: {text}[/bold italic]")
+        else:
+            self._write(f"    [bold italic]\U0001f464 Decision: {choice}[/bold italic]")
+            if text:
+                self._write(f"    [bold italic]\U0001f4ac Feedback: {text}[/bold italic]")
 
     def add_tool_approval(self, approved: bool, reason: str = "") -> None:
         """Add a user's tool approval/rejection to the log."""
