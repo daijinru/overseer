@@ -401,11 +401,10 @@ class ToolService:
             return {"status": "error", "error": "No path specified"}
         try:
             from pathlib import Path
+            output_dir = Path(self._cfg.context.output_dir)
             p = Path(path)
-            # Resolve relative paths against configured output_dir
-            if not p.is_absolute():
-                output_dir = Path(self._cfg.context.output_dir)
-                p = output_dir / p
+            # Always resolve into output_dir — use only the filename
+            p = output_dir / p.name
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
             return {"status": "ok", "path": str(p.resolve()), "bytes_written": len(content)}
