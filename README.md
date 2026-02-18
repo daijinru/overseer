@@ -4,7 +4,7 @@ Wenko CEO 是一个基于 LLM 的认知操作系统。它将用户的目标抽�
 
 系统提供基于 [Textual](https://textual.textualize.io/) 的终端 TUI 界面，支持同时运行多个认知对象，并通过 [MCP](https://modelcontextprotocol.io/) 协议扩展工具能力。
 
-![截图1](./docs/Snipaste_2026-02-18_10-37-02.jpg)
+![截图1](./docs/Snipaste_2026-02-18_17-34-50.jpg)
 ![截图2](./docs/Snipaste_2026-02-18_10-37-50.jpg)
 ![截图3](./docs/Snipaste_2026-02-18_10-38-15.jpg)
 
