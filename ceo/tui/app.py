@@ -22,6 +22,7 @@ from ceo.tui.screens.confirm import ConfirmScreen
 from ceo.tui.screens.create import CreateScreen
 from ceo.tui.screens.home import HomeScreen
 from ceo.tui.screens.memory import MemoryScreen
+from ceo.tui.theme import FALLOUT_THEME
 from ceo.tui.widgets.co_detail import CODetail
 from ceo.tui.widgets.co_list import COList
 from ceo.tui.widgets.execution_log import ExecutionLog
@@ -85,8 +86,8 @@ class InfoMessage(Message):
 class CeoApp(App):
     """Wenko CEO — Cognitive Operating System."""
 
-    TITLE = "Wenko CEO"
-    SUB_TITLE = "Cognitive Operating System"
+    TITLE = "WENKO CEO v2.0.76"
+    SUB_TITLE = "ROBCO INDUSTRIES TERMLINK // Cognitive Operating System"
     CSS_PATH = CSS_PATH
 
     # App-level bindings are hidden from Footer (show=False).
@@ -109,6 +110,8 @@ class CeoApp(App):
         super().__init__()
         load_config()
         init_db()
+        self.register_theme(FALLOUT_THEME)
+        self.theme = "fallout"
         self._co_service = CognitiveObjectService()
         self._selected_co_id: str | None = None
         self._execution_services: dict[str, ExecutionService] = {}
@@ -555,7 +558,7 @@ class CeoApp(App):
         running = sum(1 for co in cos if (co.status.value if hasattr(co.status, 'value') else co.status) == "running")
         paused = sum(1 for co in cos if (co.status.value if hasattr(co.status, 'value') else co.status) == "paused")
 
-        parts = ["Cognitive Operating System"]
+        parts = ["ROBCO TERMLINK //"]
         stats = []
         if total > 0:
             stats.append(f"Total: {total}")

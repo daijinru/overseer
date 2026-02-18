@@ -36,7 +36,7 @@ class InteractionPanel(Vertical):
         """Show the interaction panel with a reason and options."""
         self.add_class("visible")
         self.query_one("#interaction-reason", Static).update(
-            f"[bold yellow]Decision Required:[/bold yellow] {reason}"
+            f"[bold reverse]Decision Required:[/bold reverse] {reason}"
         )
 
         # Filter out None/empty options and ensure we always have usable options

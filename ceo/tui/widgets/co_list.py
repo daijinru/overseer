@@ -9,11 +9,11 @@ from textual.widgets import Label, ListItem, ListView, Static
 
 STATUS_ICONS = {
     "created": "[dim]\u25cb[/dim]",
-    "running": "[green bold]\u25cf[/green bold]",
-    "paused": "[yellow]\u23f3[/yellow]",
-    "completed": "[blue]\u2713[/blue]",
-    "aborted": "[red]\u2717[/red]",
-    "failed": "[red]\u2717[/red]",
+    "running": "[bold]\u25cf[/bold]",
+    "paused": "[bold italic]\u23f3[/bold italic]",
+    "completed": "[dim]\u2713[/dim]",
+    "aborted": "[bold reverse]\u2717[/bold reverse]",
+    "failed": "[bold reverse]\u2717[/bold reverse]",
 }
 
 # Filter cycle: All -> running -> paused -> completed -> created -> failed
@@ -164,5 +164,5 @@ class COList(Static):
                 icon = STATUS_ICONS.get(item.co_status, "\u25cb")
                 display_title = item.co_title if len(item.co_title) <= MAX_TITLE_LEN else item.co_title[:MAX_TITLE_LEN - 1] + "\u2026"
                 subtitle = f"[dim]{item.co_status}  {item.co_updated_at}[/dim]"
-                label.update(f"{icon} [bold yellow]![/bold yellow] {display_title}\n{subtitle}")
+                label.update(f"{icon} [bold reverse]![/bold reverse] {display_title}\n{subtitle}")
                 break

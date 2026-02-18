@@ -125,31 +125,31 @@ class ExecutionLog(Vertical):
             for tr in ex.tool_results:
                 self._write_tool_result(tr)
         if ex.human_decision:
-            self._write(f"    [yellow]\U0001f464 Decision: {ex.human_decision}[/yellow]")
+            self._write(f"    [bold italic]\U0001f464 Decision: {ex.human_decision}[/bold italic]")
         if ex.human_input:
-            self._write(f"    [yellow]\U0001f4ac Feedback: {ex.human_input}[/yellow]")
+            self._write(f"    [bold italic]\U0001f4ac Feedback: {ex.human_input}[/bold italic]")
 
     def _write_tool_result(self, tr: Dict[str, Any]) -> None:
         status = tr.get("status", "?")
         tool = tr.get("tool", "?")
         if status == "ok":
-            status_color = "green"
+            status_color = "bold"
         elif status == "rejected":
-            status_color = "red"
+            status_color = "bold reverse"
         elif status == "error":
-            status_color = "red"
+            status_color = "bold reverse"
         else:
-            status_color = "yellow"
+            status_color = "bold italic"
         self._write(f"    \u2514 [bold]{tool}[/bold] [{status_color}]{status}[/{status_color}]")
         # Show rejection reason if present
         if status == "rejected":
             reason = tr.get("reason", "")
             if reason:
-                self._write(f"      [italic red]{reason}[/italic red]")
+                self._write(f"      [italic reverse]{reason}[/italic reverse]")
         else:
             preview = self._tool_preview(tr)
             if preview:
-                self._write(f"      [italic $text-muted]{preview}[/italic $text-muted]")
+                self._write(f"      [dim italic]{preview}[/dim italic]")
         self._tool_results.append(tr)
 
     def add_step(self, ex: Execution, phase: str = "") -> None:
@@ -183,21 +183,21 @@ class ExecutionLog(Vertical):
 
     def add_error(self, error: str) -> None:
         """Add an error entry to the log."""
-        self._write(f"[red bold]\u2717 Error: {error}[/red bold]")
+        self._write(f"[bold reverse]\u2717 Error: {error}[/bold reverse]")
 
     def add_human_decision(self, choice: str, text: str = "") -> None:
         """Add a user's HITL form decision to the log."""
-        self._write(f"    [yellow]\U0001f464 Decision: {choice}[/yellow]")
+        self._write(f"    [bold italic]\U0001f464 Decision: {choice}[/bold italic]")
         if text:
-            self._write(f"    [yellow]\U0001f4ac Feedback: {text}[/yellow]")
+            self._write(f"    [bold italic]\U0001f4ac Feedback: {text}[/bold italic]")
 
     def add_tool_approval(self, approved: bool, reason: str = "") -> None:
         """Add a user's tool approval/rejection to the log."""
         if approved:
-            self._write("    [green]\u2705 Tool approved[/green]")
+            self._write("    [bold]\u2705 Tool approved[/bold]")
         else:
             label = f"Tool rejected: {reason}" if reason else "Tool rejected"
-            self._write(f"    [red]\u274c {label}[/red]")
+            self._write(f"    [bold reverse]\u274c {label}[/bold reverse]")
 
     def copy_log(self) -> None:
         """Copy all log content to system clipboard."""

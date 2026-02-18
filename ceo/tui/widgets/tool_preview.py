@@ -38,7 +38,7 @@ class ToolPreview(Vertical):
         """Show tool call details for approval."""
         self.add_class("visible")
         self.query_one("#tool-preview-title", Static).update(
-            f"[bold yellow]Tool Call: {tool_call.tool}[/bold yellow]"
+            f"[bold italic]Tool Call: {tool_call.tool}[/bold italic]"
         )
         # Format arguments with Rich markup for better readability
         args_text = json.dumps(tool_call.args, ensure_ascii=False, indent=2)
@@ -64,7 +64,7 @@ class ToolPreview(Vertical):
                 parts = line.split(":", 1)
                 key = parts[0].rstrip()
                 val = parts[1].lstrip() if len(parts) > 1 else ""
-                lines.append(f"[bold cyan]{key}[/bold cyan]: [green]{val}[/green]")
+                lines.append(f"[bold underline]{key}[/bold underline]: {val}")
             else:
                 lines.append(f"[dim]{line}[/dim]")
         return "\n".join(lines)

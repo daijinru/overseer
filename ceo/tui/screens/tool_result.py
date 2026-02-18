@@ -54,12 +54,12 @@ class ToolResultScreen(ModalScreen):
     def _format_status(self) -> str:
         status = self._result.get("status", "unknown")
         if status == "ok":
-            return "[green bold]Status: OK[/green bold]"
+            return "[bold]Status: OK[/bold]"
         elif status == "error":
-            return "[red bold]Status: Error[/red bold]"
+            return "[bold reverse]Status: Error[/bold reverse]"
         elif status == "rejected":
             reason = self._result.get("reason", "")
-            return f"[yellow bold]Status: Rejected[/yellow bold] {reason}"
+            return f"[bold italic]Status: Rejected[/bold italic] {reason}"
         return f"[dim]Status: {status}[/dim]"
 
     def _format_content(self) -> str:
@@ -86,7 +86,7 @@ class ToolResultScreen(ModalScreen):
                 parts = line.split(":", 1)
                 key = parts[0].rstrip()
                 val = parts[1].lstrip() if len(parts) > 1 else ""
-                lines.append(f"[bold cyan]{key}[/bold cyan]: [green]{val}[/green]")
+                lines.append(f"[bold underline]{key}[/bold underline]: {val}")
             else:
                 lines.append(f"[dim]{line}[/dim]")
         return "\n".join(lines)

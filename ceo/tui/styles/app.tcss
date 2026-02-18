@@ -1,7 +1,8 @@
-/* Wenko CEO — Textual CSS */
+/* Wenko CEO — Fallout CRT Terminal Theme */
 
 Screen {
     layout: vertical;
+    background: $background;
 }
 
 /* ── Header / Footer ── */
@@ -9,12 +10,23 @@ Header {
     dock: top;
     height: 1;
     background: $primary;
-    color: $text;
+    color: $background;
+    text-style: bold;
 }
 
 Footer {
     dock: bottom;
     height: 1;
+    background: $surface;
+}
+
+/* ── CRT Banner ── */
+#crt-banner {
+    height: 4;
+    text-align: center;
+    color: $primary;
+    background: $background;
+    padding: 0;
 }
 
 /* ── Home screen layout ── */
@@ -27,7 +39,7 @@ Footer {
     width: 30%;
     min-width: 26;
     max-width: 45;
-    border-right: thick $primary-background;
+    border-right: heavy $primary-background;
     padding: 0 1;
 }
 
@@ -123,7 +135,7 @@ CODetail {
 #execution-log {
     height: 1fr;
     min-height: 8;
-    border: round $primary-background;
+    border: double $primary-background;
     border-title-color: $text-muted;
     padding: 0 1;
     margin-top: 1;
@@ -138,7 +150,7 @@ CODetail {
 #interaction-panel {
     height: auto;
     max-height: 14;
-    border: round $accent;
+    border: double $accent;
     padding: 1;
     display: none;
     overflow-y: auto;
@@ -172,7 +184,7 @@ CODetail {
 #tool-preview-panel {
     height: auto;
     max-height: 16;
-    border: round $warning;
+    border: double $warning;
     padding: 1;
     display: none;
     overflow-y: auto;
@@ -219,7 +231,7 @@ CreateScreen {
     min-width: 40;
     height: auto;
     max-height: 80%;
-    border: round $primary;
+    border: double $primary;
     padding: 1 2;
     background: $surface;
 }
@@ -259,7 +271,7 @@ ConfirmScreen {
     max-width: 60;
     min-width: 30;
     height: auto;
-    border: round $error;
+    border: double $error;
     padding: 1 2;
     background: $surface;
 }
@@ -299,7 +311,7 @@ ToolResultScreen {
     max-width: 100;
     min-width: 40;
     height: 80%;
-    border: round $primary;
+    border: double $primary;
     padding: 1 2;
     background: $surface;
 }
@@ -316,7 +328,7 @@ ToolResultScreen {
 
 #tool-result-scroll {
     height: 1fr;
-    border: round $primary-background;
+    border: double $primary-background;
     padding: 0 1;
 }
 
@@ -337,7 +349,7 @@ ToolResultListScreen {
     min-width: 30;
     height: auto;
     max-height: 80%;
-    border: round $primary;
+    border: double $primary;
     padding: 1 2;
     background: $surface;
 }
@@ -368,7 +380,7 @@ ToolResultListScreen {
     width: 30%;
     min-width: 26;
     max-width: 45;
-    border-right: thick $primary-background;
+    border-right: heavy $primary-background;
     padding: 0 1;
 }
 
@@ -389,7 +401,7 @@ ToolResultListScreen {
 
 #memory-detail-scroll {
     height: 1fr;
-    border: round $primary-background;
+    border: double $primary-background;
     padding: 1 2;
 }
 
@@ -404,7 +416,7 @@ MemoryEditScreen {
     min-width: 40;
     height: auto;
     max-height: 80%;
-    border: round $primary;
+    border: double $primary;
     padding: 1 2;
     background: $surface;
 }
@@ -436,4 +448,49 @@ MemoryEditScreen {
 
 #memory-edit-buttons Button {
     margin-right: 1;
+}
+
+/* ── CRT Terminal Controls ── */
+ListView > ListItem {
+    background: transparent;
+}
+
+ListView > ListItem.-highlight {
+    background: $primary 15%;
+}
+
+Button {
+    background: $surface;
+    color: $primary;
+    border: tall $primary-background;
+}
+
+Button:hover {
+    background: $primary 20%;
+}
+
+Button:focus {
+    background: $primary 30%;
+    text-style: bold reverse;
+}
+
+Input {
+    background: $surface;
+    color: $primary;
+    border: tall $primary-background;
+}
+
+Input:focus {
+    border: tall $primary;
+}
+
+TextArea {
+    background: $surface;
+    color: $primary;
+    border: tall $primary-background;
+}
+
+Select {
+    background: $surface;
+    color: $primary;
 }

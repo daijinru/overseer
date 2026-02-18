@@ -12,11 +12,11 @@ from ceo.models.cognitive_object import CognitiveObject
 
 STATUS_BADGES = {
     "created": "[dim]\u25cb CREATED[/dim]",
-    "running": "[green bold]\u25cf RUNNING[/green bold]",
-    "paused": "[yellow]\u23f3 PAUSED[/yellow]",
-    "completed": "[blue]\u2713 COMPLETED[/blue]",
-    "aborted": "[red]\u2717 ABORTED[/red]",
-    "failed": "[red]\u2717 FAILED[/red]",
+    "running": "[bold]\u25cf RUNNING[/bold]",
+    "paused": "[bold italic]\u23f3 PAUSED[/bold italic]",
+    "completed": "[dim]\u2713 COMPLETED[/dim]",
+    "aborted": "[bold reverse]\u2717 ABORTED[/bold reverse]",
+    "failed": "[bold reverse]\u2717 FAILED[/bold reverse]",
 }
 
 

@@ -15,10 +15,10 @@ from ceo.tui.screens.confirm import ConfirmScreen
 from ceo.tui.screens.memory_edit import MemoryEditScreen
 
 CATEGORY_STYLES = {
-    "preference": "[cyan]preference[/cyan]",
-    "lesson": "[yellow]lesson[/yellow]",
-    "domain_knowledge": "[green]domain_knowledge[/green]",
-    "decision_pattern": "[magenta]decision_pattern[/magenta]",
+    "preference": "[underline]preference[/underline]",
+    "lesson": "[bold italic]lesson[/bold italic]",
+    "domain_knowledge": "[bold]domain_knowledge[/bold]",
+    "decision_pattern": "[italic]decision_pattern[/italic]",
 }
 
 MAX_PREVIEW_LEN = 60
@@ -122,11 +122,11 @@ class MemoryScreen(Screen):
             f"[bold]Memory Detail[/bold]  {styled_cat}  [dim]n: new  e: edit  d: delete  y: copy  q: back[/dim]"
         )
         detail_text = (
-            f"[bold cyan]Category:[/bold cyan]  {styled_cat}\n"
-            f"[bold cyan]Created:[/bold cyan]   {created}\n"
-            f"[bold cyan]Source CO:[/bold cyan] {source}\n"
-            f"[bold cyan]Tags:[/bold cyan]      {tags}\n"
-            f"\n[bold cyan]Content:[/bold cyan]\n{mem.content}"
+            f"[bold underline]Category:[/bold underline]  {styled_cat}\n"
+            f"[bold underline]Created:[/bold underline]   {created}\n"
+            f"[bold underline]Source CO:[/bold underline] {source}\n"
+            f"[bold underline]Tags:[/bold underline]      {tags}\n"
+            f"\n[bold underline]Content:[/bold underline]\n{mem.content}"
         )
         content.update(detail_text)
 

@@ -5,7 +5,9 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Footer, Header
+from textual.widgets import Footer, Header, Static
+
+from ceo.tui.theme import FALLOUT_BANNER
 
 from ceo.tui.widgets.co_detail import CODetail
 from ceo.tui.widgets.co_list import COList
@@ -35,6 +37,7 @@ class HomeScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield Header()
+        yield Static(FALLOUT_BANNER, id="crt-banner")
         with Horizontal(id="home-container"):
             with Vertical(id="co-list-panel"):
                 yield COList()
