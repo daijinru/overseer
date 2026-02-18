@@ -149,7 +149,7 @@ CODetail {
 /* ── Interaction panel ── */
 #interaction-panel {
     height: auto;
-    max-height: 14;
+    max-height: 50%;
     border: double $accent;
     padding: 1;
     display: none;
@@ -161,8 +161,11 @@ CODetail {
 }
 
 #interaction-reason {
+    height: auto;
+    max-height: 1fr;
     margin-bottom: 1;
     color: $warning;
+    overflow-y: auto;
 }
 
 #interaction-options {

@@ -573,6 +573,18 @@ class ExecutionService:
                         decision_text = human.get("text", "")
                     else:
                         decision_text = f"{human['decision']}: {human.get('text', '')}"
+                    # Detect task-completion confirmation from user
+                    _CONFIRM_COMPLETE_KEYWORDS = frozenset({
+                        "确认完成", "确认", "完成", "可以了", "没问题",
+                        "confirm", "done", "lgtm",
+                    })
+                    _decision_lower = human["decision"].lower().strip()
+                    if _decision_lower in _CONFIRM_COMPLETE_KEYWORDS:
+                        decision_text += (
+                            "\n[System: user has reviewed the summary report and "
+                            "confirmed task completion. You MUST set task_complete: true "
+                            "in your next decision. Do NOT ask for confirmation again.]"
+                        )
                     if _has_implicit_stop:
                         decision_text += (
                             "\n[System: user's feedback contains stop/abort intent. "

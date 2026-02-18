@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.events import Key
 from textual.message import Message
 from textual.widgets import Button, Input, Static
@@ -28,14 +28,14 @@ class InteractionPanel(Vertical):
             self.text = text
 
     def compose(self) -> ComposeResult:
-        yield Static("", id="interaction-reason")
+        yield VerticalScroll(Static("", id="interaction-reason-text"), id="interaction-reason")
         yield Horizontal(id="interaction-options")
         yield Input(placeholder="Optional feedback...", id="interaction-input")
 
     def show(self, reason: str, options: list[str]) -> None:
         """Show the interaction panel with a reason and options."""
         self.add_class("visible")
-        self.query_one("#interaction-reason", Static).update(
+        self.query_one("#interaction-reason-text", Static).update(
             f"[bold reverse]Decision Required:[/bold reverse] {reason}"
         )
 
