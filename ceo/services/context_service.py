@@ -100,7 +100,9 @@ class ContextService:
             "\n## Instructions\n"
             "Based on the above context, decide the next step to take toward achieving the goal. "
             "If you need tools, specify them in tool_calls using the exact tool name from the Available Tools list. "
-            "If you need human input, set human_required to true and explain why."
+            "If you need human input, set human_required to true and explain why.\n"
+            "当需要写入文件时，路径统一使用 \"output/\" 目录前缀（如 \"output/result.md\"）。"
+            "不要将文件写入项目根目录或其他位置。"
         )
 
         return "\n".join(parts)

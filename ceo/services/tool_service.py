@@ -332,10 +332,37 @@ class ToolService:
             logger.error("Tool execution failed: %s — %s", tool_name, e)
             return {"status": "error", "error": str(e)}
 
+    # Keys that typically carry file paths in MCP tool arguments
+    _PATH_KEYS = frozenset({
+        "path", "file_path", "filepath", "filename",
+        "outputPath", "output_path", "savePath", "save_path",
+    })
+
+    def _rewrite_path_args(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Rewrite file-path arguments to resolve into output_dir.
+
+        Strips directory components and prepends the configured output_dir,
+        mirroring the same safety logic used by builtin file_write.
+        """
+        from pathlib import Path
+
+        output_dir = Path(self._cfg.context.output_dir)
+        rewritten = dict(args)
+        changed = False
+        for key in self._PATH_KEYS:
+            if key in rewritten and isinstance(rewritten[key], str):
+                p = Path(rewritten[key])
+                rewritten[key] = str(output_dir / p.name)
+                changed = True
+        if changed:
+            output_dir.mkdir(parents=True, exist_ok=True)
+        return rewritten
+
     async def _execute_mcp(
         self, tool_name: str, args: Dict[str, Any], max_retries: int = 3
     ) -> Dict[str, Any]:
         """Execute a tool via MCP server, with automatic retries on failure."""
+        args = self._rewrite_path_args(args)
         last_error = ""
         for attempt in range(1, max_retries + 1):
             try:

@@ -453,15 +453,22 @@ class ExecutionService:
                         all_results.append({"tool": tc.tool, **result})
 
                         # Record artifact if file was written
-                        if tc.tool == "file_write" and result.get("status") == "ok":
+                        # Works for both builtin file_write and MCP tools with path args
+                        _path_arg = (
+                            tc.args.get("path") or tc.args.get("file_path")
+                            or tc.args.get("filepath") or tc.args.get("filename")
+                            or tc.args.get("outputPath") or tc.args.get("output_path")
+                            or tc.args.get("savePath") or tc.args.get("save_path")
+                        )
+                        if _path_arg and result.get("status") == "ok":
                             self.artifact_service.record(
                                 co_id=co_id,
                                 execution_id=execution.id,
-                                name=tc.args.get("path", "unknown").split("/")[-1],
-                                file_path=result.get("path", tc.args.get("path", "")),
+                                name=_path_arg.split("/")[-1],
+                                file_path=result.get("path", _path_arg),
                                 artifact_type="document",
                             )
-                            self.context_service.add_artifact(co, result.get("path", ""))
+                            self.context_service.add_artifact(co, result.get("path", _path_arg))
 
                         # Merge tool result into context, including param-filter warnings
                         result_summary = json.dumps(result, ensure_ascii=False)[:2000]
