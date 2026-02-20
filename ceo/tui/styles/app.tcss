@@ -535,6 +535,41 @@ MemoryEditScreen {
     margin-right: 1;
 }
 
+/* ── Tool panel screen ── */
+#tool-panel-container {
+    layout: horizontal;
+    height: 1fr;
+}
+
+#tool-list-panel {
+    width: 35%;
+    min-width: 30;
+    max-width: 50;
+    border-right: heavy $primary-background;
+    padding: 0 1;
+}
+
+#tool-listview {
+    height: 1fr;
+}
+
+#tool-detail-panel {
+    width: 1fr;
+    padding: 0 1;
+}
+
+#tool-detail-header {
+    height: auto;
+    padding: 1 0;
+    text-style: bold;
+}
+
+#tool-detail-scroll {
+    height: 1fr;
+    border: double $primary-background;
+    padding: 1 2;
+}
+
 /* ── CRT Terminal Controls ── */
 ListView > ListItem {
     background: transparent;

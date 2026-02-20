@@ -23,6 +23,7 @@ from ceo.tui.screens.create import CreateScreen
 from ceo.tui.screens.home import HomeScreen
 from ceo.tui.screens.memory import MemoryScreen
 from ceo.tui.screens.artifact_viewer import ArtifactListScreen
+from ceo.tui.screens.tool_panel import ToolPanelScreen
 from ceo.tui.theme import FALLOUT_THEME
 from ceo.tui.widgets.co_detail import CODetail
 from ceo.tui.widgets.co_list import COList
@@ -105,6 +106,7 @@ class CeoApp(App):
         Binding("f", "filter_co", "Filter", show=False),
         Binding("a", "view_artifacts", "Artifacts", show=False),
         Binding("m", "view_memories", "Memories", show=False),
+        Binding("w", "view_tools", "Tools", show=False),
         Binding("q", "quit", "Quit"),
     ]
 
@@ -397,6 +399,29 @@ class CeoApp(App):
             return
 
         self.push_screen(ArtifactListScreen(artifacts))
+
+    def action_view_tools(self) -> None:
+        """Open the Tool panel to browse registered tools."""
+        from ceo.services.tool_service import ToolService
+
+        tools: list = []
+        servers: list = []
+        live_ts = None
+
+        # Try to get data from a running ExecutionService (has live MCP connections)
+        for exec_service in self._execution_services.values():
+            live_ts = exec_service.tool_service
+            tools = live_ts.list_tools_detailed()
+            servers = live_ts.list_configured_servers()
+            break
+
+        if not tools:
+            # No running service — show builtin tools + server config
+            ts = ToolService()
+            tools = ts.list_tools_detailed()
+            servers = ts.list_configured_servers()
+
+        self.push_screen(ToolPanelScreen(tools, servers=servers, tool_service=live_ts))
 
     # ── Message handlers from execution service ──
 

@@ -251,6 +251,39 @@ class ToolService:
         """Return list of available tools."""
         return list(self._tools.values())
 
+    def list_tools_detailed(self) -> List[Dict[str, Any]]:
+        """Return all tools with source and permission info."""
+        result = []
+        for name, info in self._tools.items():
+            source = self._mcp_tool_map.get(name)
+            result.append({
+                "name": name,
+                "description": info.get("description", ""),
+                "parameters": info.get("parameters", {}),
+                "source": source or "builtin",
+                "permission": self.get_permission(name).value,
+            })
+        return result
+
+    def list_configured_servers(self) -> List[Dict[str, Any]]:
+        """Return MCP server configs without connecting."""
+        servers = []
+        for name, cfg in self._cfg.mcp.servers.items():
+            info: Dict[str, Any] = {
+                "server_name": name,
+                "transport": cfg.transport,
+            }
+            if cfg.transport == "stdio":
+                info["command"] = cfg.command or ""
+                info["args"] = cfg.args
+            else:
+                info["url"] = cfg.url or ""
+            # Count discovered tools for this server (if connected)
+            tool_count = sum(1 for s in self._mcp_tool_map.values() if s == name)
+            info["discovered_tools"] = tool_count
+            servers.append(info)
+        return servers
+
     def filter_args(self, tool_name: str, args: Dict[str, Any]) -> tuple[Dict[str, Any], List[str]]:
         """Filter tool args to only include parameters defined in the schema.
 
