@@ -1,73 +1,69 @@
+English | **[中文](./README_CN.md)**
+
 # Wenko CEO — Cognitive Operating System
 
-Wenko CEO 是一个基于 LLM 的认知操作系统。它将用户的目标抽象为 **CognitiveObject（认知对象）**，通过自主认知循环驱动 LLM 进行多步推理、工具调用和人机交互，最终完成复杂任务。
+> Not a chatbot with tools bolted on — an operating system that treats the LLM as its CPU.
 
-系统提供基于 [Textual](https://textual.textualize.io/) 的终端 TUI 界面，支持同时运行多个认知对象，并通过 [MCP](https://modelcontextprotocol.io/) 协议扩展工具能力。
+Wenko CEO abstracts user goals into **CognitiveObjects (cognitive processes)**, driving autonomous multi-step reasoning, tool invocation, and human-in-the-loop interaction through a self-directed cognitive loop. Multiple cognitive processes can run concurrently, with layered perception and safety mechanisms ensuring controllable, trustworthy execution.
 
-![截图1](./docs/Snipaste_2026-02-20_23-19-17.jpg)
-![截图2](./docs/Snipaste_2026-02-20_23-18-29.jpg)
-![截图3](./docs/Snipaste_2026-02-18_18-04-51.jpg)
-![截图4](./docs/Snipaste_2026-02-18_10-38-15.jpg)
-![截图5](./docs/Snipaste_2026-02-20_23-22-11.jpg)
+Built with a [Textual](https://textual.textualize.io/) terminal TUI and extensible via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
 
-## 快速开始
+![Screenshot 1](./docs/Snipaste_2026-02-20_23-19-17.jpg)
+![Screenshot 2](./docs/Snipaste_2026-02-20_23-18-29.jpg)
+![Screenshot 3](./docs/Snipaste_2026-02-18_18-04-51.jpg)
+![Screenshot 4](./docs/Snipaste_2026-02-18_10-38-15.jpg)
+![Screenshot 5](./docs/Snipaste_2026-02-20_23-22-11.jpg)
 
-```bash
-# 克隆项目
-git clone <repo-url> && cd wenko_ceo
+## Core Features
 
-# 复制配置文件并填入你的 LLM API 密钥
-cp config.cp.yaml config.yaml
-# 编辑 config.yaml，配置 llm.api_key、llm.base_url 等
+### Cognitive Processes, Not Conversations
 
-# 启动（需要 uv）
-./start.sh
-```
+Wenko CEO's core metaphor is an **operating system**, not a chat interface:
 
-### 快捷键
+- Users create cognitive processes with full lifecycles (created → running → paused → completed), not conversations
+- Multiple processes run concurrently, each with isolated context, execution history, and database session
+- Context is not a linear chat log but an **accumulated StateDict** — a structured knowledge base with compression and sliding-window support
 
-| 按键 | 操作 |
-|------|------|
-| `n`  | 新建认知对象 |
-| `s`  | 启动选中的认知对象 |
-| `c`  | 手动标记为已完成 |
-| `x`  | 暂停运行中的认知对象 |
-| `d`  | 删除选中的认知对象 |
-| `D`  | 清空所有认知对象 |
-| `q`  | 退出 |
+### Five-Layer Safety — Never Trust the LLM
 
-## 设计思想
+The system assumes the LLM is a powerful but unreliable reasoning engine, and builds defense-in-depth around that premise:
 
-### 认知对象（CognitiveObject）
+| Layer | Mechanism | Effect |
+|-------|-----------|--------|
+| Parameter | Schema-based filtering of hallucinated args, with feedback to LLM for self-correction | Tool calls don't fail from fabricated parameters |
+| Behavioral | Dual loop detection (exact repeat + same-name repeat), thresholds adjust dynamically with confidence | Infinite loops are automatically broken |
+| Permission | 4-tier permissions (auto / notify / confirm / approve) + runtime adaptive escalation | High-risk operations require human approval |
+| Output | Unified path sandbox — both builtin and MCP tool file writes are confined to `output/` | LLM cannot write where it shouldn't |
+| Meta-cognitive | Sustained low confidence auto-triggers HITL; reflection detects "no progress" and injects strategy-switch hints | System proactively asks for help when the LLM is lost |
 
-核心抽象。每个认知对象代表一个用户目标，系统围绕它自主执行多步认知循环：
+### Perception System — The System Can "Feel" What's Happening
 
-```
-用户目标 → CognitiveObject → [LLM推理 → 决策 → 工具执行 → 上下文合并] × N → 完成
-```
+Beyond executing tools and recording results, the system has three layers of perception:
 
-### 认知循环（Cognitive Loop）
+**Self-state perception (Phase 1)** — Sliding-window confidence monitoring, stagnation signal detection in reflections, step count and elapsed time injected into prompts so the LLM knows how many resources it has consumed.
 
-每一步循环包含：
+**Tool result semantic perception (Phase 2)** — Automatic result classification (success / error / empty / partial), diff detection between consecutive calls to the same tool, intent-vs-result deviation alerts.
 
-1. **上下文构建** — 从 CO 的累积上下文、历史步骤和跨事件记忆中组装 prompt
-2. **LLM 推理** — 调用大模型，获得结构化决策（`LLMDecision`）
-3. **工具执行** — 根据决策调用工具（内置或 MCP 远程工具），需要时请求人工审批
-4. **人机交互** — LLM 可主动请求用户决策（HITL），暂停循环等待用户输入
-5. **上下文合并** — 将步骤结果、工具输出、人工反馈写回 CO 上下文
-6. **自我反思** — 每 N 步触发一次反思，评估进展
-7. **记忆提取** — 从 LLM 回复中提取可复用知识，存为跨事件记忆
+**Implicit user behavior perception (Phase 3)** — Approval response timing (hesitation is noticed), approve/reject ratio tracking, consecutive rejections trigger automatic permission escalation, stable preferences are persisted to cross-event Memory.
 
-### 人在回路（Human-in-the-Loop）
+### Learns Over Time, Not From Scratch Every Time
 
-系统不是全自动的。两种场景会暂停循环等待人工介入：
+- **Cross-event memory**: Extracts lessons, preferences, and knowledge from LLM responses into the Memory table
+- **Implicit preference persistence**: User tool-approval patterns are tracked and written to memory; new tasks load them automatically
+- **Keyword + scoring retrieval**: When a new CO starts, relevant historical memories are retrieved by goal description and injected into the prompt
 
-- **LLM 主动请求** — 模型判断需要用户选择或确认时，设置 `human_required: true`
-- **工具审批** — 高权限工具（如文件写入）执行前需要用户确认
+### Bidirectional Human-in-the-Loop
 
-### MCP 工具扩展
+Not a one-way "system asks, human answers" model:
 
-通过 MCP 协议连接外部工具服务器，支持 stdio、SSE、HTTP 三种传输方式。配置即用，无需改代码：
+- **LLM-initiated**: The model can set `human_required: true` and provide an options list
+- **Three input modes**: Button click, number-key shortcuts, free-text input
+- **Implicit intent detection**: Stop cues in user text ("stop", "enough", "quit") are recognized and guide the LLM to wrap up gracefully
+- **asyncio.Event sync**: The loop pauses to await human input — no polling
+
+### MCP Tool Ecosystem
+
+Connect external tool servers via the MCP protocol, supporting stdio, SSE, and streamable HTTP transports:
 
 ```yaml
 mcp:
@@ -78,143 +74,230 @@ mcp:
       args: ["-y", "howtocook-mcp"]
 ```
 
-## 架构设计
+- MCP subprocess stderr captured in real-time via custom `_StderrPipe` (os.pipe + background thread), forwarded to TUI
+- Monkey-patches `mcp.stdio_client` to work around stderr binding at import time
+- Automatic retry with exponential backoff (up to 3 attempts)
+- ToolPanelScreen provides a full tool browser (grouped view, schema display, on-demand connection, clipboard copy)
+
+### Task Closure — Not Just "Done"
+
+```
+Create CO → Cognitive loop runs → Artifacts auto-archived → Completion summary → Post-completion actions
+```
+
+- Automatic artifact detection: any file written by any tool is recorded (via `_PATH_KEYS` pattern matching)
+- Completion displays summary + action panel (view artifacts / copy summary / start new task)
+- Artifact viewer supports in-TUI text file preview and system-app opening for binary files
+
+### Structured Logging — Auditable
+
+- **Application log**: `TimedRotatingFileHandler`, daily rotation, 14-day retention
+- **Tool result log**: Separate JSON Lines file (`tool_results.jsonl`), each record contains timestamp, co_id, step, tool, status, output, error
+- **Full execution audit trail**: Every step's prompt, raw LLM response, parsed decision, tool calls and results, and human input are persisted to the Execution table
+
+## Quick Start
+
+```bash
+# Clone the project
+git clone <repo-url> && cd wenko_ceo
+
+# Copy the config template and fill in your LLM API key
+cp config.cp.yaml config.yaml
+# Edit config.yaml: set llm.api_key, llm.base_url, etc.
+
+# Launch (requires uv)
+./start.sh
+```
+
+### Keyboard Shortcuts
+
+| Key  | Action |
+|------|--------|
+| `n`  | Create new cognitive object |
+| `s`  | Start selected cognitive object |
+| `c`  | Manually mark as completed |
+| `x`  | Pause a running cognitive object |
+| `d`  | Delete selected cognitive object |
+| `D`  | Clear all cognitive objects |
+| `j/k` | Move selection up/down |
+| `f`  | Cycle status filter |
+| `a`  | View artifacts for current CO |
+| `m`  | Open memory browser |
+| `w`  | Open tool panel |
+| `q`  | Quit |
+
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                    TUI 层                        │
+│                   TUI Layer                      │
 │  CeoApp ← HomeScreen ← [COList, CODetail,      │
 │            ExecutionLog, InteractionPanel,        │
 │            ToolPreview]                           │
+│  ToolPanelScreen  ArtifactViewer  MemoryScreen   │
+│  ConfirmScreen    CreateScreen                    │
 ├─────────────────────────────────────────────────┤
-│                   服务层                          │
-│  ExecutionService  ← 认知循环编排                 │
-│  ├── LLMService        LLM API 调用 + 决策解析   │
-│  ├── ToolService       工具管理 + MCP client      │
-│  ├── ContextService    上下文构建 + 压缩           │
-│  ├── MemoryService     跨事件记忆                  │
-│  ├── ArtifactService   产出物管理                  │
+│                 Service Layer                     │
+│  ExecutionService  ← Cognitive loop + Perception │
+│  ├── LLMService        LLM API + decision parse  │
+│  ├── ToolService       Tool mgmt + MCP + perms   │
+│  ├── ContextService    Prompt build + compress    │
+│  ├── MemoryService     Cross-event memory         │
+│  ├── ArtifactService   Artifact management        │
 │  └── COService         CO CRUD                    │
 ├─────────────────────────────────────────────────┤
-│                   数据层                          │
+│                  Data Layer                       │
 │  SQLAlchemy ORM + SQLite (WAL mode)              │
 │  [CognitiveObject, Execution, Memory, Artifact]  │
+├─────────────────────────────────────────────────┤
+│                 Logging Layer                     │
+│  logging_config: App logs + Tool result JSONL    │
 └─────────────────────────────────────────────────┘
 ```
 
-### 层次职责
+### Layer Responsibilities
 
-**TUI 层** — Textual 应用，负责用户交互和状态展示。通过 Textual Worker 运行认知循环，`post_message()` 实现 worker→app 的异步通信。
+**TUI Layer** — Textual app with a Fallout Pip-Boy terminal theme. Cognitive loops run in Textual Workers; `post_message()` provides async worker → app communication. Six custom Message types form a typed event bus.
 
-**服务层** — 业务逻辑核心。`ExecutionService` 是编排器，驱动认知循环的每一步；其余服务各司其职。每个 `ExecutionService` 实例拥有独立的 SQLAlchemy Session，避免并发 CO 之间的数据串扰。
+**Service Layer** — Core business logic. `ExecutionService` is the orchestrator (Mediator pattern), driving the cognitive loop and integrating the three-layer perception system. Fully decoupled from the TUI via callbacks. Each instance owns an independent SQLAlchemy Session, supporting concurrent COs.
 
-**数据层** — SQLite + WAL 模式，支持并发读。外键约束开启，级联删除保证数据一致性。
+**Data Layer** — SQLite + WAL mode for concurrent reads. Foreign key constraints + cascade deletes ensure data consistency.
 
-### 关键文件
+**Logging Layer** — Dual-channel: application logs (daily rotation) + tool result JSON Lines (size rotation), `propagate=False` ensures no cross-contamination.
+
+### Cognitive Loop in Detail
+
+Each iteration of `ExecutionService.run_loop` executes:
+
+```
+1.  Create Execution record
+2.  Build prompt (goal + resource status + tool list + accumulated findings + memories + reflection)
+3.  Call LLM
+4.  Parse structured decision (3-level fallback: regex → JSON extraction → default to human-required)
+4.5 Meta-perception: confidence monitoring → sustained low confidence triggers HITL
+5.  Tool execution (arg filtering → loop detection → permission check → execute → classify result → diff → deviation alert)
+6.  Human interaction (behavior timing → preference stats → implicit intent detection)
+7.  Context merge
+8.  Self-reflection (every N steps) → stagnation detection → strategy-switch injection
+9.  Memory extraction
+9.5 Implicit preference injection
+10. Context compression
+11. Completion check (persist preferences → disconnect MCP → callback)
+```
+
+### Key Files
 
 ```
 ceo/
-├── __main__.py                 # 入口
-├── config.py                   # YAML 配置 + Pydantic 校验
-├── database.py                 # SQLAlchemy 引擎 + Session 工厂
+├── __main__.py                 # Entry point
+├── config.py                   # YAML config + Pydantic validation
+├── database.py                 # SQLAlchemy engine + session factory
+├── logging_config.py           # Dual-channel logging config
 ├── core/
 │   ├── enums.py                # COStatus, ExecutionStatus, ToolPermission
-│   └── protocols.py            # LLMDecision, ToolCall, NextAction 等数据协议
+│   └── protocols.py            # LLMDecision, ToolCall, NextAction
 ├── models/
 │   ├── cognitive_object.py     # CognitiveObject ORM
 │   ├── execution.py            # Execution ORM
 │   ├── memory.py               # Memory ORM
 │   └── artifact.py             # Artifact ORM
 ├── services/
-│   ├── execution_service.py    # 认知循环编排
-│   ├── llm_service.py          # LLM API + 决策解析
-│   ├── tool_service.py         # 工具管理 + MCP client
-│   ├── context_service.py      # 上下文构建/压缩
-│   ├── memory_service.py       # 跨事件记忆
-│   ├── artifact_service.py     # 产出物管理
+│   ├── execution_service.py    # Cognitive loop orchestration + perception
+│   ├── llm_service.py          # LLM API + decision parsing
+│   ├── tool_service.py         # Tool mgmt + MCP + path sandbox + permission override
+│   ├── context_service.py      # Prompt build / compress / result classification / diff / deviation
+│   ├── memory_service.py       # Cross-event memory + preference extraction
+│   ├── artifact_service.py     # Artifact management
 │   └── cognitive_object_service.py  # CO CRUD
 └── tui/
-    ├── app.py                  # CeoApp 主应用
-    ├── styles/app.tcss         # TUI 样式
+    ├── app.py                  # CeoApp main app + message bus
+    ├── theme.py                # Fallout Pip-Boy terminal theme
+    ├── styles/app.tcss         # TUI styles
     ├── screens/
-    │   ├── home.py             # 主屏幕
-    │   └── create.py           # 创建 CO 对话框
+    │   ├── home.py             # Home screen
+    │   ├── create.py           # Create CO dialog
+    │   ├── confirm.py          # Confirm action dialog
+    │   ├── memory.py           # Memory browser
+    │   ├── memory_edit.py      # Memory editor
+    │   ├── tool_panel.py       # Tool panel (grouped browsing + on-demand connect)
+    │   ├── tool_result.py      # Tool result viewer
+    │   └── artifact_viewer.py  # Artifact preview / open
     └── widgets/
-        ├── co_list.py          # CO 列表
-        ├── co_detail.py        # CO 详情
-        ├── execution_log.py    # 执行日志
-        ├── interaction_panel.py # 人机交互面板
-        └── tool_preview.py     # 工具预览/审批
+        ├── co_list.py          # CO list (status filter + awaiting markers)
+        ├── co_detail.py        # CO detail
+        ├── execution_log.py    # Execution log + completion summary
+        ├── interaction_panel.py # HITL panel (3 input modes)
+        └── tool_preview.py     # Tool preview / approval (Enter dual-mode)
 ```
 
-## 数据结构设计
+## Data Model
 
-### CognitiveObject（认知对象）
+### CognitiveObject
 
-表示一个用户目标，是系统的核心实体。
+Represents a user goal — the core entity of the system.
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | `UUID` | 主键 |
-| `title` | `String(255)` | 目标标题 |
-| `description` | `Text` | 目标描述 |
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `UUID` | Primary key |
+| `title` | `String(255)` | Goal title |
+| `description` | `Text` | Goal description |
 | `status` | `Enum` | created / running / paused / completed / aborted / failed |
-| `context` | `JSON` | 累积上下文（StateDict），包含步骤历史、工具结果、反思等 |
-| `created_at` | `DateTime` | 创建时间 |
-| `updated_at` | `DateTime` | 更新时间（自动） |
+| `context` | `JSON` | Accumulated context (StateDict): step history, tool results, reflections, etc. |
+| `created_at` | `DateTime` | Created timestamp |
+| `updated_at` | `DateTime` | Updated timestamp (auto) |
 
-关系：`executions` (1:N) → Execution, `artifacts` (1:N) → Artifact，级联删除。
+Relations: `executions` (1:N) → Execution, `artifacts` (1:N) → Artifact, cascade delete.
 
-### Execution（执行步骤）
+### Execution
 
-认知循环的每一步产生一条 Execution 记录。
+Each cognitive loop step produces one Execution record.
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | `UUID` | 主键 |
-| `cognitive_object_id` | `FK` | 所属 CO |
-| `sequence_number` | `Integer` | 步骤序号 |
-| `title` | `String(255)` | 步骤标题（来自 LLM 决策） |
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `UUID` | Primary key |
+| `cognitive_object_id` | `FK` | Parent CO |
+| `sequence_number` | `Integer` | Step number |
+| `title` | `String(255)` | Step title (from LLM decision) |
 | `status` | `Enum` | pending / running_llm / running_tool / awaiting_human / approved / rejected / completed / failed |
-| `prompt` | `Text` | 发送给 LLM 的完整 prompt |
-| `llm_response` | `Text` | LLM 原始回复 |
-| `llm_decision` | `JSON` | 解析后的结构化决策 |
-| `tool_calls` | `JSON` | 工具调用列表 `[{tool, args}]` |
-| `tool_results` | `JSON` | 工具执行结果 `[{tool, status, ...}]` |
-| `human_decision` | `String` | 用户选择 |
-| `human_input` | `Text` | 用户输入的文本反馈 |
-| `created_at` | `DateTime` | 创建时间 |
+| `prompt` | `Text` | Full prompt sent to LLM |
+| `llm_response` | `Text` | Raw LLM response |
+| `llm_decision` | `JSON` | Parsed structured decision |
+| `tool_calls` | `JSON` | Tool call list `[{tool, args}]` |
+| `tool_results` | `JSON` | Tool execution results `[{tool, status, ...}]` |
+| `human_decision` | `String` | User's choice |
+| `human_input` | `Text` | User's free-text feedback |
+| `created_at` | `DateTime` | Created timestamp |
 
-### Memory（跨事件记忆）
+### Memory
 
-从 LLM 回复中提取的可复用知识，可被后续任何 CO 检索。
+Reusable knowledge extracted from LLM responses and user behavior, retrievable by any future CO.
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | `UUID` | 主键 |
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `UUID` | Primary key |
 | `category` | `String(50)` | preference / decision_pattern / domain_knowledge / lesson |
-| `content` | `Text` | 记忆内容 |
-| `source_co_id` | `FK` | 来源 CO（可空） |
-| `relevance_tags` | `JSON` | 相关标签，用于检索 |
-| `created_at` | `DateTime` | 创建时间 |
+| `content` | `Text` | Memory content |
+| `source_co_id` | `FK` | Source CO (nullable) |
+| `relevance_tags` | `JSON` | Tags for retrieval |
+| `created_at` | `DateTime` | Created timestamp |
 
-### Artifact（产出物）
+### Artifact
 
-执行过程中生成的文件或数据。
+Files or data produced during execution.
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | `UUID` | 主键 |
-| `cognitive_object_id` | `FK` | 所属 CO |
-| `execution_id` | `FK` | 产生该产出物的执行步骤（可空） |
-| `name` | `String(255)` | 文件名 |
-| `file_path` | `Text` | 文件路径 |
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `UUID` | Primary key |
+| `cognitive_object_id` | `FK` | Parent CO |
+| `execution_id` | `FK` | Execution step that produced this artifact (nullable) |
+| `name` | `String(255)` | Filename |
+| `file_path` | `Text` | File path |
 | `artifact_type` | `String(50)` | report / data / chart / document |
-| `created_at` | `DateTime` | 创建时间 |
+| `created_at` | `DateTime` | Created timestamp |
 
-### LLMDecision（决策协议）
+### LLMDecision (Decision Protocol)
 
-LLM 每次回复必须包含的结构化决策块（非 ORM，Pydantic 模型）：
+The structured decision block every LLM response must contain (Pydantic model, not ORM). Instead of using OpenAI's native function calling, the system requires the LLM to embed a ` ```decision ``` ` JSON block within its natural language response — compatible with any OpenAI-API-format LLM provider, carrying meta-cognitive signals alongside action directives.
 
 ```json
 {
@@ -229,18 +312,18 @@ LLM 每次回复必须包含的结构化决策块（非 ORM，Pydantic 模型）
 }
 ```
 
-### 实体关系
+### Entity Relations
 
 ```
 CognitiveObject 1──N Execution
 CognitiveObject 1──N Artifact
-Execution       1──N Artifact (可选)
-CognitiveObject 1──N Memory (通过 source_co_id)
+Execution       1──N Artifact (optional)
+CognitiveObject 1──N Memory (via source_co_id)
 ```
 
-## 配置
+## Configuration
 
-配置文件 `config.yaml`（已 gitignore），可从 `config.cp.yaml` 复制：
+Config file `config.yaml` (gitignored), copy from `config.cp.yaml`:
 
 ```yaml
 llm:
@@ -257,48 +340,68 @@ mcp:
   servers: {}
 
 tool_permissions:
-  file_read: auto        # 自动执行
-  file_write: confirm    # 需确认
-  file_delete: approve   # 需预览+审批
+  file_read: auto        # Auto-execute
+  file_write: confirm    # Requires confirmation
+  file_delete: approve   # Requires preview + approval
   default: confirm
 
 reflection:
-  interval: 5            # 每 N 步触发反思
+  interval: 5            # Trigger reflection every N steps
   similarity_threshold: 0.8
 
 context:
-  max_tokens: 8000       # 上下文压缩阈值
+  max_tokens: 8000       # Context compression threshold
   output_dir: "output"
 ```
 
-### 工具权限级别
+### Tool Permission Levels
 
-| 级别 | 行为 |
-|------|------|
-| `auto` | 自动执行，不需人工介入 |
-| `notify` | 执行后通知用户 |
-| `confirm` | 执行前需要用户确认 |
-| `approve` | 显示预览面板，用户审批后执行 |
+| Level | Behavior | Runtime Behavior |
+|-------|----------|-----------------|
+| `auto` | Auto-execute, no human involvement | — |
+| `notify` | Notify user after execution | — |
+| `confirm` | Requires user confirmation before execution | 3 consecutive rejections → auto-escalate to approve |
+| `approve` | Shows preview panel, executes after user approval | — |
 
-## 开发
+Permission resolution priority: Tool-specific config > MCP default > Global default > Runtime override (highest priority)
+
+## Perception Roadmap
+
+```
+Phase 1  Self-state meta-perception    ✅ Done
+  ↓
+Phase 2  Tool result semantic perception ✅ Done
+  ↓
+Phase 3  Implicit user behavior perception ✅ Done
+  ↓
+Phase 4  Environment change perception  🔜 Planned
+  ↓
+Phase 5  Cross-CO communication         🔜 Planned
+  ↓
+Phase 6  Multimodal perception          🔜 Planned
+```
+
+See [PERCEPTION_ROADMAP.md](./PERCEPTION_ROADMAP.md) for details.
+
+## Development
 
 ```bash
-# 安装开发依赖
+# Install dev dependencies
 uv sync
 
-# 运行测试
+# Run tests
 uv run pytest tests/ -v
 
-# 启动应用
+# Launch the app
 uv run python -m ceo
 ```
 
-## 技术栈
+## Tech Stack
 
 - Python 3.11+
-- [Textual](https://textual.textualize.io/) — 终端 TUI 框架
+- [Textual](https://textual.textualize.io/) — Terminal TUI framework
 - [SQLAlchemy 2.0](https://www.sqlalchemy.org/) — ORM
-- [SQLite](https://www.sqlite.org/) (WAL mode) — 持久化
-- [Pydantic 2.0](https://docs.pydantic.dev/) — 配置校验 + 数据协议
-- [httpx](https://www.python-httpx.org/) — 异步 HTTP 客户端（LLM API）
-- [MCP](https://modelcontextprotocol.io/) — Model Context Protocol 工具扩展
+- [SQLite](https://www.sqlite.org/) (WAL mode) — Persistence
+- [Pydantic 2.0](https://docs.pydantic.dev/) — Config validation + data protocols
+- [httpx](https://www.python-httpx.org/) — Async HTTP client (LLM API)
+- [MCP](https://modelcontextprotocol.io/) — Model Context Protocol for tool extensibility
