@@ -487,6 +487,11 @@ class ExecutionService:
                     execution.tool_results = all_results
                     self.session.commit()
 
+                    # Log tool results to file
+                    from ceo.logging_config import log_tool_result
+                    for tr in all_results:
+                        log_tool_result(tr, co_id=co_id, step_number=step_number)
+
                     # Phase 2: Intent-result deviation detection
                     intent_desc = (
                         decision.next_action.description

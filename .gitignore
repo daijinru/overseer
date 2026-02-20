@@ -27,5 +27,8 @@ output/
 # OS
 .DS_Store
 
+# Logs
+logs/
+
 # Testing
 .pytest_cache/

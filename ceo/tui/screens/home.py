@@ -29,7 +29,6 @@ class HomeScreen(Screen):
         ("j", "next_co", "Next"),
         ("k", "prev_co", "Prev"),
         ("f", "filter_co", "Filter"),
-        ("t", "view_tool_result", "Tool Result"),
         ("a", "view_artifacts", "Artifacts"),
         ("y", "copy_log", "Copy Log"),
         ("m", "view_memories", "Memories"),
@@ -76,13 +75,6 @@ class HomeScreen(Screen):
 
     def action_filter_co(self) -> None:
         self.app.action_filter_co()
-
-    def action_view_tool_result(self) -> None:
-        try:
-            log = self.query_one(ExecutionLog)
-            log.show_tool_result_picker()
-        except Exception:
-            pass
 
     def action_copy_log(self) -> None:
         try:
