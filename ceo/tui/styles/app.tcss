@@ -160,6 +160,14 @@ CODetail {
     display: block;
 }
 
+#interaction-panel.completion-mode {
+    border: double $success;
+}
+
+#interaction-panel.completion-mode #interaction-reason {
+    color: $success;
+}
+
 #interaction-reason {
     height: auto;
     max-height: 1fr;

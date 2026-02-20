@@ -173,6 +173,28 @@ class CeoApp(App):
         except Exception:
             logger.debug("ExecutionLog widget not available", exc_info=True)
 
+        # Auto-show completion summary for completed COs
+        status_str = co.status.value if hasattr(co.status, 'value') else str(co.status)
+        if status_str == "completed":
+            try:
+                log = self.screen.query_one(ExecutionLog)
+                log.add_completion_summary(co)
+            except Exception:
+                pass
+            try:
+                panel = self.screen.query_one(InteractionPanel)
+                panel.show_completion_actions(bool(co.artifacts))
+            except Exception:
+                pass
+        else:
+            # Hide completion panel when switching to non-completed CO
+            try:
+                panel = self.screen.query_one(InteractionPanel)
+                if panel.has_class("completion-mode"):
+                    panel.hide()
+            except Exception:
+                pass
+
     # ── Actions ──
 
     def action_new_co(self) -> None:
@@ -522,6 +544,39 @@ class CeoApp(App):
                 log.add_info(message.text)
             except Exception:
                 logger.debug("ExecutionLog widget not available", exc_info=True)
+
+    def _show_completion_summary(self, co_id: str) -> None:
+        """Show a rich completion summary in the log and action buttons in the panel."""
+        self._co_service.session.expire_all()
+        co = self._co_service.get(co_id)
+        if co is None:
+            return
+
+        try:
+            log = self.screen.query_one(ExecutionLog)
+            log.add_completion_summary(co)
+        except Exception:
+            logger.debug("ExecutionLog widget not available for summary", exc_info=True)
+
+        try:
+            panel = self.screen.query_one(InteractionPanel)
+            has_artifacts = bool(co.artifacts)
+            panel.show_completion_actions(has_artifacts)
+        except Exception:
+            logger.debug("InteractionPanel widget not available for completion actions", exc_info=True)
+
+    def on_interaction_panel_completion_action(self, message: InteractionPanel.CompletionAction) -> None:
+        """Handle post-completion action button clicks."""
+        if message.action == "view_artifacts":
+            self.action_view_artifacts()
+        elif message.action == "copy_summary":
+            try:
+                log = self.screen.query_one(ExecutionLog)
+                log.copy_summary()
+            except Exception:
+                pass
+        elif message.action == "new_task":
+            self.action_new_co()
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         """Clean up when a worker is cancelled (stopped by user)."""

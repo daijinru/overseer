@@ -27,6 +27,12 @@ class InteractionPanel(Vertical):
             self.choice = choice
             self.text = text
 
+    class CompletionAction(Message):
+        """Emitted when user clicks a post-completion action button."""
+        def __init__(self, action: str) -> None:
+            super().__init__()
+            self.action = action
+
     def compose(self) -> ComposeResult:
         yield VerticalScroll(Static("", id="interaction-reason-text"), id="interaction-reason")
         yield Horizontal(id="interaction-options")
@@ -64,21 +70,64 @@ class InteractionPanel(Vertical):
     def hide(self) -> None:
         """Hide the interaction panel."""
         self.remove_class("visible")
+        self.remove_class("completion-mode")
         # Remove dynamic buttons to prevent focus-chain errors during shutdown
         try:
             container = self.query_one("#interaction-options", Horizontal)
             container.remove_children()
         except Exception:
             pass
-        # Blur the input to prevent focus issues during shutdown
+        # Restore and blur the input
         try:
             inp = self.query_one("#interaction-input", Input)
+            inp.display = True
             inp.blur()
         except Exception:
             pass
 
+    def show_completion_actions(self, has_artifacts: bool) -> None:
+        """Show post-completion action buttons."""
+        self.add_class("visible")
+        self.add_class("completion-mode")
+
+        self.query_one("#interaction-reason-text", Static).update(
+            "[bold]\u2713 Task Complete[/bold] \u2014 Choose an action:"
+        )
+
+        container = self.query_one("#interaction-options", Horizontal)
+        container.remove_children()
+
+        container.mount(Button(
+            "[1] View Artifacts",
+            id="completion-view-artifacts",
+            variant="primary",
+            disabled=(not has_artifacts),
+        ))
+        container.mount(Button(
+            "[2] Copy Summary",
+            id="completion-copy-summary",
+            variant="primary",
+        ))
+        container.mount(Button(
+            "[3] New Task",
+            id="completion-new-task",
+            variant="primary",
+        ))
+
+        # Hide text input — not needed for completion actions
+        try:
+            inp = self.query_one("#interaction-input", Input)
+            inp.display = False
+        except Exception:
+            pass
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if isinstance(event.button, OptionButton):
+        bid = event.button.id or ""
+        if bid.startswith("completion-"):
+            action = bid.replace("completion-", "").replace("-", "_")
+            self.hide()
+            self.post_message(self.CompletionAction(action))
+        elif isinstance(event.button, OptionButton):
             text = self.query_one("#interaction-input", Input).value
             self.hide()
             self.post_message(self.Decision(event.button.option_value, text))
@@ -86,6 +135,13 @@ class InteractionPanel(Vertical):
     def on_key(self, event: Key) -> None:
         """Handle number keys 1-9 as shortcuts to select options."""
         if not self.has_class("visible"):
+            return
+        if self.has_class("completion-mode"):
+            _ACTION_MAP = {"1": "view_artifacts", "2": "copy_summary", "3": "new_task"}
+            if event.key in _ACTION_MAP:
+                self.hide()
+                self.post_message(self.CompletionAction(_ACTION_MAP[event.key]))
+                event.prevent_default()
             return
         if event.key in ("1", "2", "3", "4", "5", "6", "7", "8", "9"):
             index = int(event.key) - 1

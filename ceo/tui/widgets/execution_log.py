@@ -52,6 +52,7 @@ class ExecutionLog(Vertical):
         super().__init__(**kwargs)
         self._lines: list[str] = []
         self._tool_results: List[Dict[str, Any]] = []
+        self._last_summary_text: str = ""
 
     def compose(self) -> ComposeResult:
         yield RichLog(wrap=True, markup=True, id="exec-log-richlog")
@@ -76,6 +77,7 @@ class ExecutionLog(Vertical):
     def clear(self) -> None:
         self._lines.clear()
         self._tool_results.clear()
+        self._last_summary_text = ""
         self._log.clear()
 
     def _format_ts(self, ex: Execution) -> str:
@@ -236,3 +238,104 @@ class ExecutionLog(Vertical):
             self.app.push_screen(
                 ToolResultListScreen(self._tool_results), callback=on_selected
             )
+
+    def add_completion_summary(self, co) -> None:
+        """Append a rich completion summary block to the log."""
+        ctx = co.context or {}
+        goal = ctx.get("goal", co.title)
+        step_count = ctx.get("step_count", 0)
+        findings = ctx.get("accumulated_findings", [])
+        last_reflection = ctx.get("last_reflection")
+        duration = self._calc_duration(co)
+
+        lines: list[str] = []
+
+        lines.append("")
+        lines.append("[bold]\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550[/bold]")
+        lines.append("[bold]  \u2713 TASK COMPLETED[/bold]")
+        lines.append("[bold]\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550[/bold]")
+        lines.append("")
+
+        lines.append(f"[bold]Goal:[/bold] {goal}")
+        lines.append("")
+
+        lines.append(f"[bold]Steps:[/bold] {step_count}  |  [bold]Duration:[/bold] {duration}")
+        lines.append("")
+
+        if findings:
+            _SKIP_KEYS = frozenset({
+                "perception:", "meta_perception", "loop_detected",
+                "compressed_summary",
+            })
+            user_findings = [
+                f for f in findings
+                if not any(f.get("key", "").startswith(sk) for sk in _SKIP_KEYS)
+            ]
+            if user_findings:
+                lines.append("[bold]Key Findings:[/bold]")
+                for f in user_findings[-5:]:
+                    step = f.get("step", "?")
+                    key = f.get("key", "")
+                    value = f.get("value", "")
+                    if len(value) > 120:
+                        value = value[:120] + "\u2026"
+                    lines.append(f"  \u2514 Step {step} [{key}]: {value}")
+                if len(user_findings) > 5:
+                    lines.append(f"  [dim]\u2026 and {len(user_findings) - 5} earlier findings[/dim]")
+                lines.append("")
+
+        artifacts = list(co.artifacts) if co.artifacts else []
+        if artifacts:
+            lines.append(f"[bold]Artifacts Produced ({len(artifacts)}):[/bold]")
+            for art in artifacts:
+                type_badge = f"[dim]({art.artifact_type})[/dim]" if art.artifact_type else ""
+                lines.append(f"  \u2514\u2500 {art.name} {type_badge}")
+                lines.append(f"     [dim]{art.file_path}[/dim]")
+            lines.append("")
+
+        if last_reflection:
+            lines.append("[bold]Final Reflection:[/bold]")
+            refl = last_reflection if len(last_reflection) <= 200 else last_reflection[:200] + "\u2026"
+            lines.append(f"  [italic]{refl}[/italic]")
+            lines.append("")
+
+        lines.append("[dim]\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550[/dim]")
+
+        for line in lines:
+            self._write(line)
+
+        self._last_summary_text = "\n".join(
+            self._strip_markup(line) for line in lines
+        )
+
+    def copy_summary(self) -> None:
+        """Copy the completion summary text to system clipboard."""
+        if not self._last_summary_text:
+            self.notify("No summary to copy", severity="warning")
+            return
+        if _copy_to_system_clipboard(self._last_summary_text):
+            self.notify("Summary copied to clipboard")
+        else:
+            self.app.copy_to_clipboard(self._last_summary_text)
+            self.notify("Summary copied to clipboard (OSC 52)")
+
+    @staticmethod
+    def _calc_duration(co) -> str:
+        """Calculate duration string for a CO."""
+        from datetime import datetime, timezone
+        if not co.created_at:
+            return "-"
+        end = co.updated_at if co.updated_at else co.created_at
+        delta = end - co.created_at
+        total_seconds = int(delta.total_seconds())
+        if total_seconds < 0:
+            return "-"
+        if total_seconds < 60:
+            return f"{total_seconds}s"
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        if minutes < 60:
+            return f"{minutes}m {seconds}s"
+        hours = minutes // 60
+        minutes = minutes % 60
+        return f"{hours}h {minutes}m"
