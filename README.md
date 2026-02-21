@@ -8,11 +8,10 @@ Wenko CEO abstracts user goals into **CognitiveObjects (cognitive processes)**, 
 
 Built with a [Textual](https://textual.textualize.io/) terminal TUI and extensible via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
 
-![Screenshot 1](./docs/Snipaste_2026-02-20_23-19-17.jpg)
-![Screenshot 2](./docs/Snipaste_2026-02-20_23-18-29.jpg)
-![Screenshot 3](./docs/Snipaste_2026-02-18_18-04-51.jpg)
-![Screenshot 4](./docs/Snipaste_2026-02-18_10-38-15.jpg)
-![Screenshot 5](./docs/Snipaste_2026-02-20_23-22-11.jpg)
+![Screenshot 1](./docs/Snipaste_2026-02-21_13-01-27.jpg)
+![Screenshot 2](./docs/Snipaste_2026-02-21_13-01-38.jpg)
+![Screenshot 3](./docs/Snipaste_2026-02-21_13-02-26.jpg)
+![Screenshot 4](./docs/Snipaste_2026-02-21_13-03-06.jpg)
 
 ## Core Features
 
@@ -108,6 +107,24 @@ cp config.cp.yaml config.yaml
 # Launch (requires uv)
 ./start.sh
 ```
+
+### Recommended Terminal & Font
+
+Wenko CEO uses a Fallout Pip-Boy CRT terminal theme. For the best visual experience, we recommend [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) — a terminal emulator with built-in CRT scanline, bloom, and screen curvature effects.
+
+```bash
+# macOS
+brew install --cask cool-retro-term
+```
+
+For CJK (Chinese/Japanese/Korean) text display, the built-in retro fonts in cool-retro-term do not include CJK glyphs. We recommend installing [Sarasa Gothic (更纱黑体)](https://github.com/be5invis/Sarasa-Gothic), a monospaced font designed for terminals with excellent CJK support:
+
+```bash
+# macOS
+brew install --cask font-sarasa-gothic
+```
+
+After installation, open cool-retro-term → Settings → General → Font → uncheck **Use builtin fonts**, then select **Sarasa Mono SC** as the font.
 
 ### Keyboard Shortcuts
 

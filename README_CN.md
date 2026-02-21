@@ -8,11 +8,10 @@ Wenko CEO 将用户目标抽象为 **CognitiveObject（认知进程）**，通�
 
 基于 [Textual](https://textual.textualize.io/) 的终端 TUI 界面，通过 [MCP](https://modelcontextprotocol.io/) 协议扩展工具能力。
 
-![截图1](./docs/Snipaste_2026-02-20_23-19-17.jpg)
-![截图2](./docs/Snipaste_2026-02-20_23-18-29.jpg)
-![截图3](./docs/Snipaste_2026-02-18_18-04-51.jpg)
-![截图4](./docs/Snipaste_2026-02-18_10-38-15.jpg)
-![截图5](./docs/Snipaste_2026-02-20_23-22-11.jpg)
+![截图1](./docs/Snipaste_2026-02-21_13-01-27.jpg)
+![截图2](./docs/Snipaste_2026-02-21_13-01-38.jpg)
+![截图3](./docs/Snipaste_2026-02-21_13-02-26.jpg)
+![截图4](./docs/Snipaste_2026-02-21_13-03-06.jpg)
 
 ## 核心特性
 
@@ -108,6 +107,24 @@ cp config.cp.yaml config.yaml
 # 启动（需要 uv）
 ./start.sh
 ```
+
+### 推荐终端与字体
+
+Wenko CEO 使用 Fallout Pip-Boy CRT 终端主题，推荐搭配 [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) 获得最佳视觉体验——自带 CRT 扫描线、荧光扩散、屏幕弯曲等效果。
+
+```bash
+# macOS
+brew install --cask cool-retro-term
+```
+
+cool-retro-term 内置的复古字体不包含中文字形，推荐安装 [更纱黑体 (Sarasa Gothic)](https://github.com/be5invis/Sarasa-Gothic)，专为终端设计的等宽字体，中英文对齐良好：
+
+```bash
+# macOS
+brew install --cask font-sarasa-gothic
+```
+
+安装后打开 cool-retro-term → Settings → General → Font → 取消勾选 **Use builtin fonts**，然后选择 **Sarasa Mono SC** 作为字体。
 
 ### 快捷键
 
