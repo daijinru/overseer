@@ -1,8 +1,8 @@
 """Tests for service layer — Phase 3 verification."""
 
-from ceo.core.enums import COStatus
-from ceo.services.cognitive_object_service import CognitiveObjectService
-from ceo.services.llm_service import LLMService
+from retro_cogos.core.enums import COStatus
+from retro_cogos.services.cognitive_object_service import CognitiveObjectService
+from retro_cogos.services.llm_service import LLMService
 
 
 def test_co_service_create(isolated_db):

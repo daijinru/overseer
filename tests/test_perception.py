@@ -17,10 +17,10 @@ if "mcp" not in sys.modules:
     ):
         sys.modules[_sub] = _mcp_mock
 
-from ceo.services.cognitive_object_service import CognitiveObjectService
-from ceo.services.context_service import ContextService
-from ceo.services.execution_service import ExecutionService
-from ceo.services.memory_service import MemoryService
+from retro_cogos.services.cognitive_object_service import CognitiveObjectService
+from retro_cogos.services.context_service import ContextService
+from retro_cogos.services.execution_service import ExecutionService
+from retro_cogos.services.memory_service import MemoryService
 
 
 # ── Phase 2: classify_tool_result ──

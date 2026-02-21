@@ -1,10 +1,10 @@
 **[English](./README.md)** | 中文
 
-# Wenko CEO — Cognitive Operating System
+# Retro CogOS — Cognitive Operating System
 
 > 不是聊天机器人加了工具，而是把 LLM 当 CPU 的操作系统。
 
-Wenko CEO 将用户目标抽象为 **CognitiveObject（认知进程）**，通过自主认知循环驱动 LLM 进行多步推理、工具调用和人机交互，最终完成复杂任务。多个认知进程可并发运行，系统通过多层感知和安全机制确保执行可控、可信赖。
+Retro CogOS 将用户目标抽象为 **CognitiveObject（认知进程）**，通过自主认知循环驱动 LLM 进行多步推理、工具调用和人机交互，最终完成复杂任务。多个认知进程可并发运行，系统通过多层感知和安全机制确保执行可控、可信赖。
 
 基于 [Textual](https://textual.textualize.io/) 的终端 TUI 界面，通过 [MCP](https://modelcontextprotocol.io/) 协议扩展工具能力。
 
@@ -17,7 +17,7 @@ Wenko CEO 将用户目标抽象为 **CognitiveObject（认知进程）**，通�
 
 ### 认知进程，不是对话
 
-Wenko CEO 的核心隐喻是**操作系统**，而非对话界面：
+Retro CogOS 的核心隐喻是**操作系统**，而非对话界面：
 
 - 用户创建的不是"对话"，而是有完整生命周期的认知进程（created → running → paused → completed）
 - 多个进程可并发运行，各自拥有独立的上下文、执行历史和数据库 Session
@@ -98,7 +98,7 @@ mcp:
 
 ```bash
 # 克隆项目
-git clone <repo-url> && cd wenko_ceo
+git clone <repo-url> && cd retro-cogos
 
 # 复制配置文件并填入你的 LLM API 密钥
 cp config.cp.yaml config.yaml
@@ -110,7 +110,7 @@ cp config.cp.yaml config.yaml
 
 ### 推荐终端与字体
 
-Wenko CEO 使用 Fallout Pip-Boy CRT 终端主题，推荐搭配 [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) 获得最佳视觉体验——自带 CRT 扫描线、荧光扩散、屏幕弯曲等效果。
+Retro CogOS 使用 Fallout Pip-Boy CRT 终端主题，推荐搭配 [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) 获得最佳视觉体验——自带 CRT 扫描线、荧光扩散、屏幕弯曲等效果。
 
 ```bash
 # macOS
@@ -148,7 +148,7 @@ brew install --cask font-sarasa-gothic
 ```
 ┌─────────────────────────────────────────────────┐
 │                    TUI 层                        │
-│  CeoApp ← HomeScreen ← [COList, CODetail,      │
+│  RetroCogosApp ← HomeScreen ← [COList, CODetail,      │
 │            ExecutionLog, InteractionPanel,        │
 │            ToolPreview]                           │
 │  ToolPanelScreen  ArtifactViewer  MemoryScreen   │
@@ -205,7 +205,7 @@ brew install --cask font-sarasa-gothic
 ### 关键文件
 
 ```
-ceo/
+retro_cogos/
 ├── __main__.py                 # 入口
 ├── config.py                   # YAML 配置 + Pydantic 校验
 ├── database.py                 # SQLAlchemy 引擎 + Session 工厂
@@ -227,7 +227,7 @@ ceo/
 │   ├── artifact_service.py     # 产出物管理
 │   └── cognitive_object_service.py  # CO CRUD
 └── tui/
-    ├── app.py                  # CeoApp 主应用 + 消息总线
+    ├── app.py                  # RetroCogosApp 主应用 + 消息总线
     ├── theme.py                # Fallout Pip-Boy 终端主题
     ├── styles/app.tcss         # TUI 样式
     ├── screens/
@@ -351,7 +351,7 @@ llm:
   temperature: 0.7
 
 database:
-  path: "ceo_data.db"
+  path: "retro_cogos_data.db"
 
 mcp:
   servers: {}
@@ -410,7 +410,7 @@ uv sync
 uv run pytest tests/ -v
 
 # 启动应用
-uv run python -m ceo
+uv run python -m retro_cogos
 ```
 
 ## 技术栈

@@ -1,10 +1,10 @@
 English | **[中文](./README_CN.md)**
 
-# Wenko CEO — Cognitive Operating System
+# Retro CogOS — Cognitive Operating System
 
 > Not a chatbot with tools bolted on — an operating system that treats the LLM as its CPU.
 
-Wenko CEO abstracts user goals into **CognitiveObjects (cognitive processes)**, driving autonomous multi-step reasoning, tool invocation, and human-in-the-loop interaction through a self-directed cognitive loop. Multiple cognitive processes can run concurrently, with layered perception and safety mechanisms ensuring controllable, trustworthy execution.
+Retro CogOS abstracts user goals into **CognitiveObjects (cognitive processes)**, driving autonomous multi-step reasoning, tool invocation, and human-in-the-loop interaction through a self-directed cognitive loop. Multiple cognitive processes can run concurrently, with layered perception and safety mechanisms ensuring controllable, trustworthy execution.
 
 Built with a [Textual](https://textual.textualize.io/) terminal TUI and extensible via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
 
@@ -17,7 +17,7 @@ Built with a [Textual](https://textual.textualize.io/) terminal TUI and extensib
 
 ### Cognitive Processes, Not Conversations
 
-Wenko CEO's core metaphor is an **operating system**, not a chat interface:
+Retro CogOS's core metaphor is an **operating system**, not a chat interface:
 
 - Users create cognitive processes with full lifecycles (created → running → paused → completed), not conversations
 - Multiple processes run concurrently, each with isolated context, execution history, and database session
@@ -98,7 +98,7 @@ Create CO → Cognitive loop runs → Artifacts auto-archived → Completion sum
 
 ```bash
 # Clone the project
-git clone <repo-url> && cd wenko_ceo
+git clone <repo-url> && cd retro-cogos
 
 # Copy the config template and fill in your LLM API key
 cp config.cp.yaml config.yaml
@@ -110,7 +110,7 @@ cp config.cp.yaml config.yaml
 
 ### Recommended Terminal & Font
 
-Wenko CEO uses a Fallout Pip-Boy CRT terminal theme. For the best visual experience, we recommend [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) — a terminal emulator with built-in CRT scanline, bloom, and screen curvature effects.
+Retro CogOS uses a Fallout Pip-Boy CRT terminal theme. For the best visual experience, we recommend [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) — a terminal emulator with built-in CRT scanline, bloom, and screen curvature effects.
 
 ```bash
 # macOS
@@ -148,7 +148,7 @@ After installation, open cool-retro-term → Settings → General → Font → u
 ```
 ┌─────────────────────────────────────────────────┐
 │                   TUI Layer                      │
-│  CeoApp ← HomeScreen ← [COList, CODetail,      │
+│  RetroCogosApp ← HomeScreen ← [COList, CODetail,      │
 │            ExecutionLog, InteractionPanel,        │
 │            ToolPreview]                           │
 │  ToolPanelScreen  ArtifactViewer  MemoryScreen   │
@@ -205,7 +205,7 @@ Each iteration of `ExecutionService.run_loop` executes:
 ### Key Files
 
 ```
-ceo/
+retro_cogos/
 ├── __main__.py                 # Entry point
 ├── config.py                   # YAML config + Pydantic validation
 ├── database.py                 # SQLAlchemy engine + session factory
@@ -227,7 +227,7 @@ ceo/
 │   ├── artifact_service.py     # Artifact management
 │   └── cognitive_object_service.py  # CO CRUD
 └── tui/
-    ├── app.py                  # CeoApp main app + message bus
+    ├── app.py                  # RetroCogosApp main app + message bus
     ├── theme.py                # Fallout Pip-Boy terminal theme
     ├── styles/app.tcss         # TUI styles
     ├── screens/
@@ -351,7 +351,7 @@ llm:
   temperature: 0.7
 
 database:
-  path: "ceo_data.db"
+  path: "retro_cogos_data.db"
 
 mcp:
   servers: {}
@@ -410,7 +410,7 @@ uv sync
 uv run pytest tests/ -v
 
 # Launch the app
-uv run python -m ceo
+uv run python -m retro_cogos
 ```
 
 ## Tech Stack

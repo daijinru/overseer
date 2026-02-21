@@ -1,7 +1,7 @@
 [project]
-name = "wenko-ceo"
+name = "retro-cogos"
 version = "0.1.0"
-description = "Cognitive Operating System"
+description = "Retro CogOS — Cognitive Operating System"
 requires-python = ">=3.11"
 dependencies = [
     "textual>=1.0.0",
@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ceo = "ceo.__main__:main"
+retro-cogos = "retro_cogos.__main__:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -29,4 +29,4 @@ dev = [
 asyncio_mode = "auto"
 
 [tool.hatch.build.targets.wheel]
-packages = ["ceo"]
+packages = ["retro_cogos"]

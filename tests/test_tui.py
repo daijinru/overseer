@@ -2,8 +2,8 @@
 
 import pytest
 
-from ceo.config import load_config, reset_config
-from ceo.database import init_db, reset_db
+from retro_cogos.config import load_config, reset_config
+from retro_cogos.database import init_db, reset_db
 
 
 @pytest.fixture
@@ -32,9 +32,9 @@ def app_env(tmp_path):
 @pytest.mark.asyncio
 async def test_app_starts(app_env):
     """App should start and show the home screen."""
-    from ceo.tui.app import CeoApp
+    from retro_cogos.tui.app import RetroCogosApp
 
-    app = CeoApp()
+    app = RetroCogosApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        assert pilot.app.title == "Wenko CEO"
+        assert pilot.app.title == "RETRO COGOS v2.0.76"
         assert len(pilot.app.screen_stack) >= 1

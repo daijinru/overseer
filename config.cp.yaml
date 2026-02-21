@@ -6,7 +6,7 @@ llm:
   temperature: 0.7
 
 database:
-  path: "ceo_data.db"
+  path: "retro_cogos_data.db"
 
 mcp:
   servers:

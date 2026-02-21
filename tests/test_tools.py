@@ -2,9 +2,9 @@
 
 import pytest
 
-from ceo.core.enums import ToolPermission
-from ceo.core.protocols import ToolCall
-from ceo.services.tool_service import ToolService
+from retro_cogos.core.enums import ToolPermission
+from retro_cogos.core.protocols import ToolCall
+from retro_cogos.services.tool_service import ToolService
 
 
 def test_list_tools(isolated_db):

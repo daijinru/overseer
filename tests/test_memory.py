@@ -1,6 +1,6 @@
 """Tests for memory service — Phase 4 verification."""
 
-from ceo.services.memory_service import MemoryService
+from retro_cogos.services.memory_service import MemoryService
 
 
 def test_save_memory(isolated_db):
