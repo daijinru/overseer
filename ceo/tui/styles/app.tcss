@@ -176,13 +176,15 @@ CODetail {
     overflow-y: auto;
 }
 
-#interaction-options {
+#interaction-options,
+#completion-options {
     layout: horizontal;
     height: auto;
     margin-bottom: 1;
 }
 
-#interaction-options Button {
+#interaction-options Button,
+#completion-options Button {
     margin-right: 1;
     min-width: 12;
 }

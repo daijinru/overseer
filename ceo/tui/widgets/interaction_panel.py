@@ -36,11 +36,21 @@ class InteractionPanel(Vertical):
     def compose(self) -> ComposeResult:
         yield VerticalScroll(Static("", id="interaction-reason-text"), id="interaction-reason")
         yield Horizontal(id="interaction-options")
+        with Horizontal(id="completion-options"):
+            yield Button("[1] View Artifacts", id="completion-view-artifacts", variant="primary")
+            yield Button("[2] Copy Summary", id="completion-copy-summary", variant="primary")
+            yield Button("[3] New Task", id="completion-new-task", variant="primary")
         yield Input(placeholder="Optional feedback...", id="interaction-input")
+
+    def on_mount(self) -> None:
+        self.query_one("#completion-options").display = False
 
     def show(self, reason: str, options: list[str]) -> None:
         """Show the interaction panel with a reason and options."""
         self.add_class("visible")
+        self.remove_class("completion-mode")
+        self.query_one("#completion-options").display = False
+        self.query_one("#interaction-options").display = True
         self.query_one("#interaction-reason-text", Static).update(
             f"[bold reverse]Decision Required:[/bold reverse] {reason}"
         )
@@ -65,13 +75,15 @@ class InteractionPanel(Vertical):
         # Clear and focus input so user can type and press Enter
         inp = self.query_one("#interaction-input", Input)
         inp.value = ""
+        inp.display = True
         inp.focus()
 
     def hide(self) -> None:
         """Hide the interaction panel."""
         self.remove_class("visible")
         self.remove_class("completion-mode")
-        # Remove dynamic buttons to prevent focus-chain errors during shutdown
+        self.query_one("#completion-options").display = False
+        # Remove dynamic HITL buttons to prevent focus-chain errors during shutdown
         try:
             container = self.query_one("#interaction-options", Horizontal)
             container.remove_children()
@@ -94,25 +106,12 @@ class InteractionPanel(Vertical):
             "[bold]\u2713 Task Complete[/bold] \u2014 Choose an action:"
         )
 
-        container = self.query_one("#interaction-options", Horizontal)
-        container.remove_children()
+        # Hide HITL options, show pre-built completion buttons
+        self.query_one("#interaction-options").display = False
+        self.query_one("#completion-options").display = True
 
-        container.mount(Button(
-            "[1] View Artifacts",
-            id="completion-view-artifacts",
-            variant="primary",
-            disabled=(not has_artifacts),
-        ))
-        container.mount(Button(
-            "[2] Copy Summary",
-            id="completion-copy-summary",
-            variant="primary",
-        ))
-        container.mount(Button(
-            "[3] New Task",
-            id="completion-new-task",
-            variant="primary",
-        ))
+        # Update disabled state for View Artifacts
+        self.query_one("#completion-view-artifacts", Button).disabled = not has_artifacts
 
         # Hide text input — not needed for completion actions
         try:

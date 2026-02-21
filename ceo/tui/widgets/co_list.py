@@ -117,22 +117,26 @@ class COList(Static):
     def select_next(self) -> None:
         """Move selection down in the list."""
         listview = self.query_one("#co-listview", ListView)
+        old_index = listview.index
         if listview.index is None:
             if len(listview.children) > 0:
                 listview.index = 0
         elif listview.index < len(listview.children) - 1:
             listview.index += 1
-        self._emit_selected(listview)
+        if listview.index != old_index:
+            self._emit_selected(listview)
 
     def select_prev(self) -> None:
         """Move selection up in the list."""
         listview = self.query_one("#co-listview", ListView)
+        old_index = listview.index
         if listview.index is None:
             if len(listview.children) > 0:
                 listview.index = 0
         elif listview.index > 0:
             listview.index -= 1
-        self._emit_selected(listview)
+        if listview.index != old_index:
+            self._emit_selected(listview)
 
     def _emit_selected(self, listview: ListView) -> None:
         if listview.index is not None:
