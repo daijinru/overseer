@@ -140,6 +140,16 @@ class ExecutionService:
                 tool_name, count,
             )
             self.tool_service.override_permission(tool_name, "approve")
+            # Inject avoidance hint so LLM stops calling this tool
+            co = self.co_service.get(co_id)
+            if co:
+                self.context_service.merge_step_result(
+                    co,
+                    (co.context or {}).get("step_count", 0),
+                    "perception:tool_avoidance",
+                    f"System: user has rejected tool '{tool_name}' {count} consecutive times. "
+                    f"STOP using this tool. Find an alternative approach or ask for guidance.",
+                )
             if self._on_info:
                 self._on_info(
                     co_id,
@@ -369,8 +379,8 @@ class ExecutionService:
                         sum(_confidence_history) / len(_confidence_history)
                         if _confidence_history else 0.5
                     )
-                    # High confidence (>0.7): use default thresholds (2/3)
-                    # Low confidence (<0.4): tighten to (1/2)
+                    # High confidence (>=0.5): use default thresholds (2/3)
+                    # Low confidence (<0.5): tighten to (1/2)
                     exact_threshold = 2 if avg_conf >= 0.5 else 1
                     name_threshold = 3 if avg_conf >= 0.5 else 2
 
@@ -482,6 +492,7 @@ class ExecutionService:
                         self.context_service.merge_tool_result(
                             co, step_number, tc.tool, result_summary,
                             raw_result=result,
+                            tool_args=tc.args,
                         )
 
                     execution.tool_results = all_results
@@ -536,6 +547,11 @@ class ExecutionService:
                             f"System: user took {_hitl_elapsed:.0f}s to respond to HITL request. "
                             f"User may need more context or is uncertain about the direction.",
                         )
+                        if self._on_info:
+                            self._on_info(
+                                co_id,
+                                f"[Perception] User hesitated {_hitl_elapsed:.0f}s on HITL decision",
+                            )
 
                     execution.human_decision = human["decision"]
                     execution.human_input = human.get("text", "")
@@ -549,6 +565,7 @@ class ExecutionService:
                         )
                         execution.status = ExecutionStatus.REJECTED
                         self.session.commit()
+                        self._persist_preferences(co_id)
                         self.co_service.update_status(co_id, COStatus.ABORTED)
                         await self.tool_service.disconnect()
                         if self._on_complete:
@@ -675,11 +692,19 @@ class ExecutionService:
 
         except asyncio.CancelledError:
             logger.info("Execution loop cancelled for CO %s", co_id[:8])
+            try:
+                self._persist_preferences(co_id)
+            except Exception:
+                logger.debug("Failed to persist preferences on cancel", exc_info=True)
             self.co_service.update_status(co_id, COStatus.PAUSED)
             await self.tool_service.disconnect()
             raise
         except Exception as e:
             logger.error("Execution loop failed for CO %s: %s", co_id[:8], e, exc_info=True)
+            try:
+                self._persist_preferences(co_id)
+            except Exception:
+                logger.debug("Failed to persist preferences on error exit", exc_info=True)
             self.co_service.update_status(co_id, COStatus.FAILED)
             await self.tool_service.disconnect()
             if self._on_error:

@@ -143,6 +143,7 @@ class ContextService:
     def merge_tool_result(
         self, co: CognitiveObject, step_number: int, tool_name: str, result: str,
         raw_result: dict | None = None,
+        tool_args: dict | None = None,
     ) -> Dict[str, Any]:
         """Merge a tool execution result into context with semantic classification."""
         # Phase 2: Classify the result
@@ -150,9 +151,12 @@ class ContextService:
         if raw_result is not None:
             classification = self.classify_tool_result(raw_result)
 
-        # Phase 2: Diff detection — compare with last output from same tool
+        # Phase 2: Diff detection — compare with last output from same tool+args
         diff_note = ""
-        tool_key = tool_name
+        if tool_args:
+            tool_key = f"{tool_name}:{json.dumps(tool_args, sort_keys=True, ensure_ascii=False)}"
+        else:
+            tool_key = tool_name
         prev_output = self._last_tool_outputs.get(tool_key)
         if prev_output is not None:
             if result == prev_output:
@@ -193,6 +197,15 @@ class ContextService:
             return (
                 f"Intent was '{intent_description}', but all tools returned empty results. "
                 f"The data or resource may not exist."
+            )
+
+        # Case 3: Partial failure — some tools failed, some succeeded
+        error_count = sum(1 for r in tool_results if r.get("status") == "error")
+        if 0 < error_count < len(tool_results):
+            failed = [r.get("tool", "?") for r in tool_results if r.get("status") == "error"]
+            return (
+                f"Intent was '{intent_description}', but {error_count}/{len(tool_results)} "
+                f"tool calls failed ({', '.join(failed)}). Review partial results."
             )
 
         return None
