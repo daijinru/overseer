@@ -46,6 +46,13 @@ class ContextConfig(BaseModel):
     output_dir: str = "output"
 
 
+class PlanningConfig(BaseModel):
+    enabled: bool = True
+    max_subtasks: int = 10
+    checkpoint_on_subtask_complete: bool = True
+    compress_after_subtask: bool = True
+
+
 class AppConfig(BaseModel):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
@@ -53,6 +60,7 @@ class AppConfig(BaseModel):
     tool_permissions: Dict[str, str] = Field(default_factory=lambda: {"default": "confirm"})
     reflection: ReflectionConfig = Field(default_factory=ReflectionConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)
+    planning: PlanningConfig = Field(default_factory=PlanningConfig)
 
 
 _config: AppConfig | None = None

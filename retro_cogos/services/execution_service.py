@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from retro_cogos.core.enums import COStatus, ExecutionStatus
-from retro_cogos.core.protocols import LLMDecision, ToolCall
+from retro_cogos.core.protocols import LLMDecision, Subtask, ToolCall
 from retro_cogos.database import get_session
 from retro_cogos.models.cognitive_object import CognitiveObject
 from retro_cogos.models.execution import Execution
@@ -20,6 +20,7 @@ from retro_cogos.services.cognitive_object_service import CognitiveObjectService
 from retro_cogos.services.context_service import ContextService
 from retro_cogos.services.llm_service import LLMService
 from retro_cogos.services.memory_service import MemoryService
+from retro_cogos.services.planning_service import PlanningService
 from retro_cogos.services.tool_service import ToolService
 from retro_cogos.config import get_config
 
@@ -27,7 +28,15 @@ logger = logging.getLogger(__name__)
 
 # Keywords that indicate the user wants to stop/abort execution.
 # Covers both Chinese and English variants used by the UI.
-_ABORT_KEYWORDS = frozenset({"abort", "终止", "停止", "取消"})
+_ABORT_KEYWORDS = frozenset({
+    # English
+    "abort", "stop", "quit", "exit", "end", "cancel", "finish",
+    "done", "enough", "terminate",
+    # Chinese
+    "终止", "停止", "取消", "结束", "退出", "关闭",
+    "不做了", "不用了", "不要了", "不需要了",
+    "算了", "放弃", "中止", "停下", "别做了",
+})
 
 
 class ExecutionService:
@@ -41,6 +50,7 @@ class ExecutionService:
         self.artifact_service = ArtifactService(session)
         self.llm_service = LLMService()
         self.tool_service = ToolService()
+        self.planning_service = PlanningService(self.llm_service, self.context_service)
 
         # Human-in-the-loop synchronization
         self._human_event = asyncio.Event()
@@ -214,6 +224,76 @@ class ExecutionService:
             for line in lines:
                 self._on_info(co_id, line)
 
+    # ── Cognitive scaffold: planning, checkpoint, compression ──
+
+    async def _run_planning_phase(self, co_id: str) -> bool:
+        """Phase 1: Generate a task plan via LLM.
+
+        Returns True if a plan was generated, False otherwise.
+        """
+        co = self.co_service.get(co_id)
+        if co is None:
+            return False
+
+        if self._on_info:
+            self._on_info(co_id, "[Phase] Entering planning phase...")
+
+        memories = self.memory_service.retrieve_as_text(
+            co.title + " " + co.description, limit=3
+        )
+        available_tools = self.tool_service.list_tools()
+
+        try:
+            plan = await self.planning_service.generate_plan(co, memories, available_tools)
+            if plan and plan.subtasks:
+                self.planning_service.store_plan(co, plan)
+                subtask_titles = [st.title for st in plan.subtasks]
+                if self._on_info:
+                    self._on_info(
+                        co_id,
+                        f"[Phase] Planning complete: {len(plan.subtasks)} subtasks — "
+                        + ", ".join(subtask_titles),
+                    )
+                return True
+        except Exception as e:
+            logger.warning("Planning phase failed, falling back to flat execution: %s", e)
+
+        if self._on_info:
+            self._on_info(co_id, "[Phase] Planning skipped, using flat execution mode")
+        return False
+
+    async def _run_checkpoint(self, co_id: str) -> None:
+        """Phase 3: At subtask boundary, reflect on progress and optionally revise plan."""
+        co = self.co_service.get(co_id)
+        if co is None:
+            return
+
+        if self._on_info:
+            self._on_info(co_id, "[Phase] Checkpoint: reviewing progress...")
+
+        revised = await self.planning_service.checkpoint_reflect(co)
+        if revised:
+            if self._on_info:
+                self._on_info(co_id, "[Phase] Plan revised at checkpoint")
+        else:
+            progress = self.planning_service.get_plan_progress_text(co)
+            if self._on_info and progress:
+                self._on_info(co_id, f"[Phase] {progress}")
+
+    async def _compress_working_memory(self, co_id: str) -> None:
+        """Compress accumulated findings into WorkingMemory at subtask boundary."""
+        co = self.co_service.get(co_id)
+        if co is None:
+            return
+
+        wm = await self.context_service.compress_to_working_memory(co, self.llm_service)
+        if wm:
+            if self._on_info:
+                self._on_info(co_id, "[Phase] Context compressed to working memory")
+        else:
+            # Fallback to truncation-based compression
+            self.context_service.compress_if_needed(co)
+
     async def run_loop(self, co_id: str) -> None:
         """Main cognitive loop for a CognitiveObject."""
         co = self.co_service.get(co_id)
@@ -244,10 +324,33 @@ class ExecutionService:
         _low_confidence_threshold = 0.4  # confidence below this is considered "low"
         _loop_start_time = asyncio.get_event_loop().time()
 
+        cfg = get_config()
+
+        # ── PLANNING PHASE ──
+        # Generate a task plan if planning is enabled and no plan exists yet
+        if cfg.planning.enabled and not (co.context or {}).get("plan"):
+            await self._run_planning_phase(co_id)
+            co = self.co_service.get(co_id)  # refresh after planning
+
+        # Track which subtask we announced to avoid duplicate notifications
+        _announced_subtask_id = None
+
         try:
             while True:
                 step_number += 1
                 co = self.co_service.get(co_id)  # refresh
+
+                # Announce current subtask if changed
+                current_subtask = self.planning_service.get_current_subtask(co)
+                if current_subtask and current_subtask.id != _announced_subtask_id:
+                    _announced_subtask_id = current_subtask.id
+                    plan = (co.context or {}).get("plan", {})
+                    total = len(plan.get("subtasks", []))
+                    if self._on_info:
+                        self._on_info(
+                            co_id,
+                            f"[Phase] Starting subtask {current_subtask.id}/{total}: {current_subtask.title}",
+                        )
 
                 # Drain any new MCP stderr output and forward to TUI
                 self._drain_mcp_stderr(co_id)
@@ -339,6 +442,20 @@ class ExecutionService:
                     )
                     decision.options = ["换一种方式继续", "提供更多信息", "终止"]
                     _confidence_history.clear()
+
+                # 4.6 Help request: explicit escalation protocol
+                if decision.help_request and not decision.human_required:
+                    hr = decision.help_request
+                    decision.human_required = True
+                    parts = []
+                    if hr.specific_question:
+                        parts.append(f"问题：{hr.specific_question}")
+                    if hr.attempted_approaches:
+                        parts.append(f"已尝试：{', '.join(hr.attempted_approaches)}")
+                    if hr.missing_information:
+                        parts.append(f"缺少信息：{', '.join(hr.missing_information)}")
+                    decision.human_reason = "\n".join(parts) if parts else "需要帮助以继续推进。"
+                    decision.options = (hr.suggested_human_actions or []) + ["跳过此步骤", "终止"]
 
                 # 5. Handle tool calls
                 if decision.tool_calls:
@@ -556,21 +673,57 @@ class ExecutionService:
                     execution.human_decision = human["decision"]
                     execution.human_input = human.get("text", "")
 
-                    # Check abort BEFORE setting APPROVED status
-                    if human["decision"].lower().strip() in _ABORT_KEYWORDS:
+                    # Check abort BEFORE setting APPROVED status.
+                    # Match abort keywords in both the button label (decision)
+                    # AND the typed free-text — users may type "结束" in the
+                    # feedback input rather than clicking a button.
+                    _decision_val = human["decision"].lower().strip()
+                    _text_val = human.get("text", "").lower().strip()
+                    _is_abort = (
+                        _decision_val in _ABORT_KEYWORDS
+                        or (_decision_val == "feedback" and _text_val in _ABORT_KEYWORDS)
+                    )
+                    if _is_abort:
                         self._consecutive_hitl_stops += 1
                         logger.info(
-                            "User chose to abort (decision=%r, consecutive=%d)",
-                            human["decision"], self._consecutive_hitl_stops,
+                            "User chose to abort (decision=%r, text=%r, consecutive=%d)",
+                            human["decision"], human.get("text", ""),
+                            self._consecutive_hitl_stops,
                         )
-                        execution.status = ExecutionStatus.REJECTED
+
+                        # Force-abort only after repeated stop signals (user insists)
+                        if self._consecutive_hitl_stops >= 2:
+                            logger.info("User insisted on abort (%d times), force-aborting", self._consecutive_hitl_stops)
+                            execution.status = ExecutionStatus.REJECTED
+                            self.session.commit()
+                            self._persist_preferences(co_id)
+                            self.co_service.update_status(co_id, COStatus.ABORTED)
+                            await self.tool_service.disconnect()
+                            if self._on_complete:
+                                self._on_complete(co_id, "aborted")
+                            return
+
+                        # Graceful abort: inject a strong system signal and let LLM
+                        # wrap up in the next iteration instead of hard-aborting.
+                        execution.status = ExecutionStatus.APPROVED
                         self.session.commit()
-                        self._persist_preferences(co_id)
-                        self.co_service.update_status(co_id, COStatus.ABORTED)
-                        await self.tool_service.disconnect()
-                        if self._on_complete:
-                            self._on_complete(co_id, "aborted")
-                        return
+                        self.co_service.update_status(co_id, COStatus.RUNNING)
+                        self.context_service.merge_step_result(
+                            co, step_number, "system:user_stop_request",
+                            "[URGENT — User wants to STOP] "
+                            "The user has requested to end this task. "
+                            "You MUST do the following in your NEXT response:\n"
+                            "1. Provide a brief summary of what has been accomplished so far.\n"
+                            "2. Set task_complete: true in your decision.\n"
+                            "3. Do NOT start any new work or tool calls.\n"
+                            "4. Do NOT ask for confirmation — just finish.",
+                        )
+                        if self._on_info:
+                            self._on_info(
+                                co_id,
+                                "[System] User requested stop — guiding LLM to wrap up gracefully",
+                            )
+                        continue
 
                     # Non-abort: reset consecutive stop counter
                     self._consecutive_hitl_stops = 0
@@ -584,7 +737,11 @@ class ExecutionService:
                     _user_text = human.get("text", "").lower()
                     _implicit_stop_cues = (
                         "停", "不要", "别做了", "别继续", "算了",
-                        "不用了", "放弃", "stop", "quit", "enough",
+                        "不用了", "放弃", "结束", "不做了", "退出",
+                        "不需要", "关闭", "中止", "停下", "到此为止",
+                        "就这样", "可以了", "够了",
+                        "stop", "quit", "enough", "end", "done",
+                        "finish", "cancel", "exit", "terminate",
                     )
                     _has_implicit_stop = any(kw in _user_text for kw in _implicit_stop_cues)
 
@@ -595,13 +752,18 @@ class ExecutionService:
                         decision_text = human.get("text", "")
                     else:
                         decision_text = f"{human['decision']}: {human.get('text', '')}"
-                    # Detect task-completion confirmation from user
+                    # Detect task-completion confirmation from user.
+                    # Check both the button label and typed free-text.
                     _CONFIRM_COMPLETE_KEYWORDS = frozenset({
                         "确认完成", "确认", "完成", "可以了", "没问题",
                         "confirm", "done", "lgtm",
                     })
                     _decision_lower = human["decision"].lower().strip()
-                    if _decision_lower in _CONFIRM_COMPLETE_KEYWORDS:
+                    _feedback_text_lower = human.get("text", "").lower().strip()
+                    if (
+                        _decision_lower in _CONFIRM_COMPLETE_KEYWORDS
+                        or (_decision_lower == "feedback" and _feedback_text_lower in _CONFIRM_COMPLETE_KEYWORDS)
+                    ):
                         decision_text += (
                             "\n[System: user has reviewed the summary report and "
                             "confirmed task completion. You MUST set task_complete: true "
@@ -677,8 +839,40 @@ class ExecutionService:
                             f"Adjust your approach based on these signals.",
                         )
 
-                # 10. Context compression
+                # 10. Context compression (truncation fallback — always runs)
                 self.context_service.compress_if_needed(co)
+
+                # 10.5 Subtask completion handling
+                if decision.subtask_complete and cfg.planning.enabled:
+                    current_st = self.planning_service.get_current_subtask(co)
+                    result_summary = decision.reflection or ""
+                    next_st = self.planning_service.advance_subtask(co, result_summary)
+
+                    if current_st and self._on_info:
+                        self._on_info(
+                            co_id,
+                            f"[Phase] Subtask '{current_st.title}' completed",
+                        )
+
+                    # Checkpoint reflection at subtask boundary
+                    if cfg.planning.checkpoint_on_subtask_complete:
+                        await self._run_checkpoint(co_id)
+
+                    # LLM-based context compression at subtask boundary
+                    if cfg.planning.compress_after_subtask:
+                        await self._compress_working_memory(co_id)
+
+                    # Reset loop detection counters for new subtask
+                    _last_tool_sig = None
+                    _repeat_count = 0
+                    _last_tool_names = None
+                    _name_repeat_count = 0
+
+                    # Check if all subtasks are done
+                    co = self.co_service.get(co_id)  # refresh
+                    if self.planning_service.all_subtasks_done(co):
+                        if self._on_info:
+                            self._on_info(co_id, "[Phase] All subtasks completed")
 
                 # 11. Check completion
                 if decision.task_complete:

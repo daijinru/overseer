@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
 from retro_cogos.database import get_session
 from retro_cogos.models.cognitive_object import CognitiveObject
+from retro_cogos.core.protocols import WorkingMemory
+
+if TYPE_CHECKING:
+    from retro_cogos.services.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +45,31 @@ class ContextService:
         pending = ctx.get("pending_questions", [])
         artifacts = ctx.get("artifacts_produced", [])
         last_reflection = ctx.get("last_reflection", None)
+        working_mem = ctx.get("working_memory", None)
+        plan = ctx.get("plan", None)
+        current_subtask_id = ctx.get("current_subtask_id", None)
 
         parts = [f"## Goal\n{goal}"]
 
         if co.description:
             parts.append(f"\n## Description\n{co.description}")
+
+        # Current subtask context (if planning is active)
+        if plan and current_subtask_id is not None:
+            subtasks = plan.get("subtasks", [])
+            total = len(subtasks)
+            current_st = None
+            for st in subtasks:
+                if st.get("id") == current_subtask_id:
+                    current_st = st
+                    break
+            if current_st:
+                parts.append(
+                    f"\n## Current Subtask ({current_subtask_id} of {total})\n"
+                    f"**{current_st.get('title', '')}**\n"
+                    f"{current_st.get('description', '')}\n"
+                    f"Success Criteria: {current_st.get('success_criteria', 'N/A')}"
+                )
 
         # Phase 1: Resource awareness — let LLM know how much it has spent
         elapsed_min = elapsed_seconds / 60.0
@@ -55,34 +79,68 @@ class ContextService:
             f"- Elapsed time: {elapsed_min:.1f} min"
         )
 
+        # Tool section: narrow by subtask suggestions if available
         if available_tools:
-            tool_lines = []
-            for t in available_tools:
-                name = t.get("name", "")
-                desc = t.get("description", "")
-                params = t.get("parameters", {})
-                # Extract required params and their types for LLM
-                props = params.get("properties", {})
-                required = params.get("required", [])
-                if props:
-                    param_parts = []
-                    for pname, pinfo in props.items():
-                        ptype = pinfo.get("type", "string")
-                        pdesc = pinfo.get("description", "")
-                        req = " (required)" if pname in required else ""
-                        param_parts.append(f"    - `{pname}` ({ptype}{req}): {pdesc}")
-                    params_text = "\n" + "\n".join(param_parts)
-                else:
-                    params_text = ""
-                tool_lines.append(f"- **{name}**: {desc}{params_text}")
-            parts.append(f"\n## Available Tools\n" + "\n".join(tool_lines))
+            suggested_tool_names: list[str] = []
+            if plan and current_subtask_id is not None:
+                for st in plan.get("subtasks", []):
+                    if st.get("id") == current_subtask_id:
+                        suggested_tool_names = st.get("suggested_tools", [])
+                        break
 
-        if findings:
+            if suggested_tool_names:
+                # Show suggested tools with full schema, others as compact list
+                suggested = []
+                others = []
+                for t in available_tools:
+                    name = t.get("name", "")
+                    if name in suggested_tool_names:
+                        suggested.append(t)
+                    else:
+                        others.append(t)
+
+                tool_lines = self._format_tools_detailed(suggested)
+                parts.append(f"\n## Suggested Tools (for this subtask)\n" + "\n".join(tool_lines))
+                if others:
+                    other_names = ", ".join(t.get("name", "") for t in others)
+                    parts.append(f"\n## Other Available Tools\n{other_names}")
+            else:
+                tool_lines = self._format_tools_detailed(available_tools)
+                parts.append(f"\n## Available Tools\n" + "\n".join(tool_lines))
+
+        # Working memory (compressed history) or raw findings
+        if working_mem:
+            wm_parts = []
+            if working_mem.get("summary"):
+                wm_parts.append(f"Summary: {working_mem['summary']}")
+            if working_mem.get("key_findings"):
+                wm_parts.append("Key Findings:\n" + "\n".join(f"- {kf}" for kf in working_mem["key_findings"]))
+            if working_mem.get("failed_approaches"):
+                wm_parts.append("Failed Approaches:\n" + "\n".join(f"- {fa}" for fa in working_mem["failed_approaches"]))
+            if working_mem.get("open_questions"):
+                wm_parts.append("Open Questions:\n" + "\n".join(f"- {oq}" for oq in working_mem["open_questions"]))
+            last_step = working_mem.get("last_updated_step", 0)
+            parts.append(f"\n## Working Memory (compressed from steps 1-{last_step})\n" + "\n".join(wm_parts))
+
+            # Show only recent findings (after compression point)
+            recent = [f for f in findings if isinstance(f.get("step"), (int, float)) and f["step"] > last_step]
+            if recent:
+                recent_text = "\n".join(
+                    f"- Step {f.get('step', '?')}: [{f.get('key', '')}] {f.get('value', '')}"
+                    for f in recent
+                )
+                parts.append(f"\n## Recent Findings (steps {last_step + 1}-{step_count})\n{recent_text}")
+        elif findings:
             findings_text = "\n".join(
                 f"- Step {f.get('step', '?')}: [{f.get('key', '')}] {f.get('value', '')}"
                 for f in findings
             )
             parts.append(f"\n## Accumulated Findings (Steps completed: {step_count})\n{findings_text}")
+
+        # Pre-emptive constraint hints
+        constraints = self.build_constraint_hints(co)
+        if constraints:
+            parts.append(f"\n## Constraints (DO NOT repeat these mistakes)\n" + "\n".join(f"- {c}" for c in constraints))
 
         if pending:
             parts.append(f"\n## Pending Questions\n" + "\n".join(f"- {q}" for q in pending))
@@ -100,12 +158,36 @@ class ContextService:
             "\n## Instructions\n"
             "Based on the above context, decide the next step to take toward achieving the goal. "
             "If you need tools, specify them in tool_calls using the exact tool name from the Available Tools list. "
-            "If you need human input, set human_required to true and explain why.\n"
+            "If you need human input, set human_required to true and explain why. "
+            "If you lack critical information, use help_request to ask for help.\n"
             "当需要写入文件时，路径统一使用 \"output/\" 目录前缀（如 \"output/result.md\"）。"
             "不要将文件写入项目根目录或其他位置。"
         )
 
         return "\n".join(parts)
+
+    @staticmethod
+    def _format_tools_detailed(tools: list[dict]) -> list[str]:
+        """Format a list of tools with full schema details."""
+        tool_lines = []
+        for t in tools:
+            name = t.get("name", "")
+            desc = t.get("description", "")
+            params = t.get("parameters", {})
+            props = params.get("properties", {})
+            required = params.get("required", [])
+            if props:
+                param_parts = []
+                for pname, pinfo in props.items():
+                    ptype = pinfo.get("type", "string")
+                    pdesc = pinfo.get("description", "")
+                    req = " (required)" if pname in required else ""
+                    param_parts.append(f"    - `{pname}` ({ptype}{req}): {pdesc}")
+                params_text = "\n" + "\n".join(param_parts)
+            else:
+                params_text = ""
+            tool_lines.append(f"- **{name}**: {desc}{params_text}")
+        return tool_lines
 
     def merge_step_result(
         self, co: CognitiveObject, step_number: int, key: str, value: str
@@ -230,7 +312,7 @@ class ContextService:
         self.session.commit()
 
     def compress_if_needed(self, co: CognitiveObject, max_chars: int = 16000) -> bool:
-        """Compress early findings if context is too large.
+        """Compress early findings if context is too large (truncation fallback).
 
         Returns True if compression was performed.
         """
@@ -263,3 +345,90 @@ class ContextService:
         self.session.commit()
         logger.info("Compressed context for CO %s: %d findings → %d", co.id[:8], len(findings), len(ctx["accumulated_findings"]))
         return True
+
+    def build_constraint_hints(self, co: CognitiveObject) -> List[str]:
+        """Generate pre-emptive constraint warnings from past failures and user behavior.
+
+        Sources:
+        - working_memory.failed_approaches
+        - accumulated_findings with [error] classification
+        - accumulated_findings with perception:tool_avoidance signals
+        """
+        ctx = co.context or {}
+        hints: List[str] = []
+
+        # From working memory
+        working_mem = ctx.get("working_memory")
+        if working_mem and working_mem.get("failed_approaches"):
+            for fa in working_mem["failed_approaches"]:
+                hints.append(fa)
+
+        # From recent findings: extract errors and avoidance signals
+        findings = ctx.get("accumulated_findings", [])
+        seen_errors: set[str] = set()
+        for f in findings:
+            value = f.get("value", "")
+            key = f.get("key", "")
+            # Error results
+            if value.startswith("[error]") and key.startswith("tool:"):
+                tool_name = key[5:]  # strip "tool:" prefix
+                error_sig = f"{tool_name}:{value[:60]}"
+                if error_sig not in seen_errors:
+                    seen_errors.add(error_sig)
+                    hints.append(f"Tool '{tool_name}' previously failed: {value[8:80]}...")
+            # Tool avoidance signals from perception
+            if key == "perception:tool_avoidance":
+                hints.append(value)
+            # Same-as-previous warnings
+            if "[SAME as previous call" in value:
+                tool_name = key[5:] if key.startswith("tool:") else key
+                hints.append(f"Calling '{tool_name}' with the same args returned identical results. Try different parameters.")
+
+        return hints[:10]  # cap to avoid prompt bloat
+
+    async def compress_to_working_memory(
+        self, co: CognitiveObject, llm_service: "LLMService"
+    ) -> Optional[WorkingMemory]:
+        """Use LLM to compress accumulated findings into a WorkingMemory summary.
+
+        Called at subtask boundaries. Replaces raw findings with a structured
+        summary while preserving recent findings.
+        """
+        ctx = co.context or {}
+        findings = ctx.get("accumulated_findings", [])
+        step_count = ctx.get("step_count", 0)
+
+        if len(findings) < 4:
+            return None  # not enough to compress
+
+        # Build the compression prompt with full findings
+        findings_text = "\n".join(
+            f"- Step {f.get('step', '?')}: [{f.get('key', '')}] {f.get('value', '')}"
+            for f in findings
+        )
+        goal = ctx.get("goal", co.title)
+        prompt = (
+            f"## Goal\n{goal}\n\n"
+            f"## Execution History ({len(findings)} findings, {step_count} steps)\n"
+            f"{findings_text}"
+        )
+
+        try:
+            response = await llm_service.compress(prompt)
+            wm = llm_service.parse_working_memory(response)
+            if wm:
+                wm.last_updated_step = step_count
+                # Store working memory in context
+                ctx = dict(co.context or {})
+                ctx["working_memory"] = wm.model_dump()
+                co.context = ctx
+                self.session.commit()
+                logger.info(
+                    "Compressed context to working memory for CO %s at step %d",
+                    co.id[:8], step_count,
+                )
+                return wm
+        except Exception as e:
+            logger.warning("LLM-based compression failed, will use fallback: %s", e)
+
+        return None

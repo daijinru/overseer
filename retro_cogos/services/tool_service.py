@@ -458,7 +458,15 @@ class ToolService:
         path = args.get("path", "")
         content = args.get("content", "")
         if not path:
-            return {"status": "error", "error": "No path specified"}
+            # LLM sometimes omits path or uses a non-schema parameter name
+            # that gets stripped by filter_args.  Auto-generate a timestamped
+            # filename so the write doesn't silently fail.
+            if content:
+                import datetime as _dt
+                ts = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+                path = f"output/auto_{ts}.md"
+            else:
+                return {"status": "error", "error": "No path specified"}
         try:
             from pathlib import Path
             output_dir = Path(self._cfg.context.output_dir)

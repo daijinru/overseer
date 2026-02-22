@@ -221,7 +221,7 @@ class RetroCogosApp(App):
             self.notify("Event not found", severity="error")
             return
 
-        if co.status not in ("created", "paused"):
+        if co.status not in ("created", "paused", "failed", "aborted"):
             self.notify(f"Cannot start event in '{co.status}' status", severity="warning")
             return
 

@@ -28,3 +28,9 @@ class ToolPermission(str, Enum):
     NOTIFY = "notify"
     CONFIRM = "confirm"
     APPROVE = "approve"
+
+
+class ExecutionPhase(str, Enum):
+    PLANNING = "planning"
+    EXECUTING = "executing"
+    CHECKPOINT = "checkpoint"
