@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from retro_cogos.database import get_session
 from retro_cogos.models.cognitive_object import CognitiveObject
@@ -23,6 +24,10 @@ class ContextService:
         self._session = session
         # Phase 2: Track last tool outputs per tool name for diff detection
         self._last_tool_outputs: Dict[str, str] = {}
+
+    def restore_tool_outputs(self, outputs: Dict[str, str]) -> None:
+        """Restore last-tool-outputs state from checkpoint."""
+        self._last_tool_outputs = outputs
 
     @property
     def session(self) -> Session:
@@ -151,6 +156,14 @@ class ContextService:
         if last_reflection:
             parts.append(f"\n## Last Reflection\n{last_reflection}")
 
+        # Resume notice: prominently surface the resume signal if present
+        resumed_findings = [
+            f for f in findings
+            if isinstance(f, dict) and f.get("key") == "system:resumed"
+        ]
+        if resumed_findings:
+            parts.append(f"\n## Resume Notice\n{resumed_findings[-1].get('value', '')}")
+
         if memories:
             parts.append(f"\n## Relevant Memories from Past Events\n" + "\n".join(f"- {m}" for m in memories))
 
@@ -193,13 +206,15 @@ class ContextService:
         self, co: CognitiveObject, step_number: int, key: str, value: str
     ) -> Dict[str, Any]:
         """Merge a step result into the CO's StateDict."""
-        ctx = dict(co.context or {})
+        ctx = copy.deepcopy(co.context or {})
         findings = list(ctx.get("accumulated_findings", []))
         findings.append({"step": step_number, "key": key, "value": value})
         ctx["accumulated_findings"] = findings
         ctx["step_count"] = step_number
         co.context = ctx
-        self.session.commit()
+        # Commit on the session that owns the CO object
+        sess = object_session(co) or self.session
+        sess.commit()
         return ctx
 
     @staticmethod
@@ -296,20 +311,22 @@ class ContextService:
         self, co: CognitiveObject, reflection: str
     ) -> Dict[str, Any]:
         """Store the latest reflection in context."""
-        ctx = dict(co.context or {})
+        ctx = copy.deepcopy(co.context or {})
         ctx["last_reflection"] = reflection
         co.context = ctx
-        self.session.commit()
+        sess = object_session(co) or self.session
+        sess.commit()
         return ctx
 
     def add_artifact(self, co: CognitiveObject, artifact_path: str) -> None:
         """Record an artifact path in context."""
-        ctx = dict(co.context or {})
+        ctx = copy.deepcopy(co.context or {})
         artifacts = list(ctx.get("artifacts_produced", []))
         artifacts.append(artifact_path)
         ctx["artifacts_produced"] = artifacts
         co.context = ctx
-        self.session.commit()
+        sess = object_session(co) or self.session
+        sess.commit()
 
     def compress_if_needed(self, co: CognitiveObject, max_chars: int = 16000) -> bool:
         """Compress early findings if context is too large (truncation fallback).
@@ -339,10 +356,11 @@ class ContextService:
             "value": "; ".join(summary_parts),
         }
 
-        ctx = dict(ctx)
+        ctx = copy.deepcopy(ctx)
         ctx["accumulated_findings"] = [compressed_finding] + keep
         co.context = ctx
-        self.session.commit()
+        sess = object_session(co) or self.session
+        sess.commit()
         logger.info("Compressed context for CO %s: %d findings → %d", co.id[:8], len(findings), len(ctx["accumulated_findings"]))
         return True
 
@@ -419,10 +437,11 @@ class ContextService:
             if wm:
                 wm.last_updated_step = step_count
                 # Store working memory in context
-                ctx = dict(co.context or {})
+                ctx = copy.deepcopy(co.context or {})
                 ctx["working_memory"] = wm.model_dump()
                 co.context = ctx
-                self.session.commit()
+                sess = object_session(co) or self.session
+                sess.commit()
                 logger.info(
                     "Compressed context to working memory for CO %s at step %d",
                     co.id[:8], step_count,

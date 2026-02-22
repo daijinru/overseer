@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from typing import Any, Dict, List, Optional
+
+from sqlalchemy.orm import object_session
 
 from retro_cogos.core.protocols import Subtask, TaskPlan
 from retro_cogos.models.cognitive_object import CognitiveObject
@@ -48,7 +51,7 @@ class PlanningService:
             response = await self.llm.plan(prompt)
             plan = self.llm.parse_plan(response)
             if plan and plan.subtasks:
-                ctx = dict(co.context or {})
+                ctx = copy.deepcopy(co.context or {})
                 step_count = ctx.get("step_count", 0)
                 plan.created_at_step = step_count
                 return plan
@@ -60,7 +63,7 @@ class PlanningService:
 
     def store_plan(self, co: CognitiveObject, plan: TaskPlan) -> None:
         """Persist plan into co.context['plan'] and activate the first subtask."""
-        ctx = dict(co.context or {})
+        ctx = copy.deepcopy(co.context or {})
         plan_dict = plan.model_dump()
         # Set first subtask as in_progress
         if plan_dict.get("subtasks"):
@@ -69,7 +72,7 @@ class PlanningService:
         ctx["plan"] = plan_dict
         ctx["execution_phase"] = "executing"
         co.context = ctx
-        self.ctx.session.commit()
+        (object_session(co) or self.ctx.session).commit()
 
     def get_current_subtask(self, co: CognitiveObject) -> Optional[Subtask]:
         """Return the currently active subtask from the plan."""
@@ -92,7 +95,7 @@ class PlanningService:
 
         Returns the new current subtask, or None if all are done.
         """
-        ctx = dict(co.context or {})
+        ctx = copy.deepcopy(co.context or {})
         plan = ctx.get("plan")
         if not plan:
             return None
@@ -119,14 +122,14 @@ class PlanningService:
 
         ctx["plan"] = plan
         co.context = ctx
-        self.ctx.session.commit()
+        (object_session(co) or self.ctx.session).commit()
         return next_subtask
 
     def skip_subtask(
         self, co: CognitiveObject, reason: str = ""
     ) -> Optional[Subtask]:
         """Skip the current subtask and move to the next one."""
-        ctx = dict(co.context or {})
+        ctx = copy.deepcopy(co.context or {})
         plan = ctx.get("plan")
         if not plan:
             return None
@@ -152,7 +155,7 @@ class PlanningService:
 
         ctx["plan"] = plan
         co.context = ctx
-        self.ctx.session.commit()
+        (object_session(co) or self.ctx.session).commit()
         return next_subtask
 
     def all_subtasks_done(self, co: CognitiveObject) -> bool:
@@ -218,7 +221,7 @@ class PlanningService:
                 # Apply revision
                 revised_plan = TaskPlan(**result["revision"]) if isinstance(result["revision"], dict) else None
                 if revised_plan:
-                    ctx = dict(co.context or {})
+                    ctx = copy.deepcopy(co.context or {})
                     old_plan = ctx.get("plan", {})
                     revised_dict = revised_plan.model_dump()
                     revised_dict["revision_count"] = old_plan.get("revision_count", 0) + 1
@@ -231,7 +234,7 @@ class PlanningService:
                             ctx["current_subtask_id"] = st["id"]
                             break
                     co.context = ctx
-                    self.ctx.session.commit()
+                    (object_session(co) or self.ctx.session).commit()
                     logger.info("Plan revised at checkpoint for CO %s", co.id[:8])
                     return revised_plan
 

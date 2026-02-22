@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import time
@@ -112,6 +113,102 @@ class ExecutionService:
         response = self._human_response.copy()
         self._human_response = {}
         return response
+
+    # ── Checkpoint / Resume ──
+
+    def _save_checkpoint(
+        self,
+        co_id: str,
+        pause_reason: str,
+        *,
+        last_tool_sig: str | None,
+        repeat_count: int,
+        last_tool_names: str | None,
+        name_repeat_count: int,
+        confidence_history: List[float],
+        elapsed_seconds: float,
+        announced_subtask_id: int | None,
+        pending_hitl: Dict[str, Any] | None = None,
+        pending_tool_confirm: Dict[str, Any] | None = None,
+    ) -> None:
+        """Persist all ephemeral loop state into co.context['_checkpoint']."""
+        co = self.co_service.get(co_id)
+        if co is None:
+            return
+        ctx = copy.deepcopy(co.context or {})
+        ctx["_checkpoint"] = {
+            "last_tool_sig": last_tool_sig,
+            "repeat_count": repeat_count,
+            "last_tool_names": last_tool_names,
+            "name_repeat_count": name_repeat_count,
+            "confidence_history": confidence_history,
+            "elapsed_seconds_at_pause": elapsed_seconds,
+            "approval_stats": self._approval_stats,
+            "consecutive_rejects": self._consecutive_rejects,
+            "consecutive_hitl_stops": self._consecutive_hitl_stops,
+            "announced_subtask_id": announced_subtask_id,
+            "last_tool_outputs": self.context_service._last_tool_outputs,
+            "pending_hitl": pending_hitl,
+            "pending_tool_confirm": pending_tool_confirm,
+            "paused_at_step": ctx.get("step_count", 0),
+            "pause_reason": pause_reason,
+        }
+        co.context = ctx
+        self.co_service.session.commit()
+        logger.info(
+            "Checkpoint saved for CO %s at step %d (reason: %s)",
+            co_id[:8], ctx.get("step_count", 0), pause_reason,
+        )
+
+    def _restore_checkpoint(self, co_id: str) -> Dict[str, Any] | None:
+        """Restore ephemeral loop state from co.context['_checkpoint'].
+
+        Returns a dict of local variable values for run_loop(),
+        or None if no checkpoint exists.
+        Also restores instance-level and ContextService state.
+        """
+        co = self.co_service.get(co_id)
+        if co is None:
+            return None
+        cp = (co.context or {}).get("_checkpoint")
+        if not cp:
+            return None
+
+        # Restore instance-level state
+        self._approval_stats = cp.get("approval_stats", {})
+        self._consecutive_rejects = cp.get("consecutive_rejects", {})
+        self._consecutive_hitl_stops = cp.get("consecutive_hitl_stops", 0)
+
+        # Restore ContextService state
+        self.context_service.restore_tool_outputs(cp.get("last_tool_outputs", {}))
+
+        logger.info(
+            "Checkpoint restored for CO %s from step %d (reason: %s)",
+            co_id[:8], cp.get("paused_at_step", 0), cp.get("pause_reason", "unknown"),
+        )
+
+        return {
+            "last_tool_sig": cp.get("last_tool_sig"),
+            "repeat_count": cp.get("repeat_count", 0),
+            "last_tool_names": cp.get("last_tool_names"),
+            "name_repeat_count": cp.get("name_repeat_count", 0),
+            "confidence_history": cp.get("confidence_history", []),
+            "elapsed_seconds_at_pause": cp.get("elapsed_seconds_at_pause", 0.0),
+            "announced_subtask_id": cp.get("announced_subtask_id"),
+            "pause_reason": cp.get("pause_reason", "pause"),
+            "human_decision": cp.get("human_decision"),
+        }
+
+    def _clear_checkpoint(self, co_id: str) -> None:
+        """Remove checkpoint data from context after successful resume."""
+        co = self.co_service.get(co_id)
+        if co is None:
+            return
+        ctx = copy.deepcopy(co.context or {})
+        if "_checkpoint" in ctx:
+            del ctx["_checkpoint"]
+            co.context = ctx
+            self.co_service.session.commit()
 
     _NO_PROGRESS_INDICATORS = [
         "没有进展", "未取得进展", "停滞", "陷入", "原地踏步",
@@ -313,13 +410,32 @@ class ExecutionService:
         # Set status to running
         self.co_service.update_status(co_id, COStatus.RUNNING)
         step_number = (co.context or {}).get("step_count", 0)
-        _last_tool_sig: str | None = None  # for exact loop detection
-        _repeat_count = 0
-        _last_tool_names: str | None = None  # for same-tool-name detection
-        _name_repeat_count = 0
+
+        # Attempt to restore from checkpoint (saved on previous pause/crash)
+        _cp = self._restore_checkpoint(co_id)
+        _is_resuming = _cp is not None
+
+        if _cp:
+            _last_tool_sig = _cp["last_tool_sig"]
+            _repeat_count = _cp["repeat_count"]
+            _last_tool_names = _cp["last_tool_names"]
+            _name_repeat_count = _cp["name_repeat_count"]
+            _confidence_history = _cp["confidence_history"]
+            _elapsed_offset = _cp["elapsed_seconds_at_pause"]
+            _announced_subtask_id = _cp["announced_subtask_id"]
+            _resume_reason = _cp["pause_reason"]
+            self._clear_checkpoint(co_id)
+        else:
+            _last_tool_sig = None
+            _repeat_count = 0
+            _last_tool_names = None
+            _name_repeat_count = 0
+            _confidence_history = []
+            _elapsed_offset = 0.0
+            _announced_subtask_id = None
+            _resume_reason = None
 
         # Phase 1: Meta-perception state
-        _confidence_history: list[float] = []  # sliding window of recent confidence values
         _low_confidence_window = 3  # how many consecutive low-confidence steps trigger HITL
         _low_confidence_threshold = 0.4  # confidence below this is considered "low"
         _loop_start_time = asyncio.get_event_loop().time()
@@ -332,8 +448,50 @@ class ExecutionService:
             await self._run_planning_phase(co_id)
             co = self.co_service.get(co_id)  # refresh after planning
 
-        # Track which subtask we announced to avoid duplicate notifications
-        _announced_subtask_id = None
+        # Inject resume signal so LLM knows it's continuing, not starting fresh
+        if _is_resuming:
+            co = self.co_service.get(co_id)  # refresh
+            _human_decision = _cp.get("human_decision")
+            logger.info(
+                "Resume signal for CO %s: human_decision=%s, reason=%s",
+                co_id[:8], _human_decision, _resume_reason,
+            )
+            if _human_decision:
+                # User answered a restored HITL panel before resuming —
+                # inject their decision so the LLM can act on it.
+                _decision_text = (
+                    f"System: execution resumed after {_resume_reason}. "
+                    f"User responded to the pending HITL request: "
+                    f"decision=\"{_human_decision.get('choice', '')}\", "
+                    f"feedback=\"{_human_decision.get('text', '')}\". "
+                    f"Continue based on the user's response."
+                )
+                self.context_service.merge_step_result(
+                    co, step_number, "system:resumed", _decision_text,
+                )
+                # Ensure the context change is persisted (merge_step_result
+                # commits on context_service.session, but co belongs to
+                # co_service.session).
+                self.co_service.session.commit()
+            else:
+                self.context_service.merge_step_result(
+                    co, step_number, "system:resumed",
+                    f"System: execution resumed after {_resume_reason}. "
+                    f"Continue from where you left off at step {step_number}. "
+                    f"Do NOT repeat work already done. Review the accumulated findings above "
+                    f"and pick up the next logical action.",
+                )
+                self.co_service.session.commit()
+            if self._on_info:
+                if _human_decision:
+                    self._on_info(
+                        co_id,
+                        f"[System] Resumed from checkpoint (step {step_number}) "
+                        f"— user decision: {_human_decision.get('choice', '')}"
+                        + (f", feedback: {_human_decision.get('text', '')}" if _human_decision.get('text') else ""),
+                    )
+                else:
+                    self._on_info(co_id, f"[System] Resumed from checkpoint (step {step_number})")
 
         try:
             while True:
@@ -374,7 +532,7 @@ class ExecutionService:
                     co.title + " " + co.description, limit=3
                 )
                 available_tools = self.tool_service.list_tools()
-                elapsed = asyncio.get_event_loop().time() - _loop_start_time
+                elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
                 prompt = self.context_service.build_prompt(
                     co, memories, available_tools, elapsed_seconds=elapsed,
                 )
@@ -393,6 +551,18 @@ class ExecutionService:
                         self._on_error(str(e))
                     # Pause the CO so user can retry later
                     self.co_service.update_status(co_id, COStatus.PAUSED)
+                    try:
+                        _llm_err_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
+                        self._save_checkpoint(
+                            co_id, "error",
+                            last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
+                            last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
+                            confidence_history=_confidence_history,
+                            elapsed_seconds=_llm_err_elapsed,
+                            announced_subtask_id=_announced_subtask_id,
+                        )
+                    except Exception:
+                        logger.debug("Failed to save checkpoint on LLM error", exc_info=True)
                     await self.tool_service.disconnect()
                     return
 
@@ -537,6 +707,18 @@ class ExecutionService:
                             if self._on_tool_confirm:
                                 self._on_tool_confirm(execution, tc)
 
+                            # Save checkpoint before tool approval wait
+                            _tool_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
+                            self._save_checkpoint(
+                                co_id, "tool_confirm_wait",
+                                last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
+                                last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
+                                confidence_history=_confidence_history,
+                                elapsed_seconds=_tool_elapsed,
+                                announced_subtask_id=_announced_subtask_id,
+                                pending_tool_confirm={"tool_name": tc.tool, "tool_args": tc.args},
+                            )
+
                             # Phase 3: Time the approval wait
                             _approval_start = time.monotonic()
                             human = await self._wait_for_human()
@@ -651,6 +833,21 @@ class ExecutionService:
 
                     # Pause CO status
                     self.co_service.update_status(co_id, COStatus.PAUSED)
+
+                    # Save checkpoint before HITL wait
+                    _hitl_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
+                    self._save_checkpoint(
+                        co_id, "hitl_wait",
+                        last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
+                        last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
+                        confidence_history=_confidence_history,
+                        elapsed_seconds=_hitl_elapsed,
+                        announced_subtask_id=_announced_subtask_id,
+                        pending_hitl={
+                            "reason": decision.human_reason or "Your input is needed.",
+                            "options": decision.options or [],
+                        },
+                    )
 
                     # Phase 3: Time the human response
                     _hitl_start = time.monotonic()
@@ -878,6 +1075,7 @@ class ExecutionService:
                 if decision.task_complete:
                     # Phase 3: Persist implicit preferences to Memory before exiting
                     self._persist_preferences(co_id)
+                    self._clear_checkpoint(co_id)
                     self.co_service.update_status(co_id, COStatus.COMPLETED)
                     await self.tool_service.disconnect()
                     if self._on_complete:
@@ -890,6 +1088,24 @@ class ExecutionService:
                 self._persist_preferences(co_id)
             except Exception:
                 logger.debug("Failed to persist preferences on cancel", exc_info=True)
+            try:
+                # Preserve pending_hitl/pending_tool_confirm from an existing
+                # checkpoint (e.g. saved before an HITL wait) so the TUI can
+                # re-show the panel after a full restart.
+                _existing_cp = (self.co_service.get(co_id).context or {}).get("_checkpoint", {})
+                _cancel_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
+                self._save_checkpoint(
+                    co_id, "user_stop",
+                    last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
+                    last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
+                    confidence_history=_confidence_history,
+                    elapsed_seconds=_cancel_elapsed,
+                    announced_subtask_id=_announced_subtask_id,
+                    pending_hitl=_existing_cp.get("pending_hitl"),
+                    pending_tool_confirm=_existing_cp.get("pending_tool_confirm"),
+                )
+            except Exception:
+                logger.debug("Failed to save checkpoint on cancel", exc_info=True)
             self.co_service.update_status(co_id, COStatus.PAUSED)
             await self.tool_service.disconnect()
             raise
@@ -899,6 +1115,18 @@ class ExecutionService:
                 self._persist_preferences(co_id)
             except Exception:
                 logger.debug("Failed to persist preferences on error exit", exc_info=True)
+            try:
+                _err_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
+                self._save_checkpoint(
+                    co_id, "error",
+                    last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
+                    last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
+                    confidence_history=_confidence_history,
+                    elapsed_seconds=_err_elapsed,
+                    announced_subtask_id=_announced_subtask_id,
+                )
+            except Exception:
+                logger.debug("Failed to save checkpoint on error exit", exc_info=True)
             self.co_service.update_status(co_id, COStatus.FAILED)
             await self.tool_service.disconnect()
             if self._on_error:

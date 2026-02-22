@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from pathlib import Path
 from typing import Any, Dict, List
@@ -124,10 +125,50 @@ class RetroCogosApp(App):
         self._co_workers: dict[str, object] = {}
         self._awaiting_count = 0
         self._shutting_down = False
+        # Per-CO pending HITL requests so we can re-show on switch-back
+        self._pending_hitl: dict[str, dict] = {}  # co_id -> {"reason": str, "options": list}
+        self._pending_tool_confirm: dict[str, dict] = {}  # co_id -> {"tool_name": str, "tool_args": dict}
 
     def on_mount(self) -> None:
         self.push_screen(HomeScreen())
+        self._recover_stale_cos()
         self.call_after_refresh(self._refresh_co_list)
+
+    def _recover_stale_cos(self) -> None:
+        """Recover COs from a previous session: fix stale RUNNING status,
+        restore pending HITL/tool-confirm from checkpoints."""
+        cos = self._co_service.list_all()
+        recovered_count = 0
+        for co in cos:
+            status_str = co.status.value if hasattr(co.status, 'value') else str(co.status)
+
+            # Stale RUNNING COs (no worker exists) → set to PAUSED
+            if status_str == "running":
+                self._co_service.update_status(co.id, COStatus.PAUSED)
+                self._co_service.session.refresh(co)  # sync local object
+                logger.warning(
+                    "Recovered stale RUNNING CO %s ('%s') -> PAUSED",
+                    co.id[:8], co.title,
+                )
+                recovered_count += 1
+                status_str = "paused"
+
+            # For PAUSED COs with a checkpoint, restore pending HITL/tool-confirm
+            # so _show_co_detail() can re-show panels when the user selects them
+            cp = (co.context or {}).get("_checkpoint")
+            if cp and status_str == "paused":
+                pending_hitl = cp.get("pending_hitl")
+                pending_tool = cp.get("pending_tool_confirm")
+                if pending_hitl:
+                    self._pending_hitl[co.id] = pending_hitl
+                if pending_tool:
+                    self._pending_tool_confirm[co.id] = pending_tool
+
+        if recovered_count > 0:
+            self.notify(
+                f"Recovered {recovered_count} stale event(s) from previous session",
+                severity="warning",
+            )
 
     # ── CO List ──
 
@@ -183,6 +224,16 @@ class RetroCogosApp(App):
         except Exception:
             logger.debug("PlanProgress widget not available", exc_info=True)
 
+        # Hide any currently visible HITL / tool-confirm panels first
+        try:
+            self.screen.query_one(InteractionPanel).hide()
+        except Exception:
+            pass
+        try:
+            self.screen.query_one(ToolPreview).hide()
+        except Exception:
+            pass
+
         # Auto-show completion summary for completed COs
         status_str = co.status.value if hasattr(co.status, 'value') else str(co.status)
         if status_str == "completed":
@@ -196,14 +247,23 @@ class RetroCogosApp(App):
                 panel.show_completion_actions(bool(co.artifacts))
             except Exception:
                 pass
-        else:
-            # Hide completion panel when switching to non-completed CO
+        elif co_id in self._pending_tool_confirm:
+            # Re-show pending tool confirmation on switch-back
+            pending = self._pending_tool_confirm[co_id]
+            try:
+                preview = self.screen.query_one(ToolPreview)
+                preview.show(ToolCall(tool=pending["tool_name"], args=pending["tool_args"]))
+            except Exception:
+                logger.debug("ToolPreview widget not available on switch-back", exc_info=True)
+        elif co_id in self._pending_hitl:
+            # Re-show pending HITL decision on switch-back
+            pending = self._pending_hitl[co_id]
             try:
                 panel = self.screen.query_one(InteractionPanel)
-                if panel.has_class("completion-mode"):
-                    panel.hide()
+                options = pending["options"] if pending["options"] else ["Continue", "Abort"]
+                panel.show(pending["reason"], options)
             except Exception:
-                pass
+                logger.debug("InteractionPanel widget not available on switch-back", exc_info=True)
 
     # ── Plan progress ──
 
@@ -291,6 +351,20 @@ class RetroCogosApp(App):
             exclusive=False,
         )
         self._co_workers[co_id] = worker
+
+        # Clear stale pending HITL/tool state — the resumed loop will
+        # generate fresh requests if needed.
+        self._pending_hitl.pop(co_id, None)
+        self._pending_tool_confirm.pop(co_id, None)
+        if co_id == self._selected_co_id:
+            try:
+                self.screen.query_one(InteractionPanel).hide()
+            except Exception:
+                pass
+            try:
+                self.screen.query_one(ToolPreview).hide()
+            except Exception:
+                pass
 
         self._refresh_co_list()
 
@@ -508,6 +582,12 @@ class RetroCogosApp(App):
         self._awaiting_count += 1
         self._update_subtitle()
 
+        # Store pending HITL request so we can re-show on switch-back
+        self._pending_hitl[message.co_id] = {
+            "reason": message.reason,
+            "options": message.options,
+        }
+
         if message.co_id == self._selected_co_id:
             try:
                 panel = self.screen.query_one(InteractionPanel)
@@ -532,16 +612,36 @@ class RetroCogosApp(App):
     def on_tool_confirm_required(self, message: ToolConfirmRequired) -> None:
         if self._shutting_down:
             return
+
+        # Store pending tool confirm so we can re-show on switch-back
+        self._pending_tool_confirm[message.co_id] = {
+            "tool_name": message.tool_name,
+            "tool_args": message.tool_args,
+        }
+
         if message.co_id == self._selected_co_id:
             try:
                 preview = self.screen.query_one(ToolPreview)
                 preview.show(ToolCall(tool=message.tool_name, args=message.tool_args))
             except Exception:
                 logger.debug("ToolPreview widget not available", exc_info=True)
+        else:
+            # Notify user about non-selected CO needing tool approval
+            self.notify(
+                f"Event {message.co_id[:8]} needs tool approval",
+                severity="warning",
+            )
+            try:
+                co_list = self.screen.query_one(COList)
+                co_list.mark_awaiting(message.co_id)
+            except Exception:
+                logger.debug("COList widget not available", exc_info=True)
 
     def on_execution_complete(self, message: ExecutionComplete) -> None:
         self._execution_services.pop(message.co_id, None)
         self._co_workers.pop(message.co_id, None)
+        self._pending_hitl.pop(message.co_id, None)
+        self._pending_tool_confirm.pop(message.co_id, None)
         if self._shutting_down:
             return
         self.notify(f"Event {message.status}: {message.co_id[:8]}")
@@ -552,6 +652,8 @@ class RetroCogosApp(App):
     def on_execution_error(self, message: ExecutionError) -> None:
         self._execution_services.pop(message.co_id, None)
         self._co_workers.pop(message.co_id, None)
+        self._pending_hitl.pop(message.co_id, None)
+        self._pending_tool_confirm.pop(message.co_id, None)
         if self._shutting_down:
             return
         self.notify(f"Error: {escape_markup(message.error)}", severity="error")
@@ -623,6 +725,8 @@ class RetroCogosApp(App):
             if co_id:
                 self._execution_services.pop(co_id, None)
                 self._co_workers.pop(co_id, None)
+                self._pending_hitl.pop(co_id, None)
+                self._pending_tool_confirm.pop(co_id, None)
                 if self._shutting_down:
                     return
                 self.notify(f"Stopped: {co_id[:8]}")
@@ -646,10 +750,44 @@ class RetroCogosApp(App):
 
     # ── Handle interaction panel decisions ──
 
+    def _store_decision_and_resume(self, co_id: str, choice: str, text: str = "") -> None:
+        """Store a human decision into the checkpoint and auto-start the CO.
+
+        Used when the user responds to a restored HITL/tool panel but no
+        ExecutionService is running (e.g. after app restart).
+        """
+        self._co_service.session.expire_all()
+        co = self._co_service.get(co_id)
+        if co is None:
+            return
+        ctx = copy.deepcopy(co.context or {})
+        cp = ctx.get("_checkpoint")
+        if cp:
+            cp["human_decision"] = {"choice": choice, "text": text}
+            ctx["_checkpoint"] = cp
+            co.context = ctx
+            self._co_service.session.commit()
+            logger.info(
+                "Stored human_decision in checkpoint for CO %s: choice=%s, text=%s",
+                co_id[:8], choice, text,
+            )
+        else:
+            logger.warning(
+                "No checkpoint found for CO %s — cannot store human_decision",
+                co_id[:8],
+            )
+        # Clear pending state and auto-start
+        self._pending_hitl.pop(co_id, None)
+        self._pending_tool_confirm.pop(co_id, None)
+        self._selected_co_id = co_id
+        self.action_start_co()
+
     def on_interaction_panel_decision(self, message: InteractionPanel.Decision) -> None:
         if self._selected_co_id and self._selected_co_id in self._execution_services:
             exec_service = self._execution_services[self._selected_co_id]
             exec_service.provide_human_response(message.choice, message.text)
+            # Clear pending HITL state for this CO
+            self._pending_hitl.pop(self._selected_co_id, None)
             self._awaiting_count = max(0, self._awaiting_count - 1)
             self._update_subtitle()
             # Show user's HITL decision in the execution log
@@ -658,28 +796,44 @@ class RetroCogosApp(App):
                 log.add_human_decision(message.choice, message.text)
             except Exception:
                 pass
+        elif self._selected_co_id and self._selected_co_id not in self._execution_services:
+            # No live ExecutionService — this is a restored HITL from checkpoint.
+            # Store the decision and auto-resume the CO.
+            self._store_decision_and_resume(
+                self._selected_co_id, message.choice, message.text,
+            )
 
     def on_tool_preview_approved(self, message: ToolPreview.Approved) -> None:
         if self._selected_co_id and self._selected_co_id in self._execution_services:
             exec_service = self._execution_services[self._selected_co_id]
             exec_service.provide_human_response("approve")
+            # Clear pending tool confirm state for this CO
+            self._pending_tool_confirm.pop(self._selected_co_id, None)
             # Show tool approval in execution log
             try:
                 log = self.screen.query_one(ExecutionLog)
                 log.add_tool_approval(approved=True)
             except Exception:
                 pass
+        elif self._selected_co_id and self._selected_co_id not in self._execution_services:
+            self._store_decision_and_resume(self._selected_co_id, "approve")
 
     def on_tool_preview_rejected(self, message: ToolPreview.Rejected) -> None:
         if self._selected_co_id and self._selected_co_id in self._execution_services:
             exec_service = self._execution_services[self._selected_co_id]
             exec_service.provide_human_response("reject", message.reason)
+            # Clear pending tool confirm state for this CO
+            self._pending_tool_confirm.pop(self._selected_co_id, None)
             # Show tool rejection in execution log
             try:
                 log = self.screen.query_one(ExecutionLog)
                 log.add_tool_approval(approved=False, reason=message.reason)
             except Exception:
                 pass
+        elif self._selected_co_id and self._selected_co_id not in self._execution_services:
+            self._store_decision_and_resume(
+                self._selected_co_id, "reject", message.reason,
+            )
 
     def _update_subtitle(self, cos: list | None = None) -> None:
         """Update subtitle with comprehensive status counts."""
