@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from rich.markup import escape as escape_markup
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
@@ -38,7 +39,7 @@ class ToolPreview(Vertical):
         """Show tool call details for approval."""
         self.add_class("visible")
         self.query_one("#tool-preview-title", Static).update(
-            f"[bold italic]Tool Call: {tool_call.tool}[/bold italic]"
+            f"[bold italic]Tool Call: {escape_markup(tool_call.tool)}[/bold italic]"
         )
         # Format arguments with Rich markup for better readability
         args_text = json.dumps(tool_call.args, ensure_ascii=False, indent=2)
@@ -64,9 +65,9 @@ class ToolPreview(Vertical):
                 parts = line.split(":", 1)
                 key = parts[0].rstrip()
                 val = parts[1].lstrip() if len(parts) > 1 else ""
-                lines.append(f"[bold underline]{key}[/bold underline]: {val}")
+                lines.append(f"[bold underline]{escape_markup(key)}[/bold underline]: {escape_markup(val)}")
             else:
-                lines.append(f"[dim]{line}[/dim]")
+                lines.append(f"[dim]{escape_markup(line)}[/dim]")
         return "\n".join(lines)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

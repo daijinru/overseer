@@ -6,6 +6,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
+from rich.markup import escape as escape_markup
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
@@ -391,7 +392,7 @@ class ToolPanelScreen(Screen):
             )
         except Exception as e:
             logger.error("MCP connect failed: %s", e)
-            self.notify(f"Connect failed: {e}", severity="error")
+            self.notify(f"Connect failed: {escape_markup(str(e))}", severity="error")
         finally:
             self._connecting = False
 

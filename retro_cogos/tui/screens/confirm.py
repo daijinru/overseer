@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from rich.markup import escape as escape_markup
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
@@ -20,8 +21,8 @@ class ConfirmScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="confirm-container"):
-            yield Label(f"[bold]{self._title}[/bold]", classes="confirm-title")
-            yield Label(self._message, classes="confirm-message")
+            yield Label(f"[bold]{escape_markup(self._title)}[/bold]", classes="confirm-title")
+            yield Label(escape_markup(self._message), classes="confirm-message")
             with Horizontal(id="confirm-buttons"):
                 yield Button("Confirm", id="confirm-ok", variant="error")
                 yield Button("Cancel", id="confirm-cancel")

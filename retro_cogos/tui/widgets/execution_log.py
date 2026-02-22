@@ -7,6 +7,7 @@ import re
 import subprocess
 from typing import Any, Dict
 
+from rich.markup import escape as escape_markup
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import RichLog
@@ -117,17 +118,17 @@ class ExecutionLog(Vertical):
     def _write_execution(self, ex: Execution) -> None:
         icon = STATUS_ICONS.get(ex.status, "?")
         ts = self._format_ts(ex)
-        self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: {ex.title}[/bold]")
+        self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: {escape_markup(ex.title or '')}[/bold]")
         if ex.llm_response and ex.status in ("completed", "awaiting_human", "approved"):
             summary = self._truncate(ex.llm_response, LLM_RESPONSE_MAX)
-            self._write(f"    [italic]{summary}[/italic]")
+            self._write(f"    [italic]{escape_markup(summary)}[/italic]")
         if ex.tool_results:
             for tr in ex.tool_results:
                 self._write_tool_result(tr)
         if ex.human_decision:
-            self._write(f"    [bold italic]\U0001f464 Decision: {ex.human_decision}[/bold italic]")
+            self._write(f"    [bold italic]\U0001f464 Decision: {escape_markup(ex.human_decision)}[/bold italic]")
         if ex.human_input:
-            self._write(f"    [bold italic]\U0001f4ac Feedback: {ex.human_input}[/bold italic]")
+            self._write(f"    [bold italic]\U0001f4ac Feedback: {escape_markup(ex.human_input)}[/bold italic]")
 
     def _write_tool_result(self, tr: Dict[str, Any]) -> None:
         status = tr.get("status", "?")
@@ -140,16 +141,16 @@ class ExecutionLog(Vertical):
             status_color = "bold reverse"
         else:
             status_color = "bold italic"
-        self._write(f"    \u2514 [bold]{tool}[/bold] [{status_color}]{status}[/{status_color}]")
+        self._write(f"    \u2514 [bold]{escape_markup(tool)}[/bold] [{status_color}]{escape_markup(status)}[/{status_color}]")
         # Show rejection reason if present
         if status == "rejected":
             reason = tr.get("reason", "")
             if reason:
-                self._write(f"      [italic reverse]{reason}[/italic reverse]")
+                self._write(f"      [italic reverse]{escape_markup(reason)}[/italic reverse]")
         else:
             preview = self._tool_preview(tr)
             if preview:
-                self._write(f"      [dim italic]{preview}[/dim italic]")
+                self._write(f"      [dim italic]{escape_markup(preview)}[/dim italic]")
 
     def add_step(self, ex: Execution, phase: str = "") -> None:
         """Add or update a single execution step."""
@@ -159,17 +160,17 @@ class ExecutionLog(Vertical):
             self._write_separator()
             self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: Thinking...[/bold]")
         elif phase == "llm_done":
-            self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: {ex.title}[/bold]")
+            self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: {escape_markup(ex.title or '')}[/bold]")
             if ex.llm_response:
                 summary = self._truncate(ex.llm_response, LLM_RESPONSE_MAX)
-                self._write(f"    [italic]{summary}[/italic]")
+                self._write(f"    [italic]{escape_markup(summary)}[/italic]")
         elif phase == "running_tool":
             tool_names = ", ".join(
                 tc.get("tool", "?") for tc in (ex.tool_calls or [])
             )
-            self._write(f"{ts}\U0001f527 Executing: [bold]{tool_names}[/bold]")
+            self._write(f"{ts}\U0001f527 Executing: [bold]{escape_markup(tool_names)}[/bold]")
         elif phase == "completed":
-            self._write(f"{ts}\u2713 [bold]Step {ex.sequence_number} completed: {ex.title}[/bold]")
+            self._write(f"{ts}\u2713 [bold]Step {ex.sequence_number} completed: {escape_markup(ex.title or '')}[/bold]")
             if ex.tool_results:
                 for tr in ex.tool_results:
                     self._write_tool_result(tr)
@@ -178,28 +179,28 @@ class ExecutionLog(Vertical):
 
     def add_info(self, text: str) -> None:
         """Add an informational entry to the log (e.g. MCP server messages)."""
-        self._write(f"[dim]\u2139 {text}[/dim]")
+        self._write(f"[dim]\u2139 {escape_markup(text)}[/dim]")
 
     def add_error(self, error: str) -> None:
         """Add an error entry to the log."""
-        self._write(f"[bold reverse]\u2717 Error: {error}[/bold reverse]")
+        self._write(f"[bold reverse]\u2717 Error: {escape_markup(error)}[/bold reverse]")
 
     def add_human_decision(self, choice: str, text: str = "") -> None:
         """Add a user's HITL form decision to the log."""
         if choice == "feedback":
             # User submitted free-text only — show feedback as the decision
-            self._write(f"    [bold italic]\U0001f4ac Feedback: {text}[/bold italic]")
+            self._write(f"    [bold italic]\U0001f4ac Feedback: {escape_markup(text)}[/bold italic]")
         else:
-            self._write(f"    [bold italic]\U0001f464 Decision: {choice}[/bold italic]")
+            self._write(f"    [bold italic]\U0001f464 Decision: {escape_markup(choice)}[/bold italic]")
             if text:
-                self._write(f"    [bold italic]\U0001f4ac Feedback: {text}[/bold italic]")
+                self._write(f"    [bold italic]\U0001f4ac Feedback: {escape_markup(text)}[/bold italic]")
 
     def add_tool_approval(self, approved: bool, reason: str = "") -> None:
         """Add a user's tool approval/rejection to the log."""
         if approved:
             self._write("    [bold]\u2705 Tool approved[/bold]")
         else:
-            label = f"Tool rejected: {reason}" if reason else "Tool rejected"
+            label = f"Tool rejected: {escape_markup(reason)}" if reason else "Tool rejected"
             self._write(f"    [bold reverse]\u274c {label}[/bold reverse]")
 
     def copy_log(self) -> None:
@@ -231,7 +232,7 @@ class ExecutionLog(Vertical):
         lines.append("[bold]\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550[/bold]")
         lines.append("")
 
-        lines.append(f"[bold]Goal:[/bold] {goal}")
+        lines.append(f"[bold]Goal:[/bold] {escape_markup(goal)}")
         lines.append("")
 
         lines.append(f"[bold]Steps:[/bold] {step_count}  |  [bold]Duration:[/bold] {duration}")
@@ -254,7 +255,7 @@ class ExecutionLog(Vertical):
                     value = f.get("value", "")
                     if len(value) > 120:
                         value = value[:120] + "\u2026"
-                    lines.append(f"  \u2514 Step {step} [{key}]: {value}")
+                    lines.append(f"  \u2514 Step {step} \\[{escape_markup(key)}]: {escape_markup(value)}")
                 if len(user_findings) > 5:
                     lines.append(f"  [dim]\u2026 and {len(user_findings) - 5} earlier findings[/dim]")
                 lines.append("")
@@ -263,15 +264,15 @@ class ExecutionLog(Vertical):
         if artifacts:
             lines.append(f"[bold]Artifacts Produced ({len(artifacts)}):[/bold]")
             for art in artifacts:
-                type_badge = f"[dim]({art.artifact_type})[/dim]" if art.artifact_type else ""
-                lines.append(f"  \u2514\u2500 {art.name} {type_badge}")
-                lines.append(f"     [dim]{art.file_path}[/dim]")
+                type_badge = f"[dim]({escape_markup(art.artifact_type)})[/dim]" if art.artifact_type else ""
+                lines.append(f"  \u2514\u2500 {escape_markup(art.name)} {type_badge}")
+                lines.append(f"     [dim]{escape_markup(art.file_path)}[/dim]")
             lines.append("")
 
         if last_reflection:
             lines.append("[bold]Final Reflection:[/bold]")
             refl = last_reflection if len(last_reflection) <= 200 else last_reflection[:200] + "\u2026"
-            lines.append(f"  [italic]{refl}[/italic]")
+            lines.append(f"  [italic]{escape_markup(refl)}[/italic]")
             lines.append("")
 
         lines.append("[dim]\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550[/dim]")

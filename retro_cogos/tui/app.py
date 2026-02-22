@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List
 
+from rich.markup import escape as escape_markup
 from textual.app import App
 from textual.binding import Binding
 from textual.message import Message
@@ -235,7 +236,7 @@ class RetroCogosApp(App):
                 self._selected_co_id = co.id
                 self._refresh_co_list()
                 self._show_co_detail(co.id)
-                self.notify(f"Created: {co.title}")
+                self.notify(f"Created: {escape_markup(co.title)}")
 
         self.push_screen(CreateScreen(), callback=on_create_result)
 
@@ -254,7 +255,7 @@ class RetroCogosApp(App):
             return
 
         co_id = self._selected_co_id
-        self.notify(f"Starting: {co.title}")
+        self.notify(f"Starting: {escape_markup(co.title)}")
 
         # Create execution service for this CO
         exec_service = ExecutionService()
@@ -338,7 +339,7 @@ class RetroCogosApp(App):
         self._co_service.update_status(co_id, COStatus.COMPLETED)
         self._refresh_co_list()
         self._show_co_detail(co_id)
-        self.notify(f"Completed: {co.title}")
+        self.notify(f"Completed: {escape_markup(co.title)}")
 
     def action_delete_co(self) -> None:
         if self._selected_co_id is None:
@@ -368,7 +369,7 @@ class RetroCogosApp(App):
                 detail.show_co(None)
             except Exception:
                 pass
-            self.notify(f"Deleted: {title}")
+            self.notify(f"Deleted: {escape_markup(title)}")
 
         self.push_screen(
             ConfirmScreen("Delete Event", f"Delete \"{title}\"?"),
@@ -553,7 +554,7 @@ class RetroCogosApp(App):
         self._co_workers.pop(message.co_id, None)
         if self._shutting_down:
             return
-        self.notify(f"Error: {message.error}", severity="error")
+        self.notify(f"Error: {escape_markup(message.error)}", severity="error")
         # Write error to execution log for persistence
         if message.co_id == self._selected_co_id:
             try:
