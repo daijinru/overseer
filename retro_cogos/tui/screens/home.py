@@ -13,6 +13,7 @@ from retro_cogos.tui.widgets.co_detail import CODetail
 from retro_cogos.tui.widgets.co_list import COList
 from retro_cogos.tui.widgets.execution_log import ExecutionLog
 from retro_cogos.tui.widgets.interaction_panel import InteractionPanel
+from retro_cogos.tui.widgets.plan_progress import PlanProgress
 from retro_cogos.tui.widgets.tool_preview import ToolPreview
 
 
@@ -44,6 +45,7 @@ class HomeScreen(Screen):
                 yield COList()
             with Vertical(id="detail-panel"):
                 yield CODetail()
+                yield PlanProgress(id="plan-progress-panel")
                 yield ExecutionLog(id="execution-log")
                 yield ToolPreview(id="tool-preview-panel")
                 yield InteractionPanel(id="interaction-panel")

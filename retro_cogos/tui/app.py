@@ -29,6 +29,7 @@ from retro_cogos.tui.widgets.co_detail import CODetail
 from retro_cogos.tui.widgets.co_list import COList
 from retro_cogos.tui.widgets.execution_log import ExecutionLog
 from retro_cogos.tui.widgets.interaction_panel import InteractionPanel
+from retro_cogos.tui.widgets.plan_progress import PlanProgress
 from retro_cogos.tui.widgets.tool_preview import ToolPreview
 
 logger = logging.getLogger(__name__)
@@ -173,6 +174,14 @@ class RetroCogosApp(App):
         except Exception:
             logger.debug("ExecutionLog widget not available", exc_info=True)
 
+        # Show plan progress if a plan exists
+        plan = (co.context or {}).get("plan")
+        try:
+            plan_panel = self.screen.query_one(PlanProgress)
+            plan_panel.update_plan(plan)
+        except Exception:
+            logger.debug("PlanProgress widget not available", exc_info=True)
+
         # Auto-show completion summary for completed COs
         status_str = co.status.value if hasattr(co.status, 'value') else str(co.status)
         if status_str == "completed":
@@ -194,6 +203,25 @@ class RetroCogosApp(App):
                     panel.hide()
             except Exception:
                 pass
+
+    # ── Plan progress ──
+
+    def _refresh_plan_progress(self, co_id: str) -> None:
+        """Update the PlanProgress widget from the CO's context."""
+        if self._shutting_down or co_id != self._selected_co_id:
+            return
+        exec_service = self._execution_services.get(co_id)
+        if exec_service:
+            co = exec_service.co_service.get(co_id)
+        else:
+            self._co_service.session.expire_all()
+            co = self._co_service.get(co_id)
+        plan = (co.context or {}).get("plan") if co else None
+        try:
+            panel = self.screen.query_one(PlanProgress)
+            panel.update_plan(plan)
+        except Exception:
+            logger.debug("PlanProgress widget not available", exc_info=True)
 
     # ── Actions ──
 
@@ -544,6 +572,10 @@ class RetroCogosApp(App):
                 log.add_info(message.text)
             except Exception:
                 logger.debug("ExecutionLog widget not available", exc_info=True)
+
+            # Refresh plan progress on phase-related messages
+            if "[Phase]" in message.text:
+                self._refresh_plan_progress(message.co_id)
 
     def _show_completion_summary(self, co_id: str) -> None:
         """Show a rich completion summary in the log and action buttons in the panel."""

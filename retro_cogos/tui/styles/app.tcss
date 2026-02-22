@@ -131,6 +131,22 @@ CODetail {
     color: $text-muted;
 }
 
+/* ── Plan progress panel ── */
+#plan-progress-panel {
+    height: auto;
+    max-height: 12;
+    border: double $accent;
+    border-title-color: $accent;
+    padding: 0 1;
+    margin-top: 1;
+    display: none;
+    overflow-y: auto;
+}
+
+#plan-progress-panel.visible {
+    display: block;
+}
+
 /* ── Execution log ── */
 #execution-log {
     height: 1fr;
