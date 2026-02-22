@@ -8,7 +8,7 @@ Retro CogOS abstracts user goals into **CognitiveObjects (cognitive processes)**
 
 Built with a [Textual](https://textual.textualize.io/) terminal TUI and extensible via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
 
-![Screenshot 1](./docs/Snipaste_2026-02-21_13-01-27.jpg)
+![Screenshot 1](./docs/Snipaste_2026-02-22_21-13-37.jpg)
 ![Screenshot 2](./docs/Snipaste_2026-02-21_13-01-38.jpg)
 ![Screenshot 3](./docs/Snipaste_2026-02-21_13-02-26.jpg)
 ![Screenshot 4](./docs/Snipaste_2026-02-21_13-03-06.jpg)

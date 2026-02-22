@@ -8,7 +8,7 @@ Retro CogOS 将用户目标抽象为 **CognitiveObject（认知进程）**，通
 
 基于 [Textual](https://textual.textualize.io/) 的终端 TUI 界面，通过 [MCP](https://modelcontextprotocol.io/) 协议扩展工具能力。
 
-![截图1](./docs/Snipaste_2026-02-21_13-01-27.jpg)
+![截图1](./docs/Snipaste_2026-02-22_21-13-37.jpg)
 ![截图2](./docs/Snipaste_2026-02-21_13-01-38.jpg)
 ![截图3](./docs/Snipaste_2026-02-21_13-02-26.jpg)
 ![截图4](./docs/Snipaste_2026-02-21_13-03-06.jpg)
