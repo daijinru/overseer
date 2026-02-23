@@ -96,16 +96,40 @@ Create CO → Cognitive loop runs → Artifacts auto-archived → Completion sum
 
 ## Quick Start
 
+### Install
+
 ```bash
-# Clone the project
 git clone <repo-url> && cd retro-cogos
+uv sync
+```
 
-# Copy the config template and fill in your LLM API key
-cp config.cp.yaml config.yaml
-# Edit config.yaml: set llm.api_key, llm.base_url, etc.
+### Initialize
 
-# Launch (requires uv)
-./start.sh
+```bash
+# Initialize config to ~/.retro_cogos/
+uv run retro-cogos init
+
+# Edit config: set llm.api_key, llm.base_url, etc.
+vim ~/.retro_cogos/config.yaml
+```
+
+### Launch
+
+```bash
+# Start the TUI (either form works)
+uv run retro-cogos
+uv run retro-cogos run
+
+# Other commands
+uv run retro-cogos version       # Show version
+uv run retro-cogos init --force  # Reset config to defaults
+```
+
+### Build Binary (optional)
+
+```bash
+./release.sh
+# Binary at dist/retro-cogos
 ```
 
 ### Recommended Terminal & Font
@@ -207,7 +231,9 @@ Each iteration of `ExecutionService.run_loop` executes:
 ```
 retro_cogos/
 ├── __main__.py                 # Entry point
+├── cli.py                      # CLI commands (init / run / version)
 ├── config.py                   # YAML config + Pydantic validation
+├── config.cp.yaml              # Config template (bundled for init)
 ├── database.py                 # SQLAlchemy engine + session factory
 ├── logging_config.py           # Dual-channel logging config
 ├── core/
@@ -340,7 +366,21 @@ CognitiveObject 1──N Memory (via source_co_id)
 
 ## Configuration
 
-Config file `config.yaml` (gitignored), copy from `config.cp.yaml`:
+Run `retro-cogos init` to generate `~/.retro_cogos/config.yaml` from the built-in template. The config search order (first match wins):
+
+1. `./config.yaml` (CWD)
+2. `./config.yml` (CWD)
+3. `~/.retro_cogos/config.yaml` (user home)
+4. `~/.retro_cogos/config.yml` (user home)
+5. Pydantic defaults (if no config file found)
+
+All data paths default to `~/.retro_cogos/` when not explicitly configured:
+
+| Path | Default |
+|------|---------|
+| Database | `~/.retro_cogos/retro_cogos_data.db` |
+| Output | `~/.retro_cogos/output/` |
+| Logs | `~/.retro_cogos/logs/` |
 
 ```yaml
 llm:
@@ -369,6 +409,9 @@ reflection:
 context:
   max_tokens: 8000       # Context compression threshold
   output_dir: "output"
+
+log:
+  dir: "logs"            # Log directory
 ```
 
 ### Tool Permission Levels
@@ -409,7 +452,10 @@ uv sync
 # Run tests
 uv run pytest tests/ -v
 
-# Launch the app
+# Launch the app (dev mode)
+uv run retro-cogos
+
+# Or via module
 uv run python -m retro_cogos
 ```
 
@@ -420,5 +466,6 @@ uv run python -m retro_cogos
 - [SQLAlchemy 2.0](https://www.sqlalchemy.org/) — ORM
 - [SQLite](https://www.sqlite.org/) (WAL mode) — Persistence
 - [Pydantic 2.0](https://docs.pydantic.dev/) — Config validation + data protocols
+- [Click](https://click.palletsprojects.com/) — CLI framework
 - [httpx](https://www.python-httpx.org/) — Async HTTP client (LLM API)
 - [MCP](https://modelcontextprotocol.io/) — Model Context Protocol for tool extensibility

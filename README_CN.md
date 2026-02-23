@@ -96,16 +96,40 @@ mcp:
 
 ## 快速开始
 
+### 安装
+
 ```bash
-# 克隆项目
 git clone <repo-url> && cd retro-cogos
+uv sync
+```
 
-# 复制配置文件并填入你的 LLM API 密钥
-cp config.cp.yaml config.yaml
-# 编辑 config.yaml，配置 llm.api_key、llm.base_url 等
+### 初始化
 
-# 启动（需要 uv）
-./start.sh
+```bash
+# 初始化配置文件到 ~/.retro_cogos/
+uv run retro-cogos init
+
+# 编辑配置，填入 LLM API 密钥
+vim ~/.retro_cogos/config.yaml
+```
+
+### 启动
+
+```bash
+# 启动 TUI（以下两种写法等效）
+uv run retro-cogos
+uv run retro-cogos run
+
+# 其他命令
+uv run retro-cogos version       # 查看版本
+uv run retro-cogos init --force  # 重置配置为默认值
+```
+
+### 打包二进制（可选）
+
+```bash
+./release.sh
+# 二进制文件位于 dist/retro-cogos
 ```
 
 ### 推荐终端与字体
@@ -207,7 +231,9 @@ brew install --cask font-sarasa-gothic
 ```
 retro_cogos/
 ├── __main__.py                 # 入口
+├── cli.py                      # CLI 命令（init / run / version）
 ├── config.py                   # YAML 配置 + Pydantic 校验
+├── config.cp.yaml              # 配置模板（打包用于 init）
 ├── database.py                 # SQLAlchemy 引擎 + Session 工厂
 ├── logging_config.py           # 双通道日志配置
 ├── core/
@@ -340,7 +366,21 @@ CognitiveObject 1──N Memory (通过 source_co_id)
 
 ## 配置
 
-配置文件 `config.yaml`（已 gitignore），可从 `config.cp.yaml` 复制：
+运行 `retro-cogos init` 将内置模板生成到 `~/.retro_cogos/config.yaml`。配置文件查找顺序（第一个匹配的生效）：
+
+1. `./config.yaml`（当前工作目录）
+2. `./config.yml`（当前工作目录）
+3. `~/.retro_cogos/config.yaml`（用户主目录）
+4. `~/.retro_cogos/config.yml`（用户主目录）
+5. Pydantic 默认值（未找到任何配置文件时）
+
+所有数据路径未配置时默认写入 `~/.retro_cogos/`：
+
+| 路径 | 默认值 |
+|------|--------|
+| 数据库 | `~/.retro_cogos/retro_cogos_data.db` |
+| 产出物 | `~/.retro_cogos/output/` |
+| 日志 | `~/.retro_cogos/logs/` |
 
 ```yaml
 llm:
@@ -369,6 +409,9 @@ reflection:
 context:
   max_tokens: 8000       # 上下文压缩阈值
   output_dir: "output"
+
+log:
+  dir: "logs"            # 日志目录
 ```
 
 ### 工具权限级别
@@ -409,7 +452,10 @@ uv sync
 # 运行测试
 uv run pytest tests/ -v
 
-# 启动应用
+# 启动应用（开发模式）
+uv run retro-cogos
+
+# 或通过模块启动
 uv run python -m retro_cogos
 ```
 
@@ -420,5 +466,6 @@ uv run python -m retro_cogos
 - [SQLAlchemy 2.0](https://www.sqlalchemy.org/) — ORM
 - [SQLite](https://www.sqlite.org/) (WAL mode) — 持久化
 - [Pydantic 2.0](https://docs.pydantic.dev/) — 配置校验 + 数据协议
+- [Click](https://click.palletsprojects.com/) — CLI 框架
 - [httpx](https://www.python-httpx.org/) — 异步 HTTP 客户端（LLM API）
 - [MCP](https://modelcontextprotocol.io/) — Model Context Protocol 工具扩展

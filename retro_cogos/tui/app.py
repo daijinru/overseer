@@ -13,7 +13,7 @@ from textual.binding import Binding
 from textual.message import Message
 from textual.worker import Worker, WorkerState
 
-from retro_cogos.config import load_config
+from retro_cogos.config import get_config
 from retro_cogos.core.enums import COStatus
 from retro_cogos.core.protocols import ToolCall
 from retro_cogos.database import init_db
@@ -115,7 +115,6 @@ class RetroCogosApp(App):
 
     def __init__(self) -> None:
         super().__init__()
-        load_config()
         init_db()
         self.register_theme(FALLOUT_THEME)
         self.theme = "fallout"
