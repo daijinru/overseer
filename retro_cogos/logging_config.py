@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
-LOG_DIR = Path("./logs")
+from retro_cogos.config import get_config
 
 _APP_LOG_FORMAT = "%(asctime)s %(levelname)-8s [%(name)s] %(message)s"
 _APP_LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -21,7 +21,7 @@ def setup_logging(log_dir: Path | None = None) -> None:
 
     Call once at startup before RetroCogosApp is created.
     """
-    base_dir = log_dir or LOG_DIR
+    base_dir = log_dir or Path(get_config().log.dir)
     base_dir.mkdir(parents=True, exist_ok=True)
 
     root = logging.getLogger()

@@ -9,6 +9,11 @@ import yaml
 from pydantic import BaseModel, Field
 
 
+def _default_data_dir() -> Path:
+    """Return the default data directory: ~/.retro_cogos"""
+    return Path.home() / ".retro_cogos"
+
+
 class LLMConfig(BaseModel):
     base_url: str = "https://api.openai.com/v1"
     model: str = "gpt-4o"
@@ -18,7 +23,7 @@ class LLMConfig(BaseModel):
 
 
 class DatabaseConfig(BaseModel):
-    path: str = "retro_cogos_data.db"
+    path: str = str(_default_data_dir() / "retro_cogos_data.db")
 
 
 class MCPServerConfig(BaseModel):
@@ -43,7 +48,7 @@ class ReflectionConfig(BaseModel):
 
 class ContextConfig(BaseModel):
     max_tokens: int = 8000
-    output_dir: str = "output"
+    output_dir: str = str(_default_data_dir() / "output")
 
 
 class PlanningConfig(BaseModel):
@@ -51,6 +56,10 @@ class PlanningConfig(BaseModel):
     max_subtasks: int = 10
     checkpoint_on_subtask_complete: bool = True
     compress_after_subtask: bool = True
+
+
+class LogConfig(BaseModel):
+    dir: str = str(_default_data_dir() / "logs")
 
 
 class AppConfig(BaseModel):
@@ -61,6 +70,7 @@ class AppConfig(BaseModel):
     reflection: ReflectionConfig = Field(default_factory=ReflectionConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)
     planning: PlanningConfig = Field(default_factory=PlanningConfig)
+    log: LogConfig = Field(default_factory=LogConfig)
 
 
 _config: AppConfig | None = None
@@ -75,7 +85,12 @@ def load_config(config_path: str | Path | None = None) -> AppConfig:
     paths_to_try = []
     if config_path:
         paths_to_try.append(Path(config_path))
-    paths_to_try.extend([Path("config.yaml"), Path("config.yml")])
+    paths_to_try.extend([
+        Path("config.yaml"),
+        Path("config.yml"),
+        Path.home() / ".retro_cogos" / "config.yaml",
+        Path.home() / ".retro_cogos" / "config.yml",
+    ])
 
     for p in paths_to_try:
         if p.exists():

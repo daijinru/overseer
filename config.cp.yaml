@@ -6,7 +6,7 @@ llm:
   temperature: 0.7
 
 database:
-  path: "retro_cogos_data.db"
+  path: "retro_cogos_data.db"  # 未配置时默认写入 ~/.retro_cogos/retro_cogos_data.db
 
 mcp:
   servers:
@@ -34,5 +34,8 @@ reflection:
 
 context:
   max_tokens: 8000     # StateDict 压缩阈值
-  output_dir: "output"  # file_write 相对路径的基准目录，也用于产出物归档
+  output_dir: "output"  # file_write 相对路径的基准目录，未配置时默认 ~/.retro_cogos/output
+
+log:
+  dir: "logs"  # 日志目录，未配置时默认 ~/.retro_cogos/logs
 
