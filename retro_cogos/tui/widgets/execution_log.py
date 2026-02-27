@@ -53,6 +53,8 @@ class ExecutionLog(Vertical):
         super().__init__(**kwargs)
         self._lines: list[str] = []
         self._last_summary_text: str = ""
+        self._stream_buffer: str = ""
+        self._stream_lines: list[str] = []
 
     def compose(self) -> ComposeResult:
         yield RichLog(wrap=True, markup=True, id="exec-log-richlog")
@@ -77,6 +79,8 @@ class ExecutionLog(Vertical):
     def clear(self) -> None:
         self._lines.clear()
         self._last_summary_text = ""
+        self._stream_buffer = ""
+        self._stream_lines.clear()
         self._log.clear()
 
     def _format_ts(self, ex: Execution) -> str:
@@ -160,6 +164,7 @@ class ExecutionLog(Vertical):
             self._write_separator()
             self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: Thinking...[/bold]")
         elif phase == "llm_done":
+            self.flush_stream()
             self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: {escape_markup(ex.title or '')}[/bold]")
             if ex.llm_response:
                 summary = self._truncate(ex.llm_response, LLM_RESPONSE_MAX)
@@ -182,11 +187,27 @@ class ExecutionLog(Vertical):
         self._write(f"[dim]\u2139 {escape_markup(text)}[/dim]")
 
     def append_stream_chunk(self, text: str) -> None:
-        """Append a streaming chunk to the current in-progress output."""
+        """Append a streaming chunk, line-buffered for proper display."""
         try:
-            self._log.write(escape_markup(text), scroll_end=True)
+            self._stream_buffer += text
+            while "\n" in self._stream_buffer:
+                line, self._stream_buffer = self._stream_buffer.split("\n", 1)
+                escaped = escape_markup(line) if line else ""
+                self._stream_lines.append(escaped)
+                self._log.write(escaped, scroll_end=True)
         except Exception:
             pass
+
+    def flush_stream(self) -> None:
+        """Flush remaining stream buffer and record all streamed lines for clipboard."""
+        if self._stream_buffer:
+            escaped = escape_markup(self._stream_buffer)
+            self._stream_lines.append(escaped)
+            self._log.write(escaped, scroll_end=True)
+            self._stream_buffer = ""
+        if self._stream_lines:
+            self._lines.extend(self._stream_lines)
+            self._stream_lines.clear()
 
     def add_error(self, error: str) -> None:
         """Add an error entry to the log."""
