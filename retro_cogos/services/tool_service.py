@@ -297,6 +297,37 @@ class ToolService:
         removed = [k for k in args if k not in valid_props]
         return filtered, removed
 
+    def _is_path_readable(self, path: str) -> bool:
+        """Check if a path falls within the configured readable_paths whitelist.
+
+        Returns True if the path is allowed without additional approval.
+        """
+        from pathlib import Path
+
+        try:
+            target = Path(path).resolve()
+        except (ValueError, OSError):
+            return False
+
+        readable_paths = self._cfg.context.readable_paths
+        output_dir = Path(self._cfg.context.output_dir).resolve()
+
+        for allowed in readable_paths:
+            if allowed in (".", "./"):
+                allowed_path = Path.cwd().resolve()
+            elif allowed.rstrip("/") == "output":
+                allowed_path = output_dir
+            else:
+                allowed_path = Path(allowed).resolve()
+
+            try:
+                target.relative_to(allowed_path)
+                return True
+            except ValueError:
+                continue
+
+        return False
+
     def get_permission(self, tool_name: str) -> ToolPermission:
         """Get permission level for a tool."""
         # Phase 3: Runtime overrides take precedence
@@ -319,12 +350,22 @@ class ToolService:
         except ValueError:
             return ToolPermission.CONFIRM
 
-    def needs_human_approval(self, tool_name: str) -> bool:
-        """Check if a tool call requires human approval before execution."""
+    def needs_human_approval(self, tool_name: str, args: Optional[Dict[str, Any]] = None) -> bool:
+        """Check if a tool call requires human approval before execution.
+
+        For file_read/file_list, paths outside the readable_paths whitelist
+        are escalated to require human confirmation.
+        """
         perm = self.get_permission(tool_name)
+        # Dynamic escalation for file_read / file_list outside readable_paths
+        if perm in (ToolPermission.AUTO, ToolPermission.NOTIFY) and args:
+            if tool_name in ("file_read", "file_list"):
+                path = args.get("path", "")
+                if path and not self._is_path_readable(path):
+                    return True
         return perm in (ToolPermission.CONFIRM, ToolPermission.APPROVE)
 
-    def needs_preview(self, tool_name: str) -> bool:
+    def needs_preview(self, tool_name: str, args: Optional[Dict[str, Any]] = None) -> bool:
         """Check if a tool call should show a preview before approval."""
         return self.get_permission(tool_name) == ToolPermission.APPROVE
 

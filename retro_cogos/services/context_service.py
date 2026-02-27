@@ -41,6 +41,7 @@ class ContextService:
         memories: list[str] | None = None,
         available_tools: list[dict] | None = None,
         elapsed_seconds: float = 0.0,
+        max_steps: int = 0,
     ) -> str:
         """Build a complete prompt for the LLM from CO context + memories + tools."""
         ctx = co.context or {}
@@ -78,11 +79,18 @@ class ContextService:
 
         # Phase 1: Resource awareness — let LLM know how much it has spent
         elapsed_min = elapsed_seconds / 60.0
-        parts.append(
-            f"\n## Resource Status\n"
-            f"- Steps completed: {step_count}\n"
-            f"- Elapsed time: {elapsed_min:.1f} min"
-        )
+        resource_lines = [
+            f"- Steps completed: {step_count}",
+            f"- Elapsed time: {elapsed_min:.1f} min",
+        ]
+        if max_steps > 0:
+            remaining = max(0, max_steps - step_count)
+            resource_lines.append(f"- Steps remaining: {remaining} (limit: {max_steps})")
+            if remaining <= 5:
+                resource_lines.append(
+                    "- WARNING: approaching step limit, prioritize essential work"
+                )
+        parts.append("\n## Resource Status\n" + "\n".join(resource_lines))
 
         # Tool section: narrow by subtask suggestions if available
         if available_tools:

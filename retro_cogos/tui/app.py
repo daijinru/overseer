@@ -88,6 +88,14 @@ class InfoMessage(Message):
         self.text = text
 
 
+class StreamChunk(Message):
+    """A chunk of streaming LLM output to display incrementally."""
+    def __init__(self, co_id: str, text: str) -> None:
+        super().__init__()
+        self.co_id = co_id
+        self.text = text
+
+
 class RetroCogosApp(App):
     """Retro CogOS — Cognitive Operating System."""
 
@@ -340,6 +348,9 @@ class RetroCogosApp(App):
             ),
             on_info=lambda cid, text: app.post_message(
                 InfoMessage(cid, text)
+            ),
+            on_stream_chunk=lambda cid, text: app.post_message(
+                StreamChunk(cid, text)
             ),
         )
 
@@ -678,6 +689,16 @@ class RetroCogosApp(App):
             # Refresh plan progress on phase-related messages
             if "[Phase]" in message.text:
                 self._refresh_plan_progress(message.co_id)
+
+    def on_stream_chunk(self, message: StreamChunk) -> None:
+        if self._shutting_down:
+            return
+        if message.co_id == self._selected_co_id:
+            try:
+                log = self.screen.query_one(ExecutionLog)
+                log.append_stream_chunk(message.text)
+            except Exception:
+                pass
 
     def _show_completion_summary(self, co_id: str) -> None:
         """Show a rich completion summary in the log and action buttons in the panel."""

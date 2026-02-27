@@ -64,6 +64,7 @@ class ExecutionService:
         self._on_complete: Optional[Callable] = None
         self._on_error: Optional[Callable] = None
         self._on_info: Optional[Callable] = None
+        self._on_stream_chunk: Optional[Callable] = None
 
         # Phase 3: User behavior perception state
         # Per-tool approval statistics: {tool_name: {"approve": N, "reject": N}}
@@ -92,6 +93,7 @@ class ExecutionService:
         on_complete: Optional[Callable] = None,
         on_error: Optional[Callable] = None,
         on_info: Optional[Callable] = None,
+        on_stream_chunk: Optional[Callable] = None,
     ) -> None:
         """Set callback functions for TUI communication."""
         self._on_step_update = on_step_update
@@ -100,6 +102,7 @@ class ExecutionService:
         self._on_complete = on_complete
         self._on_error = on_error
         self._on_info = on_info
+        self._on_stream_chunk = on_stream_chunk
 
     def provide_human_response(self, decision: str, text: str = "") -> None:
         """Called by TUI when human makes a decision."""
@@ -130,6 +133,7 @@ class ExecutionService:
         announced_subtask_id: int | None,
         pending_hitl: Dict[str, Any] | None = None,
         pending_tool_confirm: Dict[str, Any] | None = None,
+        wrap_up_injected: bool = False,
     ) -> None:
         """Persist all ephemeral loop state into co.context['_checkpoint']."""
         co = self.co_service.get(co_id)
@@ -152,6 +156,7 @@ class ExecutionService:
             "pending_tool_confirm": pending_tool_confirm,
             "paused_at_step": ctx.get("step_count", 0),
             "pause_reason": pause_reason,
+            "wrap_up_injected": wrap_up_injected,
         }
         co.context = ctx
         self.co_service.session.commit()
@@ -197,6 +202,7 @@ class ExecutionService:
             "announced_subtask_id": cp.get("announced_subtask_id"),
             "pause_reason": cp.get("pause_reason", "pause"),
             "human_decision": cp.get("human_decision"),
+            "wrap_up_injected": cp.get("wrap_up_injected", False),
         }
 
     def _clear_checkpoint(self, co_id: str) -> None:
@@ -441,6 +447,8 @@ class ExecutionService:
         _loop_start_time = asyncio.get_event_loop().time()
 
         cfg = get_config()
+        _max_steps = cfg.execution.max_steps
+        _wrap_up_injected = _cp.get("wrap_up_injected", False) if _cp else False
 
         # ── PLANNING PHASE ──
         # Generate a task plan if planning is enabled and no plan exists yet
@@ -498,6 +506,54 @@ class ExecutionService:
                 step_number += 1
                 co = self.co_service.get(co_id)  # refresh
 
+                # ── STEP LIMIT ENFORCEMENT ──
+                if _max_steps > 0 and step_number > _max_steps + 1 and _wrap_up_injected:
+                    # Hard stop: LLM did not complete after the extra wrap-up step
+                    logger.warning(
+                        "CO %s exceeded max_steps+1 (%d), forcing PAUSED",
+                        co_id[:8], _max_steps + 1,
+                    )
+                    if self._on_info:
+                        self._on_info(
+                            co_id,
+                            f"[System] 步数上限已超出 — LLM 未在收尾步完成，强制暂停",
+                        )
+                    _force_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
+                    self._save_checkpoint(
+                        co_id, "step_limit_exceeded",
+                        last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
+                        last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
+                        confidence_history=_confidence_history,
+                        elapsed_seconds=_force_elapsed,
+                        announced_subtask_id=_announced_subtask_id,
+                        wrap_up_injected=_wrap_up_injected,
+                    )
+                    self._persist_preferences(co_id)
+                    self.co_service.update_status(co_id, COStatus.PAUSED)
+                    await self.tool_service.disconnect()
+                    await self.llm_service.close()
+                    if self._on_complete:
+                        self._on_complete(co_id, "paused")
+                    return
+                elif _max_steps > 0 and step_number > _max_steps and not _wrap_up_injected:
+                    # Inject wrap-up signal — give LLM one final step to summarize
+                    _wrap_up_injected = True
+                    self.context_service.merge_step_result(
+                        co, step_number - 1, "system:step_limit",
+                        f"[URGENT — 步数上限已达到 ({_max_steps})] "
+                        f"你已使用完全部 {_max_steps} 个执行步骤。这是你的最后一步。你必须：\n"
+                        f"1. 总结目前已完成的所有工作\n"
+                        f"2. 列出所有未完成的事项\n"
+                        f"3. 在决策块中设置 task_complete: true\n"
+                        f"4. 不要启动任何新的工作或工具调用",
+                    )
+                    self.co_service.session.commit()
+                    if self._on_info:
+                        self._on_info(
+                            co_id,
+                            f"[System] 步数上限 ({_max_steps}) 已达到 — 注入收尾信号",
+                        )
+
                 # Announce current subtask if changed
                 current_subtask = self.planning_service.get_current_subtask(co)
                 if current_subtask and current_subtask.id != _announced_subtask_id:
@@ -534,14 +590,24 @@ class ExecutionService:
                 available_tools = self.tool_service.list_tools()
                 elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
                 prompt = self.context_service.build_prompt(
-                    co, memories, available_tools, elapsed_seconds=elapsed,
+                    co, memories, available_tools,
+                    elapsed_seconds=elapsed, max_steps=_max_steps,
                 )
                 execution.prompt = prompt
                 self.session.commit()
 
-                # 3. Call LLM
+                # 3. Call LLM (with streaming if callback is registered)
                 try:
-                    response = await self.llm_service.call(prompt)
+                    _stream_cb = None
+                    if self._on_stream_chunk:
+                        _cid = co_id
+
+                        def _stream_cb(text: str) -> None:
+                            self._on_stream_chunk(_cid, text)
+
+                    response = await self.llm_service.call(
+                        prompt, stream=bool(_stream_cb), on_chunk=_stream_cb,
+                    )
                 except Exception as e:
                     logger.error("LLM call failed at step %d: %s", step_number, e)
                     execution.status = ExecutionStatus.FAILED
@@ -560,10 +626,12 @@ class ExecutionService:
                             confidence_history=_confidence_history,
                             elapsed_seconds=_llm_err_elapsed,
                             announced_subtask_id=_announced_subtask_id,
+                            wrap_up_injected=_wrap_up_injected,
                         )
                     except Exception:
                         logger.debug("Failed to save checkpoint on LLM error", exc_info=True)
                     await self.tool_service.disconnect()
+                    await self.llm_service.close()
                     return
 
                 execution.llm_response = response
@@ -700,7 +768,7 @@ class ExecutionService:
 
                     all_results = []
                     for tc in decision.tool_calls:
-                        if self.tool_service.needs_human_approval(tc.tool):
+                        if self.tool_service.needs_human_approval(tc.tool, tc.args):
                             # Ask human to approve tool call
                             execution.status = ExecutionStatus.AWAITING_HUMAN
                             self.session.commit()
@@ -717,6 +785,7 @@ class ExecutionService:
                                 elapsed_seconds=_tool_elapsed,
                                 announced_subtask_id=_announced_subtask_id,
                                 pending_tool_confirm={"tool_name": tc.tool, "tool_args": tc.args},
+                                wrap_up_injected=_wrap_up_injected,
                             )
 
                             # Phase 3: Time the approval wait
@@ -847,6 +916,7 @@ class ExecutionService:
                             "reason": decision.human_reason or "Your input is needed.",
                             "options": decision.options or [],
                         },
+                        wrap_up_injected=_wrap_up_injected,
                     )
 
                     # Phase 3: Time the human response
@@ -896,6 +966,7 @@ class ExecutionService:
                             self._persist_preferences(co_id)
                             self.co_service.update_status(co_id, COStatus.ABORTED)
                             await self.tool_service.disconnect()
+                            await self.llm_service.close()
                             if self._on_complete:
                                 self._on_complete(co_id, "aborted")
                             return
@@ -1078,6 +1149,7 @@ class ExecutionService:
                     self._clear_checkpoint(co_id)
                     self.co_service.update_status(co_id, COStatus.COMPLETED)
                     await self.tool_service.disconnect()
+                    await self.llm_service.close()
                     if self._on_complete:
                         self._on_complete(co_id, "completed")
                     return
@@ -1103,11 +1175,13 @@ class ExecutionService:
                     announced_subtask_id=_announced_subtask_id,
                     pending_hitl=_existing_cp.get("pending_hitl"),
                     pending_tool_confirm=_existing_cp.get("pending_tool_confirm"),
+                    wrap_up_injected=_wrap_up_injected,
                 )
             except Exception:
                 logger.debug("Failed to save checkpoint on cancel", exc_info=True)
             self.co_service.update_status(co_id, COStatus.PAUSED)
             await self.tool_service.disconnect()
+            await self.llm_service.close()
             raise
         except Exception as e:
             logger.error("Execution loop failed for CO %s: %s", co_id[:8], e, exc_info=True)
@@ -1124,10 +1198,12 @@ class ExecutionService:
                     confidence_history=_confidence_history,
                     elapsed_seconds=_err_elapsed,
                     announced_subtask_id=_announced_subtask_id,
+                    wrap_up_injected=_wrap_up_injected,
                 )
             except Exception:
                 logger.debug("Failed to save checkpoint on error exit", exc_info=True)
             self.co_service.update_status(co_id, COStatus.FAILED)
             await self.tool_service.disconnect()
+            await self.llm_service.close()
             if self._on_error:
                 self._on_error(str(e))

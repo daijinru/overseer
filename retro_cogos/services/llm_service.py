@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import httpx
 
@@ -13,6 +14,8 @@ from retro_cogos.config import get_config
 from retro_cogos.core.protocols import HelpRequest, LLMDecision, TaskPlan, ToolCall, WorkingMemory
 
 logger = logging.getLogger(__name__)
+
+_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 
 SYSTEM_PROMPT = """\
 你是 Retro CogOS（认知操作系统）的认知引擎。
@@ -146,25 +149,45 @@ COMPRESSION_PROMPT = """\
 class LLMService:
     def __init__(self):
         self._cfg = get_config().llm
+        self._client: httpx.AsyncClient | None = None
 
-    async def call(
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Lazily create a persistent async HTTP client."""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=120.0)
+        return self._client
+
+    async def close(self) -> None:
+        """Close the persistent HTTP client."""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
+
+    async def _request(
         self,
-        prompt: str,
+        messages: List[Dict[str, Any]],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         tools: Optional[List[Dict[str, Any]]] = None,
+        stream: bool = False,
+        on_chunk: Optional[Callable[[str], None]] = None,
     ) -> str:
-        """Call LLM and return raw response text."""
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt},
-        ]
+        """Unified HTTP request with retry and optional streaming.
+
+        Retry uses exponential backoff for transient errors (429/5xx)
+        and honours the Retry-After header for 429 responses.
+        """
         payload: Dict[str, Any] = {
             "model": self._cfg.model,
             "messages": messages,
-            "max_tokens": self._cfg.max_tokens,
-            "temperature": self._cfg.temperature,
+            "max_tokens": max_tokens or self._cfg.max_tokens,
+            "temperature": temperature if temperature is not None else self._cfg.temperature,
         }
         if tools:
             payload["tools"] = tools
+        if stream:
+            payload["stream"] = True
 
         url = f"{self._cfg.base_url.rstrip('/')}/chat/completions"
         headers = {
@@ -172,13 +195,132 @@ class LLMService:
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
+        max_retries = self._cfg.max_retries
+        base_delay = self._cfg.retry_base_delay
+        max_delay = self._cfg.retry_max_delay
+        last_error: Exception | None = None
 
-        content = data["choices"][0]["message"]["content"]
-        return content
+        for attempt in range(1, max_retries + 1):
+            try:
+                client = await self._get_client()
+
+                if stream:
+                    return await self._stream_request(
+                        client, url, payload, headers, on_chunk,
+                    )
+                else:
+                    resp = await client.post(url, json=payload, headers=headers)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    return data["choices"][0]["message"]["content"]
+
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                status_code = e.response.status_code
+                if status_code not in _RETRYABLE_STATUS_CODES:
+                    raise
+
+                if status_code == 429:
+                    retry_after = e.response.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            delay = min(float(retry_after), max_delay)
+                        except ValueError:
+                            delay = base_delay * (2 ** (attempt - 1))
+                    else:
+                        delay = base_delay * (2 ** (attempt - 1))
+                else:
+                    delay = base_delay * (2 ** (attempt - 1))
+
+                delay = min(delay, max_delay)
+                logger.warning(
+                    "LLM API error %d (attempt %d/%d), retrying in %.1fs: %s",
+                    status_code, attempt, max_retries, delay, e,
+                )
+                if attempt < max_retries:
+                    await asyncio.sleep(delay)
+                    continue
+
+            except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as e:
+                last_error = e
+                delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
+                logger.warning(
+                    "LLM network error (attempt %d/%d), retrying in %.1fs: %s",
+                    attempt, max_retries, delay, e,
+                )
+                if attempt < max_retries:
+                    await asyncio.sleep(delay)
+                    await self.close()
+                    continue
+
+        raise last_error or RuntimeError("LLM request failed after all retries")
+
+    async def _stream_request(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        payload: Dict[str, Any],
+        headers: Dict[str, str],
+        on_chunk: Optional[Callable[[str], None]] = None,
+    ) -> str:
+        """Handle an SSE streaming request, returning the full accumulated text."""
+        full_response = ""
+        in_decision_block = False
+        # Buffer for detecting decision markers split across chunks
+        _MARKER = "```decision"
+        _CLOSE = "```"
+
+        async with client.stream("POST", url, json=payload, headers=headers) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                data_str = line[6:]
+                if data_str.strip() == "[DONE]":
+                    break
+                try:
+                    data = json.loads(data_str)
+                    delta = data.get("choices", [{}])[0].get("delta", {})
+                    chunk_text = delta.get("content", "")
+                except (json.JSONDecodeError, IndexError, KeyError):
+                    continue
+                if not chunk_text:
+                    continue
+
+                full_response += chunk_text
+
+                # Detect entering/exiting a decision block
+                if not in_decision_block and _MARKER in full_response[
+                    max(0, len(full_response) - len(chunk_text) - len(_MARKER)):
+                ]:
+                    in_decision_block = True
+                elif in_decision_block:
+                    after_marker = full_response[full_response.rfind(_MARKER) + len(_MARKER):]
+                    if _CLOSE in after_marker:
+                        in_decision_block = False
+
+                # Forward visible chunks to callback (suppress decision block)
+                if on_chunk and not in_decision_block:
+                    on_chunk(chunk_text)
+
+        return full_response
+
+    async def call(
+        self,
+        prompt: str,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        *,
+        stream: bool = False,
+        on_chunk: Optional[Callable[[str], None]] = None,
+    ) -> str:
+        """Call LLM and return raw response text."""
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ]
+        return await self._request(
+            messages, tools=tools, stream=stream, on_chunk=on_chunk,
+        )
 
     def _normalize_decision(self, data: dict) -> LLMDecision:
         """Build LLMDecision from a dict, normalising tool_calls and help_request."""
@@ -247,22 +389,7 @@ class LLMService:
             {"role": "system", "content": PLANNING_SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
-        payload: Dict[str, Any] = {
-            "model": self._cfg.model,
-            "messages": messages,
-            "max_tokens": self._cfg.max_tokens,
-            "temperature": self._cfg.temperature,
-        }
-        url = f"{self._cfg.base_url.rstrip('/')}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self._cfg.api_key}",
-            "Content-Type": "application/json",
-        }
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        return await self._request(messages)
 
     def parse_plan(self, response: str) -> Optional[TaskPlan]:
         """Extract a TaskPlan from a ```plan``` fenced block."""
@@ -281,22 +408,7 @@ class LLMService:
             {"role": "system", "content": COMPRESSION_PROMPT},
             {"role": "user", "content": prompt},
         ]
-        payload: Dict[str, Any] = {
-            "model": self._cfg.model,
-            "messages": messages,
-            "max_tokens": 1024,
-            "temperature": 0.3,
-        }
-        url = f"{self._cfg.base_url.rstrip('/')}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self._cfg.api_key}",
-            "Content-Type": "application/json",
-        }
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        return await self._request(messages, max_tokens=1024, temperature=0.3)
 
     def parse_working_memory(self, response: str) -> Optional[WorkingMemory]:
         """Extract a WorkingMemory from a ```memory``` fenced block."""
@@ -315,22 +427,7 @@ class LLMService:
             {"role": "system", "content": CHECKPOINT_SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
-        payload: Dict[str, Any] = {
-            "model": self._cfg.model,
-            "messages": messages,
-            "max_tokens": 1024,
-            "temperature": 0.3,
-        }
-        url = f"{self._cfg.base_url.rstrip('/')}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self._cfg.api_key}",
-            "Content-Type": "application/json",
-        }
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        return await self._request(messages, max_tokens=1024, temperature=0.3)
 
     def parse_checkpoint(self, response: str) -> Dict[str, Any]:
         """Extract checkpoint assessment from a ```checkpoint``` fenced block."""

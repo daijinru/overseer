@@ -20,6 +20,9 @@ class LLMConfig(BaseModel):
     api_key: str = "sk-placeholder"
     max_tokens: int = 4096
     temperature: float = 0.7
+    max_retries: int = 3
+    retry_base_delay: float = 1.0   # seconds
+    retry_max_delay: float = 60.0   # seconds
 
 
 class DatabaseConfig(BaseModel):
@@ -49,6 +52,11 @@ class ReflectionConfig(BaseModel):
 class ContextConfig(BaseModel):
     max_tokens: int = 8000
     output_dir: str = str(_default_data_dir() / "output")
+    readable_paths: List[str] = Field(
+        default_factory=lambda: ["output/", "."],
+        description="Whitelist of directories for file_read without approval. "
+        "Paths outside this list require human confirmation.",
+    )
 
 
 class PlanningConfig(BaseModel):
@@ -56,6 +64,10 @@ class PlanningConfig(BaseModel):
     max_subtasks: int = 10
     checkpoint_on_subtask_complete: bool = True
     compress_after_subtask: bool = True
+
+
+class ExecutionConfig(BaseModel):
+    max_steps: int = 50
 
 
 class LogConfig(BaseModel):
@@ -70,6 +82,7 @@ class AppConfig(BaseModel):
     reflection: ReflectionConfig = Field(default_factory=ReflectionConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)
     planning: PlanningConfig = Field(default_factory=PlanningConfig)
+    execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
     log: LogConfig = Field(default_factory=LogConfig)
 
 

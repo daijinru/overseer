@@ -181,6 +181,13 @@ class ExecutionLog(Vertical):
         """Add an informational entry to the log (e.g. MCP server messages)."""
         self._write(f"[dim]\u2139 {escape_markup(text)}[/dim]")
 
+    def append_stream_chunk(self, text: str) -> None:
+        """Append a streaming chunk to the current in-progress output."""
+        try:
+            self._log.write(escape_markup(text), scroll_end=True)
+        except Exception:
+            pass
+
     def add_error(self, error: str) -> None:
         """Add an error entry to the log."""
         self._write(f"[bold reverse]\u2717 Error: {escape_markup(error)}[/bold reverse]")
