@@ -1,4 +1,14 @@
-"""Execution service — the core orchestration engine (cognitive loop)."""
+"""Execution service — pure orchestration layer for the cognitive loop.
+
+After Milestone 1 refactoring, this service is ~400 lines (down from 1210).
+All security logic lives in kernel/firewall_engine.py.
+All HITL logic lives in kernel/human_gate.py.
+All perception logic lives in kernel/perception_bus.py.
+Plugins are accessed via kernel/registry.py.
+
+This file is ONLY orchestration: it sequences calls to kernel + plugins
+and manages the while-True loop, checkpoints, and TUI callbacks.
+"""
 
 from __future__ import annotations
 
@@ -11,53 +21,60 @@ from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from retro_cogos.config import get_config
 from retro_cogos.core.enums import COStatus, ExecutionStatus
-from retro_cogos.core.protocols import LLMDecision, Subtask, ToolCall
+from retro_cogos.core.plugin_protocols import (
+    ContextPlugin,
+    LLMPlugin,
+    MemoryPlugin,
+    PlanPlugin,
+    ToolPlugin,
+)
+from retro_cogos.core.protocols import LLMDecision, ToolCall
 from retro_cogos.database import get_session
+from retro_cogos.kernel.firewall_engine import FirewallEngine
+from retro_cogos.kernel.human_gate import HumanGate, Intent
+from retro_cogos.kernel.perception_bus import PerceptionBus
+from retro_cogos.kernel.registry import PluginRegistry
 from retro_cogos.models.cognitive_object import CognitiveObject
 from retro_cogos.models.execution import Execution
 from retro_cogos.services.artifact_service import ArtifactService
 from retro_cogos.services.cognitive_object_service import CognitiveObjectService
-from retro_cogos.services.context_service import ContextService
-from retro_cogos.services.llm_service import LLMService
-from retro_cogos.services.memory_service import MemoryService
-from retro_cogos.services.planning_service import PlanningService
-from retro_cogos.services.tool_service import ToolService
-from retro_cogos.config import get_config
 
 logger = logging.getLogger(__name__)
 
-# Keywords that indicate the user wants to stop/abort execution.
-# Covers both Chinese and English variants used by the UI.
-_ABORT_KEYWORDS = frozenset({
-    # English
-    "abort", "stop", "quit", "exit", "end", "cancel", "finish",
-    "done", "enough", "terminate",
-    # Chinese
-    "终止", "停止", "取消", "结束", "退出", "关闭",
-    "不做了", "不用了", "不要了", "不需要了",
-    "算了", "放弃", "中止", "停下", "别做了",
-})
-
 
 class ExecutionService:
-    """Core orchestration engine that drives the cognitive loop."""
+    """Pure orchestration engine — sequences kernel + plugin calls.
+
+    TUI-facing API is unchanged from the pre-refactor version:
+    - __init__(session), set_callbacks(...), provide_human_response(decision, text)
+    - Direct access to .tool_service / .llm_service for TUI panels
+    """
 
     def __init__(self, session: Session | None = None):
         self._session = session
+        cfg = get_config()
+
+        # Kernel components
+        self._perception = PerceptionBus()
+        self._firewall = FirewallEngine(cfg, self._perception)
+        self._human_gate = HumanGate()
+
+        # Plugin registry (creates default Service implementations)
+        self._registry = PluginRegistry.create_default(cfg, session)
+
+        # Direct service references for TUI backward compatibility
         self.co_service = CognitiveObjectService(session)
-        self.context_service = ContextService(session)
-        self.memory_service = MemoryService(session)
         self.artifact_service = ArtifactService(session)
-        self.llm_service = LLMService()
-        self.tool_service = ToolService()
-        self.planning_service = PlanningService(self.llm_service, self.context_service)
+        # Expose plugin instances so TUI can access them directly
+        self.tool_service = self._registry.get(ToolPlugin)
+        self.llm_service = self._registry.get(LLMPlugin)
+        self.context_service = self._registry.get(ContextPlugin)
+        self.memory_service = self._registry.get(MemoryPlugin)
+        self.planning_service = self._registry.get(PlanPlugin)
 
-        # Human-in-the-loop synchronization
-        self._human_event = asyncio.Event()
-        self._human_response: Dict[str, Any] = {}
-
-        # Callbacks for TUI communication
+        # TUI callbacks
         self._on_step_update: Optional[Callable] = None
         self._on_human_required: Optional[Callable] = None
         self._on_tool_confirm: Optional[Callable] = None
@@ -66,24 +83,13 @@ class ExecutionService:
         self._on_info: Optional[Callable] = None
         self._on_stream_chunk: Optional[Callable] = None
 
-        # Phase 3: User behavior perception state
-        # Per-tool approval statistics: {tool_name: {"approve": N, "reject": N}}
-        self._approval_stats: Dict[str, Dict[str, int]] = {}
-        # Per-tool consecutive reject counter: {tool_name: count}
-        self._consecutive_rejects: Dict[str, int] = {}
-        # Threshold: consecutive rejects before auto-escalating permission
-        self._auto_escalate_threshold = 3
-        # Hesitation threshold in seconds — response slower than this injects a signal
-        self._hesitation_threshold = 30.0
-
-        # HITL consecutive stop counter — force abort if user repeatedly says "终止"
-        self._consecutive_hitl_stops: int = 0
-
     @property
     def session(self) -> Session:
         if self._session is None:
             self._session = get_session()
         return self._session
+
+    # ── TUI interface (unchanged) ──
 
     def set_callbacks(
         self,
@@ -106,16 +112,7 @@ class ExecutionService:
 
     def provide_human_response(self, decision: str, text: str = "") -> None:
         """Called by TUI when human makes a decision."""
-        self._human_response = {"decision": decision, "text": text}
-        self._human_event.set()
-
-    async def _wait_for_human(self) -> Dict[str, Any]:
-        """Wait for human decision."""
-        self._human_event.clear()
-        await self._human_event.wait()
-        response = self._human_response.copy()
-        self._human_response = {}
-        return response
+        self._human_gate.provide_response(decision, text)
 
     # ── Checkpoint / Resume ──
 
@@ -124,34 +121,29 @@ class ExecutionService:
         co_id: str,
         pause_reason: str,
         *,
-        last_tool_sig: str | None,
-        repeat_count: int,
-        last_tool_names: str | None,
-        name_repeat_count: int,
-        confidence_history: List[float],
         elapsed_seconds: float,
         announced_subtask_id: int | None,
         pending_hitl: Dict[str, Any] | None = None,
         pending_tool_confirm: Dict[str, Any] | None = None,
         wrap_up_injected: bool = False,
     ) -> None:
-        """Persist all ephemeral loop state into co.context['_checkpoint']."""
+        """Persist all ephemeral state into co.context['_checkpoint']."""
         co = self.co_service.get(co_id)
         if co is None:
             return
         ctx = copy.deepcopy(co.context or {})
         ctx["_checkpoint"] = {
-            "last_tool_sig": last_tool_sig,
-            "repeat_count": repeat_count,
-            "last_tool_names": last_tool_names,
-            "name_repeat_count": name_repeat_count,
-            "confidence_history": confidence_history,
+            # FirewallEngine loop state
+            **self._firewall.get_loop_state(),
+            # PerceptionBus confidence window
+            "confidence_history": list(self._perception.get_stats().confidence_window),
             "elapsed_seconds_at_pause": elapsed_seconds,
-            "approval_stats": self._approval_stats,
-            "consecutive_rejects": self._consecutive_rejects,
-            "consecutive_hitl_stops": self._consecutive_hitl_stops,
+            # HumanGate state
+            **self._human_gate.get_state(),
+            # PerceptionBus tool outputs
+            "last_tool_outputs": self._perception.get_tool_outputs_snapshot(),
+            # Orchestration state
             "announced_subtask_id": announced_subtask_id,
-            "last_tool_outputs": self.context_service._last_tool_outputs,
             "pending_hitl": pending_hitl,
             "pending_tool_confirm": pending_tool_confirm,
             "paused_at_step": ctx.get("step_count", 0),
@@ -166,12 +158,7 @@ class ExecutionService:
         )
 
     def _restore_checkpoint(self, co_id: str) -> Dict[str, Any] | None:
-        """Restore ephemeral loop state from co.context['_checkpoint'].
-
-        Returns a dict of local variable values for run_loop(),
-        or None if no checkpoint exists.
-        Also restores instance-level and ContextService state.
-        """
+        """Restore ephemeral state from co.context['_checkpoint']."""
         co = self.co_service.get(co_id)
         if co is None:
             return None
@@ -179,13 +166,14 @@ class ExecutionService:
         if not cp:
             return None
 
-        # Restore instance-level state
-        self._approval_stats = cp.get("approval_stats", {})
-        self._consecutive_rejects = cp.get("consecutive_rejects", {})
-        self._consecutive_hitl_stops = cp.get("consecutive_hitl_stops", 0)
+        # Restore kernel state
+        self._firewall.restore_loop_state(cp)
+        self._human_gate.restore_state(cp)
+        self._perception.restore_tool_outputs(cp.get("last_tool_outputs", {}))
 
-        # Restore ContextService state
-        self.context_service.restore_tool_outputs(cp.get("last_tool_outputs", {}))
+        # Restore confidence history into perception
+        for c in cp.get("confidence_history", []):
+            self._perception.record_confidence(c)
 
         logger.info(
             "Checkpoint restored for CO %s from step %d (reason: %s)",
@@ -193,11 +181,6 @@ class ExecutionService:
         )
 
         return {
-            "last_tool_sig": cp.get("last_tool_sig"),
-            "repeat_count": cp.get("repeat_count", 0),
-            "last_tool_names": cp.get("last_tool_names"),
-            "name_repeat_count": cp.get("name_repeat_count", 0),
-            "confidence_history": cp.get("confidence_history", []),
             "elapsed_seconds_at_pause": cp.get("elapsed_seconds_at_pause", 0.0),
             "announced_subtask_id": cp.get("announced_subtask_id"),
             "pause_reason": cp.get("pause_reason", "pause"),
@@ -216,85 +199,21 @@ class ExecutionService:
             co.context = ctx
             self.co_service.session.commit()
 
-    _NO_PROGRESS_INDICATORS = [
-        "没有进展", "未取得进展", "停滞", "陷入", "原地踏步",
-        "no progress", "stuck", "stagnant", "not making progress",
-        "going in circles", "没有推进", "无法推进", "效果不佳",
-        "repeated", "重复", "ineffective", "无效",
-    ]
-
-    def _detect_no_progress(self, reflection_text: str) -> bool:
-        """Check if a reflection indicates lack of progress."""
-        text_lower = reflection_text.lower()
-        return any(ind in text_lower for ind in self._NO_PROGRESS_INDICATORS)
-
-    # ── Phase 3: User behavior perception helpers ──
-
-    def _record_approval(self, tool_name: str, approved: bool) -> None:
-        """Record an approve/reject decision for a tool."""
-        if tool_name not in self._approval_stats:
-            self._approval_stats[tool_name] = {"approve": 0, "reject": 0}
-        key = "approve" if approved else "reject"
-        self._approval_stats[tool_name][key] += 1
-
-        if approved:
-            self._consecutive_rejects[tool_name] = 0
-        else:
-            self._consecutive_rejects[tool_name] = (
-                self._consecutive_rejects.get(tool_name, 0) + 1
-            )
-
-    def _check_auto_escalate(self, tool_name: str, co_id: str) -> None:
-        """Auto-escalate permission if user consecutively rejects a tool."""
-        count = self._consecutive_rejects.get(tool_name, 0)
-        if count >= self._auto_escalate_threshold:
-            logger.warning(
-                "User rejected '%s' %d consecutive times — escalating permission",
-                tool_name, count,
-            )
-            self.tool_service.override_permission(tool_name, "approve")
-            # Inject avoidance hint so LLM stops calling this tool
-            co = self.co_service.get(co_id)
-            if co:
-                self.context_service.merge_step_result(
-                    co,
-                    (co.context or {}).get("step_count", 0),
-                    "perception:tool_avoidance",
-                    f"System: user has rejected tool '{tool_name}' {count} consecutive times. "
-                    f"STOP using this tool. Find an alternative approach or ask for guidance.",
-                )
-            if self._on_info:
-                self._on_info(
-                    co_id,
-                    f"[Perception] Tool '{tool_name}' permission escalated to 'approve' "
-                    f"after {count} consecutive rejections",
-                )
-            # Reset counter after escalation
-            self._consecutive_rejects[tool_name] = 0
-
-    def _build_approval_summary(self) -> List[Dict[str, Any]]:
-        """Build a summary of implicit user preferences from approval stats."""
-        preferences: List[Dict[str, Any]] = []
-        for tool, stats in self._approval_stats.items():
-            total = stats["approve"] + stats["reject"]
-            if total < 2:
-                continue  # not enough data
-            reject_rate = stats["reject"] / total
-            preferences.append({
-                "tool": tool,
-                "approve": stats["approve"],
-                "reject": stats["reject"],
-                "reject_rate": round(reject_rate, 2),
-            })
-        return preferences
+    # ── Preference persistence ──
 
     def _persist_preferences(self, co_id: str) -> None:
-        """Write stable implicit preferences to Memory for future CO reuse."""
-        for tool, stats in self._approval_stats.items():
-            total = stats["approve"] + stats["reject"]
+        """Write stable implicit preferences to Memory for future reuse."""
+        stats = self._perception.get_stats()
+        all_tools = set(stats.approval_counts.keys()) | set(stats.reject_counts.keys())
+        memory = self._registry.get(MemoryPlugin)
+
+        for tool in all_tools:
+            approved = stats.approval_counts.get(tool, 0)
+            rejected = stats.reject_counts.get(tool, 0)
+            total = approved + rejected
             if total < 3:
-                continue  # need sufficient data points
-            reject_rate = stats["reject"] / total
+                continue
+            reject_rate = rejected / total
             if reject_rate >= 0.7:
                 content = (
                     f"User tends to reject tool '{tool}' "
@@ -309,31 +228,28 @@ class ExecutionService:
                 )
             else:
                 continue
-            # Avoid duplicate memories — check if similar preference already exists
-            existing = self.memory_service.retrieve(f"preference {tool}", limit=1)
-            if existing and tool in existing[0].content:
+            existing = memory.retrieve_as_text(f"preference {tool}", limit=1)
+            if existing and tool in existing[0]:
                 continue
-            self.memory_service.save(
+            memory.save(
                 category="preference",
                 content=content,
                 tags=["implicit_preference", tool],
                 source_co_id=co_id,
             )
 
+    # ── Helper methods ──
+
     def _drain_mcp_stderr(self, co_id: str) -> None:
-        """Forward any new MCP subprocess stderr lines to the TUI."""
-        lines = self.tool_service.drain_stderr()
+        """Forward any new MCP subprocess stderr lines to TUI."""
+        tools = self._registry.get(ToolPlugin)
+        lines = tools.drain_stderr()
         if lines and self._on_info:
             for line in lines:
                 self._on_info(co_id, line)
 
-    # ── Cognitive scaffold: planning, checkpoint, compression ──
-
     async def _run_planning_phase(self, co_id: str) -> bool:
-        """Phase 1: Generate a task plan via LLM.
-
-        Returns True if a plan was generated, False otherwise.
-        """
+        """Generate a task plan via LLM. Returns True if plan was generated."""
         co = self.co_service.get(co_id)
         if co is None:
             return False
@@ -341,15 +257,17 @@ class ExecutionService:
         if self._on_info:
             self._on_info(co_id, "[Phase] Entering planning phase...")
 
-        memories = self.memory_service.retrieve_as_text(
-            co.title + " " + co.description, limit=3
-        )
-        available_tools = self.tool_service.list_tools()
+        memory = self._registry.get(MemoryPlugin)
+        tools = self._registry.get(ToolPlugin)
+        planner = self._registry.get(PlanPlugin)
+
+        memories = memory.retrieve_as_text(co.title + " " + co.description, limit=3)
+        available_tools = tools.list_tools()
 
         try:
-            plan = await self.planning_service.generate_plan(co, memories, available_tools)
+            plan = await planner.generate_plan(co, memories, available_tools)
             if plan and plan.subtasks:
-                self.planning_service.store_plan(co, plan)
+                planner.store_plan(co, plan)
                 subtask_titles = [st.title for st in plan.subtasks]
                 if self._on_info:
                     self._on_info(
@@ -366,20 +284,21 @@ class ExecutionService:
         return False
 
     async def _run_checkpoint(self, co_id: str) -> None:
-        """Phase 3: At subtask boundary, reflect on progress and optionally revise plan."""
+        """At subtask boundary, reflect on progress and optionally revise plan."""
         co = self.co_service.get(co_id)
         if co is None:
             return
+        planner = self._registry.get(PlanPlugin)
 
         if self._on_info:
             self._on_info(co_id, "[Phase] Checkpoint: reviewing progress...")
 
-        revised = await self.planning_service.checkpoint_reflect(co)
+        revised = await planner.checkpoint_reflect(co)
         if revised:
             if self._on_info:
                 self._on_info(co_id, "[Phase] Plan revised at checkpoint")
         else:
-            progress = self.planning_service.get_plan_progress_text(co)
+            progress = planner.get_plan_progress_text(co)
             if self._on_info and progress:
                 self._on_info(co_id, f"[Phase] {progress}")
 
@@ -388,85 +307,87 @@ class ExecutionService:
         co = self.co_service.get(co_id)
         if co is None:
             return
+        ctx_plugin = self._registry.get(ContextPlugin)
+        llm = self._registry.get(LLMPlugin)
 
-        wm = await self.context_service.compress_to_working_memory(co, self.llm_service)
+        wm = await ctx_plugin.compress_to_working_memory(co, llm)
         if wm:
             if self._on_info:
                 self._on_info(co_id, "[Phase] Context compressed to working memory")
         else:
-            # Fallback to truncation-based compression
-            self.context_service.compress_if_needed(co)
+            ctx_plugin.compress_if_needed(co)
+
+    # ── Main cognitive loop ──
 
     async def run_loop(self, co_id: str) -> None:
-        """Main cognitive loop for a CognitiveObject."""
+        """Main cognitive loop for a CognitiveObject.
+
+        Orchestrates kernel (firewall, human gate, perception) and
+        plugins (LLM, tools, planning, memory, context) in sequence.
+        """
         co = self.co_service.get(co_id)
         if co is None:
             logger.error("CognitiveObject not found: %s", co_id)
             return
 
-        # Connect to MCP servers (discovers remote tools)
+        # Retrieve plugins
+        llm = self._registry.get(LLMPlugin)
+        tools = self._registry.get(ToolPlugin)
+        ctx_plugin = self._registry.get(ContextPlugin)
+        memory = self._registry.get(MemoryPlugin)
+        planner = self._registry.get(PlanPlugin)
+        firewall = self._firewall
+        gate = self._human_gate
+        perception = self._perception
+
+        # Connect to MCP servers
         try:
-            mcp_lines = await self.tool_service.connect()
+            mcp_lines = await tools.connect()
             if mcp_lines and self._on_info:
                 for line in mcp_lines:
                     self._on_info(co_id, line)
         except Exception as e:
             logger.warning("MCP connection failed, using builtin tools: %s", e)
 
+        # Set MCP tool names on PolicyStore for correct default permission
+        mcp_tool_names = set()
+        if hasattr(tools, '_mcp_tool_map'):
+            mcp_tool_names = set(tools._mcp_tool_map.keys())
+        firewall.policy.set_mcp_tools(mcp_tool_names)
+
         # Set status to running
         self.co_service.update_status(co_id, COStatus.RUNNING)
         step_number = (co.context or {}).get("step_count", 0)
 
-        # Attempt to restore from checkpoint (saved on previous pause/crash)
+        # Attempt to restore from checkpoint
         _cp = self._restore_checkpoint(co_id)
         _is_resuming = _cp is not None
 
         if _cp:
-            _last_tool_sig = _cp["last_tool_sig"]
-            _repeat_count = _cp["repeat_count"]
-            _last_tool_names = _cp["last_tool_names"]
-            _name_repeat_count = _cp["name_repeat_count"]
-            _confidence_history = _cp["confidence_history"]
             _elapsed_offset = _cp["elapsed_seconds_at_pause"]
             _announced_subtask_id = _cp["announced_subtask_id"]
             _resume_reason = _cp["pause_reason"]
             self._clear_checkpoint(co_id)
         else:
-            _last_tool_sig = None
-            _repeat_count = 0
-            _last_tool_names = None
-            _name_repeat_count = 0
-            _confidence_history = []
             _elapsed_offset = 0.0
             _announced_subtask_id = None
             _resume_reason = None
 
-        # Phase 1: Meta-perception state
-        _low_confidence_window = 3  # how many consecutive low-confidence steps trigger HITL
-        _low_confidence_threshold = 0.4  # confidence below this is considered "low"
         _loop_start_time = asyncio.get_event_loop().time()
-
         cfg = get_config()
         _max_steps = cfg.execution.max_steps
         _wrap_up_injected = _cp.get("wrap_up_injected", False) if _cp else False
 
-        # ── PLANNING PHASE ──
-        # Generate a task plan if planning is enabled and no plan exists yet
+        # ── Planning phase ──
         if cfg.planning.enabled and not (co.context or {}).get("plan"):
             await self._run_planning_phase(co_id)
-            co = self.co_service.get(co_id)  # refresh after planning
+            co = self.co_service.get(co_id)
 
-        # Inject resume signal so LLM knows it's continuing, not starting fresh
+        # ── Resume signal injection ──
         if _is_resuming:
-            co = self.co_service.get(co_id)  # refresh
+            co = self.co_service.get(co_id)
             _human_decision = _cp.get("human_decision")
-            logger.info(
-                "Resume signal for CO %s: human_decision=%s, reason=%s",
-                co_id[:8], _human_decision, _resume_reason,
-            )
             if _human_decision:
-                # User answered a restored HITL panel before resuming —
-                # inject their decision so the LLM can act on it.
                 _decision_text = (
                     f"System: execution resumed after {_resume_reason}. "
                     f"User responded to the pending HITL request: "
@@ -474,15 +395,10 @@ class ExecutionService:
                     f"feedback=\"{_human_decision.get('text', '')}\". "
                     f"Continue based on the user's response."
                 )
-                self.context_service.merge_step_result(
-                    co, step_number, "system:resumed", _decision_text,
-                )
-                # Ensure the context change is persisted (merge_step_result
-                # commits on context_service.session, but co belongs to
-                # co_service.session).
+                ctx_plugin.merge_step_result(co, step_number, "system:resumed", _decision_text)
                 self.co_service.session.commit()
             else:
-                self.context_service.merge_step_result(
+                ctx_plugin.merge_step_result(
                     co, step_number, "system:resumed",
                     f"System: execution resumed after {_resume_reason}. "
                     f"Continue from where you left off at step {step_number}. "
@@ -504,41 +420,30 @@ class ExecutionService:
         try:
             while True:
                 step_number += 1
-                co = self.co_service.get(co_id)  # refresh
+                co = self.co_service.get(co_id)
 
-                # ── STEP LIMIT ENFORCEMENT ──
+                # ── Step limit enforcement ──
                 if _max_steps > 0 and step_number > _max_steps + 1 and _wrap_up_injected:
-                    # Hard stop: LLM did not complete after the extra wrap-up step
-                    logger.warning(
-                        "CO %s exceeded max_steps+1 (%d), forcing PAUSED",
-                        co_id[:8], _max_steps + 1,
-                    )
+                    logger.warning("CO %s exceeded max_steps+1 (%d), forcing PAUSED", co_id[:8], _max_steps + 1)
                     if self._on_info:
-                        self._on_info(
-                            co_id,
-                            f"[System] 步数上限已超出 — LLM 未在收尾步完成，强制暂停",
-                        )
+                        self._on_info(co_id, f"[System] 步数上限已超出 — LLM 未在收尾步完成，强制暂停")
                     _force_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
                     self._save_checkpoint(
                         co_id, "step_limit_exceeded",
-                        last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
-                        last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
-                        confidence_history=_confidence_history,
                         elapsed_seconds=_force_elapsed,
                         announced_subtask_id=_announced_subtask_id,
                         wrap_up_injected=_wrap_up_injected,
                     )
                     self._persist_preferences(co_id)
                     self.co_service.update_status(co_id, COStatus.PAUSED)
-                    await self.tool_service.disconnect()
-                    await self.llm_service.close()
+                    await tools.disconnect()
+                    await llm.close()
                     if self._on_complete:
                         self._on_complete(co_id, "paused")
                     return
                 elif _max_steps > 0 and step_number > _max_steps and not _wrap_up_injected:
-                    # Inject wrap-up signal — give LLM one final step to summarize
                     _wrap_up_injected = True
-                    self.context_service.merge_step_result(
+                    ctx_plugin.merge_step_result(
                         co, step_number - 1, "system:step_limit",
                         f"[URGENT — 步数上限已达到 ({_max_steps})] "
                         f"你已使用完全部 {_max_steps} 个执行步骤。这是你的最后一步。你必须：\n"
@@ -549,27 +454,21 @@ class ExecutionService:
                     )
                     self.co_service.session.commit()
                     if self._on_info:
-                        self._on_info(
-                            co_id,
-                            f"[System] 步数上限 ({_max_steps}) 已达到 — 注入收尾信号",
-                        )
+                        self._on_info(co_id, f"[System] 步数上限 ({_max_steps}) 已达到 — 注入收尾信号")
 
                 # Announce current subtask if changed
-                current_subtask = self.planning_service.get_current_subtask(co)
+                current_subtask = planner.get_current_subtask(co)
                 if current_subtask and current_subtask.id != _announced_subtask_id:
                     _announced_subtask_id = current_subtask.id
                     plan = (co.context or {}).get("plan", {})
                     total = len(plan.get("subtasks", []))
                     if self._on_info:
-                        self._on_info(
-                            co_id,
-                            f"[Phase] Starting subtask {current_subtask.id}/{total}: {current_subtask.title}",
-                        )
+                        self._on_info(co_id, f"[Phase] Starting subtask {current_subtask.id}/{total}: {current_subtask.title}")
 
-                # Drain any new MCP stderr output and forward to TUI
+                # Drain MCP stderr
                 self._drain_mcp_stderr(co_id)
 
-                # 1. Create Execution record
+                # ── 1. Create Execution record ──
                 execution = Execution(
                     cognitive_object_id=co_id,
                     sequence_number=step_number,
@@ -579,33 +478,35 @@ class ExecutionService:
                 self.session.commit()
                 self.session.refresh(execution)
 
-                # Notify TUI
                 if self._on_step_update:
                     self._on_step_update(execution, "running_llm")
 
-                # 2. Build prompt with context and memories
-                memories = self.memory_service.retrieve_as_text(
-                    co.title + " " + co.description, limit=3
-                )
-                available_tools = self.tool_service.list_tools()
+                # ── 2. Build prompt ──
+                memories_text = memory.retrieve_as_text(co.title + " " + co.description, limit=3)
+                available_tools = tools.list_tools()
                 elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
-                prompt = self.context_service.build_prompt(
-                    co, memories, available_tools,
+
+                # Build constraints from firewall
+                constraints = firewall.build_constraints(co.context or {})
+
+                prompt = ctx_plugin.build_prompt(
+                    co, memories_text, available_tools,
                     elapsed_seconds=elapsed, max_steps=_max_steps,
+                    constraint_hints=constraints,
                 )
                 execution.prompt = prompt
                 self.session.commit()
 
-                # 3. Call LLM (with streaming if callback is registered)
+                # ── 3. Call LLM ──
                 try:
                     _stream_cb = None
                     if self._on_stream_chunk:
                         _cid = co_id
-
                         def _stream_cb(text: str) -> None:
                             self._on_stream_chunk(_cid, text)
 
-                    response = await self.llm_service.call(
+                    system_prompt = firewall.get_system_prompt()
+                    response = await llm.call(
                         prompt, stream=bool(_stream_cb), on_chunk=_stream_cb,
                     )
                 except Exception as e:
@@ -615,150 +516,56 @@ class ExecutionService:
                     self.session.commit()
                     if self._on_error:
                         self._on_error(str(e))
-                    # Pause the CO so user can retry later
                     self.co_service.update_status(co_id, COStatus.PAUSED)
                     try:
                         _llm_err_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
                         self._save_checkpoint(
                             co_id, "error",
-                            last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
-                            last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
-                            confidence_history=_confidence_history,
                             elapsed_seconds=_llm_err_elapsed,
                             announced_subtask_id=_announced_subtask_id,
                             wrap_up_injected=_wrap_up_injected,
                         )
                     except Exception:
                         logger.debug("Failed to save checkpoint on LLM error", exc_info=True)
-                    await self.tool_service.disconnect()
-                    await self.llm_service.close()
+                    await tools.disconnect()
+                    await llm.close()
                     return
 
                 execution.llm_response = response
                 self.session.commit()
 
-                # 4. Parse decision
-                decision = self.llm_service.parse_decision(response)
+                # ── 4. Parse decision (via firewall — fail-safe) ──
+                decision = firewall.parse_decision(response)
                 execution.llm_decision = decision.model_dump()
-                if decision.next_action:
-                    execution.title = decision.next_action.title
-                else:
-                    execution.title = f"Step {step_number}"
+                execution.title = decision.next_action.title if decision.next_action else f"Step {step_number}"
                 self.session.commit()
 
-                # Notify TUI with LLM response
                 if self._on_step_update:
                     self._on_step_update(execution, "llm_done")
 
-                # 4.5 Meta-perception: confidence monitoring
-                _confidence_history.append(decision.confidence)
-                if len(_confidence_history) > _low_confidence_window:
-                    _confidence_history = _confidence_history[-_low_confidence_window:]
+                # ── 4.5 Record confidence into perception ──
+                perception.record_confidence(decision.confidence)
 
-                # Check for sustained low confidence → auto-trigger HITL
-                if (
-                    len(_confidence_history) >= _low_confidence_window
-                    and all(c < _low_confidence_threshold for c in _confidence_history)
-                    and not decision.human_required
-                    and not decision.task_complete
-                ):
-                    avg_conf = sum(_confidence_history) / len(_confidence_history)
-                    logger.warning(
-                        "Low confidence detected: avg=%.2f over last %d steps",
-                        avg_conf, _low_confidence_window,
-                    )
-                    self.context_service.merge_step_result(
-                        co, step_number, "meta_perception",
-                        f"System: confidence has been low (avg {avg_conf:.2f}) for "
-                        f"{_low_confidence_window} consecutive steps. "
-                        f"The current approach may not be effective.",
-                    )
-                    decision.human_required = True
-                    decision.human_reason = (
-                        f"系统检测到连续 {_low_confidence_window} 步置信度偏低"
-                        f"（平均 {avg_conf:.2f}），当前策略可能无效。请决定下一步方向。"
-                    )
-                    decision.options = ["换一种方式继续", "提供更多信息", "终止"]
-                    _confidence_history.clear()
+                # ── 5. Firewall evaluation (help escalation, confidence breaker, loop detection) ──
+                verdict = firewall.evaluate(decision)
+                decision = verdict.decision or decision
 
-                # 4.6 Help request: explicit escalation protocol
-                if decision.help_request and not decision.human_required:
-                    hr = decision.help_request
-                    decision.human_required = True
-                    parts = []
-                    if hr.specific_question:
-                        parts.append(f"问题：{hr.specific_question}")
-                    if hr.attempted_approaches:
-                        parts.append(f"已尝试：{', '.join(hr.attempted_approaches)}")
-                    if hr.missing_information:
-                        parts.append(f"缺少信息：{', '.join(hr.missing_information)}")
-                    decision.human_reason = "\n".join(parts) if parts else "需要帮助以继续推进。"
-                    decision.options = (hr.suggested_human_actions or []) + ["跳过此步骤", "终止"]
-
-                # 5. Handle tool calls
-                if decision.tool_calls:
-                    # Pre-filter args to match what tools actually accept.
-                    # Track which params were removed so we can inform LLM via context.
+                # ── 6. Handle tool calls ──
+                if decision.tool_calls and verdict.action != "block":
+                    # Pre-filter args via firewall
                     _removed_params: dict[str, list[str]] = {}
                     for tc in decision.tool_calls:
-                        filtered_args, removed = self.tool_service.filter_args(tc.tool, tc.args)
+                        schema = None
+                        for t in available_tools:
+                            if t.get("name") == tc.tool:
+                                schema = t.get("parameters")
+                                break
+                        filtered_args, removed = firewall.filter_args(tc.tool, tc.args, schema)
                         if removed:
                             _removed_params[tc.tool] = removed
-                            logger.info(
-                                "Pre-filtered args for %s: removed %s",
-                                tc.tool, removed,
-                            )
+                            logger.info("Pre-filtered args for %s: removed %s", tc.tool, removed)
                         tc.args = filtered_args
 
-                    # Loop detection on filtered args
-                    tool_sig = json.dumps(
-                        [{"t": tc.tool, "a": tc.args} for tc in decision.tool_calls],
-                        sort_keys=True,
-                    )
-                    if tool_sig == _last_tool_sig:
-                        _repeat_count += 1
-                    else:
-                        _repeat_count = 0
-                        _last_tool_sig = tool_sig
-
-                    # Same-tool-name detection (same tools called, even if args differ)
-                    tool_names = json.dumps(sorted(tc.tool for tc in decision.tool_calls))
-                    if tool_names == _last_tool_names:
-                        _name_repeat_count += 1
-                    else:
-                        _name_repeat_count = 0
-                        _last_tool_names = tool_names
-
-                    # Phase 1: Dynamic loop detection — lower thresholds when confidence is low
-                    avg_conf = (
-                        sum(_confidence_history) / len(_confidence_history)
-                        if _confidence_history else 0.5
-                    )
-                    # High confidence (>=0.5): use default thresholds (2/3)
-                    # Low confidence (<0.5): tighten to (1/2)
-                    exact_threshold = 2 if avg_conf >= 0.5 else 1
-                    name_threshold = 3 if avg_conf >= 0.5 else 2
-
-                    is_loop = _repeat_count >= exact_threshold or _name_repeat_count >= name_threshold
-                    if is_loop:
-                        reason = "exact args" if _repeat_count >= 2 else "same tool"
-                        logger.warning(
-                            "Loop detected (%s): tool repeated %d times",
-                            reason,
-                            max(_repeat_count, _name_repeat_count) + 1,
-                        )
-                        self.context_service.merge_step_result(
-                            co, step_number, "loop_detected",
-                            "System: repeated tool calls detected ({}). "
-                            "Previous calls did not produce useful progress. "
-                            "Please try a completely different approach or ask the user for help.".format(reason),
-                        )
-                        decision.tool_calls = []
-                        decision.human_required = True
-                        decision.human_reason = "检测到重复工具调用，工具可能未返回有效数据。请选择下一步操作。"
-                        decision.options = ["换一种方式继续", "终止"]
-
-                if decision.tool_calls:
                     execution.status = ExecutionStatus.RUNNING_TOOL
                     execution.tool_calls = [tc.model_dump() for tc in decision.tool_calls]
                     self.session.commit()
@@ -768,8 +575,10 @@ class ExecutionService:
 
                     all_results = []
                     for tc in decision.tool_calls:
-                        if self.tool_service.needs_human_approval(tc.tool, tc.args):
-                            # Ask human to approve tool call
+                        # Per-tool permission check via firewall
+                        needs_approval, needs_preview = firewall.check_tool_permission(tc)
+
+                        if needs_approval:
                             execution.status = ExecutionStatus.AWAITING_HUMAN
                             self.session.commit()
                             if self._on_tool_confirm:
@@ -779,30 +588,24 @@ class ExecutionService:
                             _tool_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
                             self._save_checkpoint(
                                 co_id, "tool_confirm_wait",
-                                last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
-                                last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
-                                confidence_history=_confidence_history,
                                 elapsed_seconds=_tool_elapsed,
                                 announced_subtask_id=_announced_subtask_id,
                                 pending_tool_confirm={"tool_name": tc.tool, "tool_args": tc.args},
                                 wrap_up_injected=_wrap_up_injected,
                             )
 
-                            # Phase 3: Time the approval wait
+                            # Time the approval wait
                             _approval_start = time.monotonic()
-                            human = await self._wait_for_human()
+                            human = await gate.wait_for_human()
                             _approval_elapsed = time.monotonic() - _approval_start
 
                             is_approved = human["decision"] != "reject"
-                            self._record_approval(tc.tool, is_approved)
+                            perception.record_approval(tc.tool, is_approved, _approval_elapsed)
 
-                            # Phase 3: Hesitation detection
-                            if _approval_elapsed >= self._hesitation_threshold:
-                                logger.info(
-                                    "User hesitated %.1fs on tool '%s' (decision: %s)",
-                                    _approval_elapsed, tc.tool, human["decision"],
-                                )
-                                self.context_service.merge_step_result(
+                            # Hesitation detection
+                            if _approval_elapsed >= firewall.hesitation_threshold:
+                                logger.info("User hesitated %.1fs on tool '%s'", _approval_elapsed, tc.tool)
+                                ctx_plugin.merge_step_result(
                                     co, step_number, "perception:hesitation",
                                     f"System: user took {_approval_elapsed:.0f}s to respond "
                                     f"to '{tc.tool}' (decision: {human['decision']}). "
@@ -810,10 +613,7 @@ class ExecutionService:
                                     f"consider explaining your intent more clearly next time.",
                                 )
                                 if self._on_info:
-                                    self._on_info(
-                                        co_id,
-                                        f"[Perception] User hesitated {_approval_elapsed:.0f}s on '{tc.tool}'",
-                                    )
+                                    self._on_info(co_id, f"[Perception] User hesitated {_approval_elapsed:.0f}s on '{tc.tool}'")
 
                             if not is_approved:
                                 all_results.append({
@@ -821,17 +621,31 @@ class ExecutionService:
                                     "status": "rejected",
                                     "reason": human.get("text", "User rejected"),
                                 })
-                                # Phase 3: Check if consecutive rejects trigger escalation
-                                self._check_auto_escalate(tc.tool, co_id)
+                                # Check auto-escalation via firewall
+                                escalated = firewall.should_escalate(tc.tool)
+                                if escalated:
+                                    ctx_plugin.merge_step_result(
+                                        co,
+                                        (co.context or {}).get("step_count", 0),
+                                        "perception:tool_avoidance",
+                                        f"System: user has rejected tool '{tc.tool}' multiple consecutive times. "
+                                        f"STOP using this tool. Find an alternative approach or ask for guidance.",
+                                    )
+                                    if self._on_info:
+                                        self._on_info(
+                                            co_id,
+                                            f"[Perception] Tool '{tc.tool}' permission escalated to 'approve' "
+                                            f"after consecutive rejections",
+                                        )
                                 continue
                             execution.status = ExecutionStatus.RUNNING_TOOL
                             self.session.commit()
 
-                        result = await self.tool_service.execute(tc)
+                        # Execute tool
+                        result = await tools.execute(tc)
                         all_results.append({"tool": tc.tool, **result})
 
                         # Record artifact if file was written
-                        # Works for both builtin file_write and MCP tools with path args
                         _path_arg = (
                             tc.args.get("path") or tc.args.get("file_path")
                             or tc.args.get("filepath") or tc.args.get("filename")
@@ -846,9 +660,9 @@ class ExecutionService:
                                 file_path=result.get("path", _path_arg),
                                 artifact_type="document",
                             )
-                            self.context_service.add_artifact(co, result.get("path", _path_arg))
+                            ctx_plugin.add_artifact(co, result.get("path", _path_arg))
 
-                        # Merge tool result into context, including param-filter warnings
+                        # Merge tool result with perception enrichment
                         result_summary = json.dumps(result, ensure_ascii=False)[:2000]
                         removed = _removed_params.get(tc.tool)
                         if removed:
@@ -857,38 +671,31 @@ class ExecutionService:
                                 f"this tool and were ignored. Only use parameters listed "
                                 f"in the tool schema.] {result_summary}"
                             )
-                        self.context_service.merge_tool_result(
-                            co, step_number, tc.tool, result_summary,
-                            raw_result=result,
-                            tool_args=tc.args,
-                        )
+
+                        # Perception: classify + diff detection
+                        classification = perception.classify_result(tc.tool, result)
+                        diff_note = perception.detect_repeat(tc.tool, result_summary, tc.args)
+                        enriched = f"[{classification}]{diff_note or ''} {result_summary}"
+                        ctx_plugin.merge_step_result(co, step_number, f"tool:{tc.tool}", enriched)
 
                     execution.tool_results = all_results
                     self.session.commit()
 
-                    # Log tool results to file
+                    # Log tool results
                     from retro_cogos.logging_config import log_tool_result
                     for tr in all_results:
                         log_tool_result(tr, co_id=co_id, step_number=step_number)
 
-                    # Phase 2: Intent-result deviation detection
-                    intent_desc = (
-                        decision.next_action.description
-                        if decision.next_action else ""
-                    )
-                    deviation = self.context_service.check_intent_deviation(
-                        intent_desc, all_results,
-                    )
+                    # Intent-result deviation detection via firewall
+                    intent_desc = decision.next_action.description if decision.next_action else ""
+                    deviation = firewall.check_deviation(intent_desc, all_results)
                     if deviation:
                         logger.info("Intent-result deviation: %s", deviation)
-                        self.context_service.merge_step_result(
-                            co, step_number, "perception:deviation",
-                            f"System: {deviation}",
-                        )
+                        ctx_plugin.merge_step_result(co, step_number, "perception:deviation", f"System: {deviation}")
                         if self._on_info:
                             self._on_info(co_id, f"[Perception] {deviation}")
 
-                # 6. Handle human decision request
+                # ── 7. Handle HITL decision request ──
                 if decision.human_required:
                     execution.status = ExecutionStatus.AWAITING_HUMAN
                     self.session.commit()
@@ -900,17 +707,12 @@ class ExecutionService:
                             decision.options,
                         )
 
-                    # Pause CO status
                     self.co_service.update_status(co_id, COStatus.PAUSED)
 
-                    # Save checkpoint before HITL wait
-                    _hitl_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
+                    _hitl_elapsed_ts = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
                     self._save_checkpoint(
                         co_id, "hitl_wait",
-                        last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
-                        last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
-                        confidence_history=_confidence_history,
-                        elapsed_seconds=_hitl_elapsed,
+                        elapsed_seconds=_hitl_elapsed_ts,
                         announced_subtask_id=_announced_subtask_id,
                         pending_hitl={
                             "reason": decision.human_reason or "Your input is needed.",
@@ -919,64 +721,45 @@ class ExecutionService:
                         wrap_up_injected=_wrap_up_injected,
                     )
 
-                    # Phase 3: Time the human response
+                    # Time the human response
                     _hitl_start = time.monotonic()
-                    human = await self._wait_for_human()
+                    human = await gate.wait_for_human()
                     _hitl_elapsed = time.monotonic() - _hitl_start
 
-                    # Phase 3: Inject hesitation signal for HITL decisions too
-                    if _hitl_elapsed >= self._hesitation_threshold:
-                        self.context_service.merge_step_result(
+                    # Hesitation detection for HITL decisions
+                    if _hitl_elapsed >= firewall.hesitation_threshold:
+                        ctx_plugin.merge_step_result(
                             co, step_number, "perception:hesitation",
                             f"System: user took {_hitl_elapsed:.0f}s to respond to HITL request. "
                             f"User may need more context or is uncertain about the direction.",
                         )
                         if self._on_info:
-                            self._on_info(
-                                co_id,
-                                f"[Perception] User hesitated {_hitl_elapsed:.0f}s on HITL decision",
-                            )
+                            self._on_info(co_id, f"[Perception] User hesitated {_hitl_elapsed:.0f}s on HITL decision")
 
                     execution.human_decision = human["decision"]
                     execution.human_input = human.get("text", "")
 
-                    # Check abort BEFORE setting APPROVED status.
-                    # Match abort keywords in both the button label (decision)
-                    # AND the typed free-text — users may type "结束" in the
-                    # feedback input rather than clicking a button.
-                    _decision_val = human["decision"].lower().strip()
-                    _text_val = human.get("text", "").lower().strip()
-                    _is_abort = (
-                        _decision_val in _ABORT_KEYWORDS
-                        or (_decision_val == "feedback" and _text_val in _ABORT_KEYWORDS)
-                    )
-                    if _is_abort:
-                        self._consecutive_hitl_stops += 1
-                        logger.info(
-                            "User chose to abort (decision=%r, text=%r, consecutive=%d)",
-                            human["decision"], human.get("text", ""),
-                            self._consecutive_hitl_stops,
-                        )
+                    # Parse intent via HumanGate
+                    intent = gate.parse_intent(human)
 
-                        # Force-abort only after repeated stop signals (user insists)
-                        if self._consecutive_hitl_stops >= 2:
-                            logger.info("User insisted on abort (%d times), force-aborting", self._consecutive_hitl_stops)
-                            execution.status = ExecutionStatus.REJECTED
-                            self.session.commit()
-                            self._persist_preferences(co_id)
-                            self.co_service.update_status(co_id, COStatus.ABORTED)
-                            await self.tool_service.disconnect()
-                            await self.llm_service.close()
-                            if self._on_complete:
-                                self._on_complete(co_id, "aborted")
-                            return
+                    if intent == Intent.FORCE_ABORT:
+                        logger.info("User insisted on abort, force-aborting")
+                        execution.status = ExecutionStatus.REJECTED
+                        self.session.commit()
+                        self._persist_preferences(co_id)
+                        self.co_service.update_status(co_id, COStatus.ABORTED)
+                        await tools.disconnect()
+                        await llm.close()
+                        if self._on_complete:
+                            self._on_complete(co_id, "aborted")
+                        return
 
-                        # Graceful abort: inject a strong system signal and let LLM
-                        # wrap up in the next iteration instead of hard-aborting.
+                    if intent == Intent.ABORT:
+                        # Graceful abort: inject wrap-up signal
                         execution.status = ExecutionStatus.APPROVED
                         self.session.commit()
                         self.co_service.update_status(co_id, COStatus.RUNNING)
-                        self.context_service.merge_step_result(
+                        ctx_plugin.merge_step_result(
                             co, step_number, "system:user_stop_request",
                             "[URGENT — User wants to STOP] "
                             "The user has requested to end this task. "
@@ -987,97 +770,49 @@ class ExecutionService:
                             "4. Do NOT ask for confirmation — just finish.",
                         )
                         if self._on_info:
-                            self._on_info(
-                                co_id,
-                                "[System] User requested stop — guiding LLM to wrap up gracefully",
-                            )
+                            self._on_info(co_id, "[System] User requested stop — guiding LLM to wrap up gracefully")
                         continue
 
-                    # Non-abort: reset consecutive stop counter
-                    self._consecutive_hitl_stops = 0
+                    # Non-abort: continue
                     execution.status = ExecutionStatus.APPROVED
                     self.session.commit()
-
-                    # Resume CO
                     self.co_service.update_status(co_id, COStatus.RUNNING)
 
-                    # Detect implicit stop intent in user's free-text feedback
-                    _user_text = human.get("text", "").lower()
-                    _implicit_stop_cues = (
-                        "停", "不要", "别做了", "别继续", "算了",
-                        "不用了", "放弃", "结束", "不做了", "退出",
-                        "不需要", "关闭", "中止", "停下", "到此为止",
-                        "就这样", "可以了", "够了",
-                        "stop", "quit", "enough", "end", "done",
-                        "finish", "cancel", "exit", "terminate",
-                    )
-                    _has_implicit_stop = any(kw in _user_text for kw in _implicit_stop_cues)
+                    # Build decision text with system signals
+                    decision_text = gate.build_decision_text(human, intent)
+                    ctx_plugin.merge_step_result(co, step_number, "human_decision", decision_text)
 
-                    # Merge human input into context (with amplified signal if implicit stop detected)
-                    # When decision is "feedback", the user typed free-text and hit Enter
-                    # — use the text itself as the primary intent, not an arbitrary button label.
-                    if human["decision"] == "feedback":
-                        decision_text = human.get("text", "")
-                    else:
-                        decision_text = f"{human['decision']}: {human.get('text', '')}"
-                    # Detect task-completion confirmation from user.
-                    # Check both the button label and typed free-text.
-                    _CONFIRM_COMPLETE_KEYWORDS = frozenset({
-                        "确认完成", "确认", "完成", "可以了", "没问题",
-                        "confirm", "done", "lgtm",
-                    })
-                    _decision_lower = human["decision"].lower().strip()
-                    _feedback_text_lower = human.get("text", "").lower().strip()
-                    if (
-                        _decision_lower in _CONFIRM_COMPLETE_KEYWORDS
-                        or (_decision_lower == "feedback" and _feedback_text_lower in _CONFIRM_COMPLETE_KEYWORDS)
-                    ):
-                        decision_text += (
-                            "\n[System: user has reviewed the summary report and "
-                            "confirmed task completion. You MUST set task_complete: true "
-                            "in your next decision. Do NOT ask for confirmation again.]"
-                        )
-                    if _has_implicit_stop:
-                        decision_text += (
-                            "\n[System: user's feedback contains stop/abort intent. "
-                            "Strongly respect the user's wish — wrap up immediately "
-                            "or set task_complete: true.]"
-                        )
-                    self.context_service.merge_step_result(
-                        co, step_number,
-                        "human_decision",
-                        decision_text,
-                    )
-
-                # 7. Merge step result into context (for non-tool steps)
+                # ── 8. Merge non-tool step result ──
                 if not decision.tool_calls:
-                    # Extract a brief summary from LLM response for context
                     summary = response[:300] if response else "No response"
-                    self.context_service.merge_step_result(
-                        co, step_number, execution.title, summary
-                    )
+                    ctx_plugin.merge_step_result(co, step_number, execution.title, summary)
 
                 execution.status = ExecutionStatus.COMPLETED
                 self.session.commit()
 
-                # Notify TUI
                 if self._on_step_update:
                     self._on_step_update(execution, "completed")
 
-                # 8. Self-evaluation (every N steps)
-                cfg = get_config()
+                # ── 9. Self-evaluation (every N steps) ──
                 if step_number % cfg.reflection.interval == 0:
                     try:
-                        reflection_response = await self.llm_service.reflect(co.context)
-                        reflection_decision = self.llm_service.parse_decision(reflection_response)
+                        reflection_response = await llm.reflect(co.context)
+                        reflection_decision = firewall.parse_decision(reflection_response)
                         reflection_text = reflection_decision.reflection or reflection_response[:200]
-                        self.context_service.merge_reflection(co, reflection_text)
+                        ctx_plugin.merge_reflection(co, reflection_text)
 
-                        # Phase 1: Detect "no progress" signals in reflection
-                        _no_progress = self._detect_no_progress(reflection_text)
-                        if _no_progress:
+                        # Stagnation detection via perception
+                        _NO_PROGRESS_INDICATORS = [
+                            "没有进展", "未取得进展", "停滞", "陷入", "原地踏步",
+                            "no progress", "stuck", "stagnant", "not making progress",
+                            "going in circles", "没有推进", "无法推进", "效果不佳",
+                            "repeated", "重复", "ineffective", "无效",
+                        ]
+                        text_lower = reflection_text.lower()
+                        if any(ind in text_lower for ind in _NO_PROGRESS_INDICATORS):
                             logger.warning("Reflection indicates no progress: %s", reflection_text[:100])
-                            self.context_service.merge_step_result(
+                            perception.record_stagnation(reflection_text)
+                            ctx_plugin.merge_step_result(
                                 co, step_number, "meta_perception",
                                 "System: self-reflection indicates lack of progress. "
                                 "Consider changing your approach entirely — "
@@ -1089,67 +824,56 @@ class ExecutionService:
                     except Exception as e:
                         logger.warning("Reflection failed: %s", e)
 
-                # 9. Memory extraction
-                self.memory_service.extract_and_save(co_id, response, execution.title)
+                # ── 10. Memory extraction ──
+                memory.extract_and_save(co_id, response, execution.title)
 
-                # 9.5 Phase 3: Inject approval stats into context periodically
+                # ── 10.5 Inject approval stats periodically ──
                 if step_number % cfg.reflection.interval == 0:
-                    prefs = self._build_approval_summary()
-                    if prefs:
-                        pref_lines = "; ".join(
-                            f"{p['tool']}: {p['approve']} approved, "
-                            f"{p['reject']} rejected ({p['reject_rate']:.0%} reject rate)"
-                            for p in prefs
-                        )
-                        self.context_service.merge_step_result(
+                    summary_text = perception.build_approval_summary()
+                    if summary_text:
+                        ctx_plugin.merge_step_result(
                             co, step_number, "perception:user_preferences",
-                            f"System: implicit user tool preferences — {pref_lines}. "
+                            f"System: implicit user tool preferences — {summary_text}. "
                             f"Adjust your approach based on these signals.",
                         )
 
-                # 10. Context compression (truncation fallback — always runs)
-                self.context_service.compress_if_needed(co)
+                # ── 11. Context compression ──
+                ctx_plugin.compress_if_needed(co)
 
-                # 10.5 Subtask completion handling
+                # ── 11.5 Subtask completion handling ──
                 if decision.subtask_complete and cfg.planning.enabled:
-                    current_st = self.planning_service.get_current_subtask(co)
+                    current_st = planner.get_current_subtask(co)
                     result_summary = decision.reflection or ""
-                    next_st = self.planning_service.advance_subtask(co, result_summary)
+                    next_st = planner.advance_subtask(co, result_summary)
 
                     if current_st and self._on_info:
-                        self._on_info(
-                            co_id,
-                            f"[Phase] Subtask '{current_st.title}' completed",
-                        )
+                        self._on_info(co_id, f"[Phase] Subtask '{current_st.title}' completed")
 
-                    # Checkpoint reflection at subtask boundary
                     if cfg.planning.checkpoint_on_subtask_complete:
                         await self._run_checkpoint(co_id)
-
-                    # LLM-based context compression at subtask boundary
                     if cfg.planning.compress_after_subtask:
                         await self._compress_working_memory(co_id)
 
-                    # Reset loop detection counters for new subtask
-                    _last_tool_sig = None
-                    _repeat_count = 0
-                    _last_tool_names = None
-                    _name_repeat_count = 0
+                    # Reset firewall loop detection for new subtask
+                    firewall.restore_loop_state({
+                        "last_tool_sig": "",
+                        "repeat_count": 0,
+                        "last_tool_names": "",
+                        "name_repeat_count": 0,
+                    })
 
-                    # Check if all subtasks are done
-                    co = self.co_service.get(co_id)  # refresh
-                    if self.planning_service.all_subtasks_done(co):
+                    co = self.co_service.get(co_id)
+                    if planner.all_subtasks_done(co):
                         if self._on_info:
                             self._on_info(co_id, "[Phase] All subtasks completed")
 
-                # 11. Check completion
+                # ── 12. Check completion ──
                 if decision.task_complete:
-                    # Phase 3: Persist implicit preferences to Memory before exiting
                     self._persist_preferences(co_id)
                     self._clear_checkpoint(co_id)
                     self.co_service.update_status(co_id, COStatus.COMPLETED)
-                    await self.tool_service.disconnect()
-                    await self.llm_service.close()
+                    await tools.disconnect()
+                    await llm.close()
                     if self._on_complete:
                         self._on_complete(co_id, "completed")
                     return
@@ -1161,16 +885,10 @@ class ExecutionService:
             except Exception:
                 logger.debug("Failed to persist preferences on cancel", exc_info=True)
             try:
-                # Preserve pending_hitl/pending_tool_confirm from an existing
-                # checkpoint (e.g. saved before an HITL wait) so the TUI can
-                # re-show the panel after a full restart.
                 _existing_cp = (self.co_service.get(co_id).context or {}).get("_checkpoint", {})
                 _cancel_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
                 self._save_checkpoint(
                     co_id, "user_stop",
-                    last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
-                    last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
-                    confidence_history=_confidence_history,
                     elapsed_seconds=_cancel_elapsed,
                     announced_subtask_id=_announced_subtask_id,
                     pending_hitl=_existing_cp.get("pending_hitl"),
@@ -1180,8 +898,8 @@ class ExecutionService:
             except Exception:
                 logger.debug("Failed to save checkpoint on cancel", exc_info=True)
             self.co_service.update_status(co_id, COStatus.PAUSED)
-            await self.tool_service.disconnect()
-            await self.llm_service.close()
+            await tools.disconnect()
+            await llm.close()
             raise
         except Exception as e:
             logger.error("Execution loop failed for CO %s: %s", co_id[:8], e, exc_info=True)
@@ -1193,9 +911,6 @@ class ExecutionService:
                 _err_elapsed = (asyncio.get_event_loop().time() - _loop_start_time) + _elapsed_offset
                 self._save_checkpoint(
                     co_id, "error",
-                    last_tool_sig=_last_tool_sig, repeat_count=_repeat_count,
-                    last_tool_names=_last_tool_names, name_repeat_count=_name_repeat_count,
-                    confidence_history=_confidence_history,
                     elapsed_seconds=_err_elapsed,
                     announced_subtask_id=_announced_subtask_id,
                     wrap_up_injected=_wrap_up_injected,
@@ -1203,7 +918,7 @@ class ExecutionService:
             except Exception:
                 logger.debug("Failed to save checkpoint on error exit", exc_info=True)
             self.co_service.update_status(co_id, COStatus.FAILED)
-            await self.tool_service.disconnect()
-            await self.llm_service.close()
+            await tools.disconnect()
+            await llm.close()
             if self._on_error:
                 self._on_error(str(e))

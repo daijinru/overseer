@@ -42,6 +42,7 @@ class ContextService:
         available_tools: list[dict] | None = None,
         elapsed_seconds: float = 0.0,
         max_steps: int = 0,
+        constraint_hints: list[str] | None = None,
     ) -> str:
         """Build a complete prompt for the LLM from CO context + memories + tools."""
         ctx = co.context or {}
@@ -150,8 +151,8 @@ class ContextService:
             )
             parts.append(f"\n## Accumulated Findings (Steps completed: {step_count})\n{findings_text}")
 
-        # Pre-emptive constraint hints
-        constraints = self.build_constraint_hints(co)
+        # Pre-emptive constraint hints (from kernel if provided, else self-computed)
+        constraints = constraint_hints if constraint_hints is not None else self.build_constraint_hints(co)
         if constraints:
             parts.append(f"\n## Constraints (DO NOT repeat these mistakes)\n" + "\n".join(f"- {c}" for c in constraints))
 
