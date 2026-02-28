@@ -1,0 +1,580 @@
+/* Overseer — Fallout CRT Terminal Theme */
+
+Screen {
+    layout: vertical;
+    background: $background;
+}
+
+/* ── Header / Footer ── */
+Header {
+    dock: top;
+    height: 1;
+    background: $primary;
+    color: $background;
+    text-style: bold;
+}
+
+Footer {
+    dock: bottom;
+    height: 1;
+    background: $surface;
+}
+
+/* ── CRT Banner ── */
+#crt-banner {
+    height: 4;
+    text-align: center;
+    color: $primary;
+    background: $background;
+    padding: 0;
+}
+
+/* ── Home screen layout ── */
+#home-container {
+    layout: horizontal;
+    height: 1fr;
+}
+
+#co-list-panel {
+    width: 30%;
+    min-width: 26;
+    max-width: 45;
+    border-right: heavy $primary-background;
+    padding: 0 1;
+}
+
+.panel-title {
+    text-style: bold;
+    color: $text;
+    padding: 1 0;
+}
+
+.filter-label {
+    color: $accent;
+    padding: 0 0 1 0;
+    text-style: bold italic;
+}
+
+#detail-panel {
+    width: 1fr;
+    padding: 0 1;
+}
+
+/* ── Shared list-item card ── */
+.item-card {
+    height: 3;
+    padding: 0 1;
+}
+
+
+.item-label {
+    height: 2;
+    padding: 0 1;
+}
+
+.co-status-created {
+    color: $text-muted;
+}
+
+.co-status-running {
+    color: $success;
+    text-style: bold;
+}
+
+.co-status-paused {
+    color: $warning;
+}
+
+.co-status-completed {
+    color: $primary;
+}
+
+.co-status-aborted {
+    color: $error;
+}
+
+.co-status-failed {
+    color: $error;
+}
+
+/* ── Detail panel ── */
+CODetail {
+    height: auto;
+    max-height: 14;
+}
+
+#co-detail-header {
+    height: auto;
+    padding: 1 0 0 0;
+}
+
+#co-detail-title {
+    text-style: bold;
+    width: 1fr;
+}
+
+#co-detail-meta {
+    color: $text-muted;
+    padding: 0 1;
+}
+
+#co-detail-stats {
+    padding: 0 1;
+}
+
+#co-detail-status {
+    padding: 0 1;
+}
+
+#co-detail-artifacts {
+    padding: 0 1;
+    color: $text-muted;
+}
+
+/* ── Plan progress panel ── */
+#plan-progress-panel {
+    height: auto;
+    max-height: 12;
+    border: double $accent;
+    border-title-color: $accent;
+    padding: 0 1;
+    margin-top: 1;
+    display: none;
+    overflow-y: auto;
+}
+
+#plan-progress-panel.visible {
+    display: block;
+}
+
+/* ── Execution log ── */
+#execution-log {
+    height: 1fr;
+    min-height: 8;
+    border: double $primary-background;
+    border-title-color: $text-muted;
+    padding: 0 1;
+    margin-top: 1;
+}
+
+#exec-log-richlog {
+    height: 1fr;
+    padding: 1 2;
+}
+
+/* ── Interaction panel ── */
+#interaction-panel {
+    height: auto;
+    max-height: 50%;
+    border: double $accent;
+    padding: 1;
+    display: none;
+    overflow-y: auto;
+}
+
+#interaction-panel.visible {
+    display: block;
+}
+
+#interaction-panel.completion-mode {
+    border: double $success;
+}
+
+#interaction-panel.completion-mode #interaction-reason {
+    color: $success;
+}
+
+#interaction-reason {
+    height: auto;
+    max-height: 1fr;
+    margin-bottom: 1;
+    color: $warning;
+    overflow-y: auto;
+}
+
+#interaction-options,
+#completion-options {
+    layout: horizontal;
+    height: auto;
+    margin-bottom: 1;
+}
+
+#interaction-options Button,
+#completion-options Button {
+    margin-right: 1;
+    min-width: 12;
+}
+
+#interaction-input {
+    margin-bottom: 1;
+}
+
+/* ── Tool preview panel ── */
+#tool-preview-panel {
+    height: auto;
+    max-height: 16;
+    border: double $warning;
+    padding: 1;
+    display: none;
+    overflow-y: auto;
+}
+
+#tool-preview-panel.visible {
+    display: block;
+}
+
+#tool-preview-title {
+    text-style: bold;
+    color: $warning;
+    margin-bottom: 1;
+}
+
+#tool-preview-detail {
+    height: auto;
+    max-height: 8;
+    overflow-y: auto;
+}
+
+#tool-reject-reason {
+    margin: 1 0;
+}
+
+#tool-preview-buttons {
+    layout: horizontal;
+    height: auto;
+}
+
+#tool-preview-buttons Button {
+    margin-right: 1;
+    min-width: 12;
+}
+
+/* ── Create screen ── */
+CreateScreen {
+    align: center middle;
+}
+
+#create-container {
+    width: 70%;
+    max-width: 80;
+    min-width: 40;
+    height: auto;
+    max-height: 80%;
+    border: double $primary;
+    padding: 1 2;
+    background: $surface;
+}
+
+#create-container .title {
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#create-container Input {
+    margin-bottom: 1;
+}
+
+#create-container TextArea {
+    height: auto;
+    min-height: 4;
+    max-height: 10;
+    margin-bottom: 1;
+}
+
+#create-buttons {
+    layout: horizontal;
+    height: auto;
+}
+
+#create-buttons Button {
+    margin-right: 1;
+}
+
+/* ── Confirm screen ── */
+ConfirmScreen {
+    align: center middle;
+}
+
+#confirm-container {
+    width: 50%;
+    max-width: 60;
+    min-width: 30;
+    height: auto;
+    border: double $error;
+    padding: 1 2;
+    background: $surface;
+}
+
+#confirm-container .confirm-title {
+    text-style: bold;
+    color: $warning;
+    margin-bottom: 1;
+}
+
+#confirm-container .confirm-message {
+    margin-bottom: 1;
+}
+
+#confirm-buttons {
+    layout: horizontal;
+    height: auto;
+}
+
+#confirm-buttons Button {
+    margin-right: 1;
+}
+
+/* ── Loading ── */
+LoadingIndicator {
+    height: 3;
+    color: $accent;
+}
+
+/* ── Artifact list screen ── */
+ArtifactListScreen {
+    align: center middle;
+}
+
+#artifact-list-container {
+    width: 60%;
+    max-width: 70;
+    min-width: 30;
+    height: auto;
+    max-height: 80%;
+    border: double $primary;
+    padding: 1 2;
+    background: $surface;
+}
+
+#artifact-list-title {
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.artifact-item-row {
+    layout: horizontal;
+    height: auto;
+    margin-bottom: 1;
+}
+
+.artifact-item-btn {
+    width: 1fr;
+}
+
+.artifact-open-btn {
+    width: auto;
+    min-width: 8;
+    margin-left: 1;
+}
+
+#artifact-list-container > Button {
+    margin-bottom: 1;
+}
+
+/* ── Artifact preview screen ── */
+ArtifactPreviewScreen {
+    align: center middle;
+}
+
+#artifact-preview-container {
+    width: 80%;
+    max-width: 100;
+    min-width: 40;
+    height: 80%;
+    border: double $primary;
+    padding: 1 2;
+    background: $surface;
+}
+
+#artifact-preview-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 0;
+}
+
+#artifact-preview-path {
+    margin-bottom: 1;
+}
+
+#artifact-preview-scroll {
+    height: 1fr;
+    border: double $primary-background;
+    padding: 0 1;
+}
+
+#artifact-preview-buttons {
+    layout: horizontal;
+    height: auto;
+    margin-top: 1;
+}
+
+#artifact-preview-buttons Button {
+    margin-right: 1;
+}
+
+/* ── Empty state ── */
+.empty-state {
+    text-align: center;
+    color: $text-muted;
+    padding: 4;
+}
+
+/* ── Memory screen ── */
+#memory-container {
+    layout: horizontal;
+    height: 1fr;
+}
+
+#memory-list-panel {
+    width: 30%;
+    min-width: 26;
+    max-width: 45;
+    border-right: heavy $primary-background;
+    padding: 0 1;
+}
+
+#memory-listview {
+    height: 1fr;
+}
+
+#memory-detail-panel {
+    width: 1fr;
+    padding: 0 1;
+}
+
+#memory-detail-header {
+    height: auto;
+    padding: 1 0;
+    text-style: bold;
+}
+
+#memory-detail-scroll {
+    height: 1fr;
+    border: double $primary-background;
+    padding: 1 2;
+}
+
+/* ── Memory edit screen ── */
+MemoryEditScreen {
+    align: center middle;
+}
+
+#memory-edit-container {
+    width: 70%;
+    max-width: 80;
+    min-width: 40;
+    height: auto;
+    max-height: 80%;
+    border: double $primary;
+    padding: 1 2;
+    background: $surface;
+}
+
+#memory-edit-container .title {
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#memory-edit-container Select {
+    margin-bottom: 1;
+}
+
+#memory-edit-container TextArea {
+    height: auto;
+    min-height: 4;
+    max-height: 12;
+    margin-bottom: 1;
+}
+
+#memory-edit-container Input {
+    margin-bottom: 1;
+}
+
+#memory-edit-buttons {
+    layout: horizontal;
+    height: auto;
+}
+
+#memory-edit-buttons Button {
+    margin-right: 1;
+}
+
+/* ── Tool panel screen ── */
+#tool-panel-container {
+    layout: horizontal;
+    height: 1fr;
+}
+
+#tool-list-panel {
+    width: 35%;
+    min-width: 30;
+    max-width: 50;
+    border-right: heavy $primary-background;
+    padding: 0 1;
+}
+
+#tool-listview {
+    height: 1fr;
+}
+
+#tool-detail-panel {
+    width: 1fr;
+    padding: 0 1;
+}
+
+#tool-detail-header {
+    height: auto;
+    padding: 1 0;
+    text-style: bold;
+}
+
+#tool-detail-scroll {
+    height: 1fr;
+    border: double $primary-background;
+    padding: 1 2;
+}
+
+/* ── CRT Terminal Controls ── */
+ListView > ListItem {
+    background: transparent;
+}
+
+ListView > ListItem.-highlight {
+    background: $primary 15%;
+}
+
+Button {
+    background: $surface;
+    color: $primary;
+    border: tall $primary-background;
+}
+
+Button:hover {
+    background: $primary 20%;
+}
+
+Button:focus {
+    background: $primary 30%;
+    text-style: bold reverse;
+}
+
+Input {
+    background: $surface;
+    color: $primary;
+    border: tall $primary-background;
+}
+
+Input:focus {
+    border: tall $primary;
+}
+
+TextArea {
+    background: $surface;
+    color: $primary;
+    border: tall $primary-background;
+}
+
+Select {
+    background: $surface;
+    color: $primary;
+}

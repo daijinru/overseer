@@ -1,31 +1,62 @@
 **[English](./README.md)** | 中文
 
-# Retro CogOS — Cognitive Operating System
+# Overseer — AI 动作防火墙
 
-> 不是聊天机器人加了工具，而是把 LLM 当 CPU 的操作系统。
+> 战争从未改变。对人类监督的需求也一样。
 
-Retro CogOS 将用户目标抽象为 **CognitiveObject（认知进程）**，通过自主认知循环驱动 LLM 进行多步推理、工具调用和人机交互，最终完成复杂任务。多个认知进程可并发运行，系统通过多层感知和安全机制确保执行可控、可信赖。
+在 Fallout 的世界里，**Overseer（监督者）** 是每个 Vault 的最高管理者。核战争将地表化为焦土，Vault-Tec 建造了地下避难所来保护人类文明的延续——而 Overseer 就是那个掌控避难所命运的人。每一扇门的开关、每一份资源的分配、每一个居民能否离开 Vault，都由 Overseer 决定。没有 Overseer 的批准，Vault 里什么都不会发生。
 
-基于 [Textual](https://textual.textualize.io/) 的终端 TUI 界面，通过 [MCP](https://modelcontextprotocol.io/) 协议扩展工具能力。
+在 AI 的世界里，情况惊人地相似。LLM 能读写文件、调用 API、执行代码、操作外部系统——能力扩张的速度远超人类建立信任的速度。地表已经不安全了，我们需要一个 Overseer。
+
+**Overseer** 是一道 AI 动作防火墙。它坐在 LLM 的决策输出和真实世界的执行之间，负责**拦截、分级、审计和自适应**——确保每一个 AI 动作的风险暴露都在人类可接受的范围内。就像 Vault 的 Overseer 不亲自搬运物资但控制着一切的发生，这个 Overseer 不执行任何具体任务，但没有它的许可，AI 的任何动作都无法触达真实世界。
+
+基于 [Textual](https://textual.textualize.io/) 的终端 TUI 界面（Fallout Pip-Boy 主题），通过 [MCP](https://modelcontextprotocol.io/) 协议扩展工具能力。
 
 ![截图1](./docs/Snipaste_2026-02-22_21-13-37.jpg)
 ![截图2](./docs/Snipaste_2026-02-21_13-01-38.jpg)
 ![截图3](./docs/Snipaste_2026-02-21_13-02-26.jpg)
 ![截图4](./docs/Snipaste_2026-02-21_13-03-06.jpg)
 
+## 架构设计
+
+Overseer 分为**不可替换的内核**和**可插拔的插件**两部分。
+
+划分标准：**如果移除这个组件，系统是否还是一道防火墙？** 是 → 插件。不是 → 内核。
+
+### 内核 — 定义系统身份
+
+**FirewallEngine** — 防火墙唯一的决策中心。所有安全判断在这里做出：
+- **PolicyStore**：双层权限策略（AdminPolicy 不可变 + UserPolicy 可自适应），四级权限规则
+- **五层检查管线**：参数过滤 → 循环检测 → 权限判定 → 路径沙箱 → 元认知熔断
+- **自适应升级**：读取 PerceptionBus 统计数据，决定是否升级工具权限（仅作用于 UserPolicy 层，AdminPolicy 不可变）
+- **决策解析**：从 LLM 原始输出中提取 `LLMDecision`，解析失败时 fail-safe 默认为 `human_required=True`
+- **PromptPolicy**：安全相关的系统提示词由内核管理并注入
+
+**HumanGate** — 人机通道。当 FirewallEngine 判定需要人类决策时，这是唯一的通道：
+- `asyncio.Event` 请求/等待/接收机制，超时处理
+- 意图解析：批准/拒绝/中止/自由文本检测
+- 多阶段中止：首次温和停止 → 第二次强制中止
+
+**PerceptionBus** — 纯粹的信号记录器。只收集、只统计、**不做判断**：
+- 记录：审批结果、confidence 值、停滞信号
+- 统计：批准/拒绝比率、连续拒绝计数、犹豫频次
+- 分类：工具结果语义分类、连续调用 diff 检测
+
+### 插件 — 可替换的能力
+
+插件通过 `Protocol` 接口接入内核。内核不依赖任何插件的具体实现。
+
+| 插件 | 职责 | 可替换场景 |
+|------|------|-----------|
+| `LLMPlugin` | 纯推理，不做安全判断 | 换模型、换 provider、本地推理 |
+| `ToolPlugin` | 工具发现与执行，不做权限判断 | 换 MCP 实现、换工具集 |
+| `PlanPlugin` | 任务分解，简单任务可跳过 | 换规划策略 |
+| `MemoryPlugin` | 长期记忆存储与检索 | 换存储后端 |
+| `ContextPlugin` | 上下文组装与压缩 | 换 prompt 模板 |
+
 ## 核心特性
 
-### 认知进程，不是对话
-
-Retro CogOS 的核心隐喻是**操作系统**，而非对话界面：
-
-- 用户创建的不是"对话"，而是有完整生命周期的认知进程（created → running → paused → completed）
-- 多个进程可并发运行，各自拥有独立的上下文、执行历史和数据库 Session
-- 上下文不是线性聊天记录，而是**累积状态（StateDict）**——结构化的知识库，支持压缩和窗口滑动
-
 ### 五层安全防护 — 不信任 LLM
-
-系统假设 LLM 是强大但不可靠的推理引擎，围绕这个前提建立了纵深防御：
 
 | 层级 | 机制 | 效果 |
 |------|------|------|
@@ -35,29 +66,26 @@ Retro CogOS 的核心隐喻是**操作系统**，而非对话界面：
 | 输出层 | 统一路径沙箱，builtin 和 MCP 工具的文件写入都限制在 `output/` 目录 | LLM 无法写到不该写的地方 |
 | 元认知层 | confidence 连续走低自动触发 HITL，反思检测"无进展"注入策略切换提示 | 系统在 LLM"迷路"时主动求助 |
 
+### 自适应规则引擎
+
+- **审批行为追踪**：每个工具的批准/拒绝计数、连续拒绝次数
+- **自动权限升级**：连续拒绝 3 次 → 工具权限提升至 APPROVE + 上下文注入回避信号。升级仅作用于 UserPolicy 层（AdminPolicy 不可变）
+- **犹豫检测**：审批耗时超过阈值 → 注入"用户可能不确定"信号
+- **偏好持久化**：高拒绝率/高批准率工具的使用偏好写入长期记忆，跨会话生效
+
 ### 感知系统 — 系统能"感受到"发生了什么
 
-不只是执行工具和记录结果，系统具备三层感知能力：
+**自身状态感知** — confidence 滑动窗口监测，反思结果中的停滞信号检测，prompt 中注入步数和耗时。
 
-**自身状态感知（Phase 1）** — confidence 滑动窗口监测，反思结果中的停滞信号检测，prompt 中注入步数和耗时，让 LLM 知道自己"花了多少资源"。
+**工具结果语义感知** — 工具结果自动分类（success / error / empty / partial），同一工具前后调用结果 diff 检测，意图与实际结果的偏离告警。
 
-**工具结果语义感知（Phase 2）** — 工具结果自动分类（success / error / empty / partial），同一工具前后调用结果 diff 检测，意图与实际结果的偏离告警。
-
-**用户行为隐式感知（Phase 3）** — 审批响应时间计时（犹豫会被注意到），approve/reject 比率统计，连续拒绝触发权限自动升级，稳定偏好写入跨事件 Memory。
-
-### 会学习，不是每次从零开始
-
-- **跨事件记忆**：从 LLM 回复中提取经验、偏好和知识，存入 Memory 表
-- **隐式偏好持久化**：用户的工具审批模式被统计并写入记忆，新任务自动加载
-- **关键词 + 评分检索**：新 CO 启动时，根据目标描述从所有历史记忆中检索相关内容注入 prompt
+**用户行为隐式感知** — 审批响应时间计时（犹豫会被注意到），approve/reject 比率统计，连续拒绝触发权限自动升级，稳定偏好写入跨事件 Memory。
 
 ### 双向人机交互
 
-不是"系统问、人答"的单向模式：
-
 - **LLM 主动发起**：模型可以设置 `human_required: true` 并提供选项列表
 - **用户三种输入方式**：按钮点击、数字键快捷键、自由文本输入
-- **隐式意图理解**：用户文本中的"停"、"算了"、"enough"等隐式停止线索会被识别并引导 LLM 自行收尾
+- **隐式意图理解**：用户文本中的"停"、"算了"、"enough"等隐式停止线索会被识别
 - **asyncio.Event 同步**：循环暂停等待人工输入，无轮询
 
 ### MCP 工具生态
@@ -73,82 +101,59 @@ mcp:
       args: ["-y", "howtocook-mcp"]
 ```
 
-- MCP 子进程 stderr 通过自定义 `_StderrPipe`（os.pipe + 后台线程）实时捕获并转发到 TUI
-- monkey-patch `mcp.stdio_client` 解决 stderr 绑定在 import time 的限制
-- 工具执行自动重试 + 指数退避（最多 3 次）
-- ToolPanelScreen 提供完整的工具浏览器（分组、Schema 展示、按需连接、剪贴板复制）
-
-### 任务闭环 — 不只是"做完"
-
-```
-创建 CO → 认知循环运行 → Artifact 自动归档 → 完成摘要 → 后续操作
-```
-
-- Artifact 自动检测：任何工具写出的文件都被记录（通过 `_PATH_KEYS` 模式匹配）
-- 完成后展示摘要 + 操作面板（查看产物 / 复制摘要 / 启动新任务）
-- Artifact 预览器支持文本文件 TUI 内预览、二进制文件系统应用打开
-
-### 结构化日志 — 可审计
-
-- **应用日志**：`TimedRotatingFileHandler`，每日轮转，保留 14 天
-- **工具结果日志**：独立 JSON Lines 文件（`tool_results.jsonl`），每条记录含 timestamp、co_id、step、tool、status、output、error
-- **完整执行审计链**：每步的 prompt、LLM 原始回复、解析决策、工具调用和结果、人工输入全部持久化到 Execution 表
-
 ## 快速开始
 
 ### 安装
 
 ```bash
-git clone <repo-url> && cd retro-cogos
+git clone <repo-url> && cd overseer
 uv sync
 ```
 
 ### 初始化
 
 ```bash
-# 初始化配置文件到 ~/.retro_cogos/
-uv run retro-cogos init
+# 初始化配置文件到 ~/.overseer/
+uv run overseer init
 
 # 编辑配置，填入 LLM API 密钥
-vim ~/.retro_cogos/config.yaml
+vim ~/.overseer/config.yaml
 ```
 
 ### 启动
 
 ```bash
 # 启动 TUI（以下两种写法等效）
-uv run retro-cogos
-uv run retro-cogos run
+uv run overseer
+uv run overseer run
 
 # 其他命令
-uv run retro-cogos version       # 查看版本
-uv run retro-cogos init --force  # 重置配置为默认值
+uv run overseer version       # 查看版本
+uv run overseer init --force  # 重置配置为默认值
 ```
 
 ### 打包二进制（可选）
 
 ```bash
 ./release.sh
-# 二进制文件位于 dist/retro-cogos
+# 二进制文件位于 dist/overseer
 ```
 
 ### 推荐终端与字体
 
-Retro CogOS 使用 Fallout Pip-Boy CRT 终端主题，推荐搭配 [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) 获得最佳视觉体验——自带 CRT 扫描线、荧光扩散、屏幕弯曲等效果。
+Overseer 使用 Fallout Pip-Boy CRT 终端主题，推荐搭配 [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) 获得最佳视觉体验——自带 CRT 扫描线、荧光扩散、屏幕弯曲等效果。
 
 ```bash
 # macOS
 brew install --cask cool-retro-term
 ```
 
-cool-retro-term 内置的复古字体不包含中文字形，推荐安装 [更纱黑体 (Sarasa Gothic)](https://github.com/be5invis/Sarasa-Gothic)，专为终端设计的等宽字体，中英文对齐良好：
+中文字体推荐 [更纱黑体 (Sarasa Gothic)](https://github.com/be5invis/Sarasa-Gothic)：
 
 ```bash
 # macOS
 brew install --cask font-sarasa-gothic
 ```
-
-安装后打开 cool-retro-term → Settings → General → Font → 取消勾选 **Use builtin fonts**，然后选择 **Sarasa Mono SC** 作为字体。
 
 ### 快捷键
 
@@ -167,220 +172,23 @@ brew install --cask font-sarasa-gothic
 | `w`  | 打开工具面板 |
 | `q`  | 退出 |
 
-## 架构设计
-
-```
-┌─────────────────────────────────────────────────┐
-│                    TUI 层                        │
-│  RetroCogosApp ← HomeScreen ← [COList, CODetail,      │
-│            ExecutionLog, InteractionPanel,        │
-│            ToolPreview]                           │
-│  ToolPanelScreen  ArtifactViewer  MemoryScreen   │
-│  ConfirmScreen    CreateScreen                    │
-├─────────────────────────────────────────────────┤
-│                   服务层                          │
-│  ExecutionService  ← 认知循环编排 + 感知系统       │
-│  ├── LLMService        LLM API 调用 + 决策解析   │
-│  ├── ToolService       工具管理 + MCP + 权限控制  │
-│  ├── ContextService    上下文构建 + 压缩 + 语义分析│
-│  ├── MemoryService     跨事件记忆 + 偏好持久化     │
-│  ├── ArtifactService   产出物管理                  │
-│  └── COService         CO CRUD                    │
-├─────────────────────────────────────────────────┤
-│                   数据层                          │
-│  SQLAlchemy ORM + SQLite (WAL mode)              │
-│  [CognitiveObject, Execution, Memory, Artifact]  │
-├─────────────────────────────────────────────────┤
-│                   日志层                          │
-│  logging_config: 应用日志 + 工具结果 JSONL        │
-└─────────────────────────────────────────────────┘
-```
-
-### 层次职责
-
-**TUI 层** — Textual 应用，Fallout Pip-Boy 终端主题。通过 Textual Worker 运行认知循环，`post_message()` 实现 worker → app 的异步通信。6 种自定义 Message 类型构成类型化事件总线。
-
-**服务层** — 业务逻辑核心。`ExecutionService` 是编排器（Mediator 模式），驱动认知循环并集成三层感知系统。通过回调函数与 TUI 层完全解耦。每个实例拥有独立的 SQLAlchemy Session，支持多 CO 并发。
-
-**数据层** — SQLite + WAL 模式支持并发读。外键约束 + 级联删除保证数据一致性。
-
-**日志层** — 双通道：应用日志（每日轮转）+ 工具结果 JSON Lines（大小轮转），`propagate=False` 保证互不干扰。
-
-### 认知循环详解
-
-每一步循环（`ExecutionService.run_loop`）执行以下流程：
-
-```
-1. 创建 Execution 记录
-2. 构建 prompt（目标 + 资源状态 + 工具列表 + 累积发现 + 记忆 + 反思）
-3. 调用 LLM
-4. 解析结构化决策（三级回退：正则 → JSON 提取 → 默认请求人工）
-4.5. 元感知：confidence 监测 → 连续低信心触发 HITL
-5. 工具执行（参数过滤 → 循环检测 → 权限审批 → 执行 → 结果分类 → diff 检测 → 偏离告警）
-6. 人机交互（用户行为计时 → 偏好统计 → 隐式意图检测）
-7. 上下文合并
-8. 自我反思（每 N 步）→ 停滞检测 → 策略切换注入
-9. 记忆提取
-9.5. 隐式偏好注入
-10. 上下文压缩
-11. 完成检测（偏好持久化 → 断开 MCP → 回调通知）
-```
-
-### 关键文件
-
-```
-retro_cogos/
-├── __main__.py                 # 入口
-├── cli.py                      # CLI 命令（init / run / version）
-├── config.py                   # YAML 配置 + Pydantic 校验
-├── config.cp.yaml              # 配置模板（打包用于 init）
-├── database.py                 # SQLAlchemy 引擎 + Session 工厂
-├── logging_config.py           # 双通道日志配置
-├── core/
-│   ├── enums.py                # COStatus, ExecutionStatus, ToolPermission
-│   └── protocols.py            # LLMDecision, ToolCall, NextAction
-├── models/
-│   ├── cognitive_object.py     # CognitiveObject ORM
-│   ├── execution.py            # Execution ORM
-│   ├── memory.py               # Memory ORM
-│   └── artifact.py             # Artifact ORM
-├── services/
-│   ├── execution_service.py    # 认知循环编排 + 感知系统
-│   ├── llm_service.py          # LLM API + 决策解析
-│   ├── tool_service.py         # 工具管理 + MCP + 路径沙箱 + 权限覆盖
-│   ├── context_service.py      # 上下文构建 / 压缩 / 工具结果分类 / diff / 偏离检测
-│   ├── memory_service.py       # 跨事件记忆 + 偏好提取
-│   ├── artifact_service.py     # 产出物管理
-│   └── cognitive_object_service.py  # CO CRUD
-└── tui/
-    ├── app.py                  # RetroCogosApp 主应用 + 消息总线
-    ├── theme.py                # Fallout Pip-Boy 终端主题
-    ├── styles/app.tcss         # TUI 样式
-    ├── screens/
-    │   ├── home.py             # 主屏幕
-    │   ├── create.py           # 创建 CO 对话框
-    │   ├── confirm.py          # 确认操作对话框
-    │   ├── memory.py           # 记忆浏览器
-    │   ├── memory_edit.py      # 记忆编辑
-    │   ├── tool_panel.py       # 工具面板（分组浏览 + 按需连接）
-    │   ├── tool_result.py      # 工具结果查看
-    │   └── artifact_viewer.py  # 产出物预览 / 打开
-    └── widgets/
-        ├── co_list.py          # CO 列表（状态过滤 + 等待标记）
-        ├── co_detail.py        # CO 详情
-        ├── execution_log.py    # 执行日志 + 完成摘要
-        ├── interaction_panel.py # 人机交互面板（三种输入方式）
-        └── tool_preview.py     # 工具预览 / 审批（Enter 双态）
-```
-
-## 数据结构设计
-
-### CognitiveObject（认知对象）
-
-表示一个用户目标，是系统的核心实体。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | `UUID` | 主键 |
-| `title` | `String(255)` | 目标标题 |
-| `description` | `Text` | 目标描述 |
-| `status` | `Enum` | created / running / paused / completed / aborted / failed |
-| `context` | `JSON` | 累积上下文（StateDict），包含步骤历史、工具结果、反思等 |
-| `created_at` | `DateTime` | 创建时间 |
-| `updated_at` | `DateTime` | 更新时间（自动） |
-
-关系：`executions` (1:N) → Execution, `artifacts` (1:N) → Artifact，级联删除。
-
-### Execution（执行步骤）
-
-认知循环的每一步产生一条 Execution 记录。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | `UUID` | 主键 |
-| `cognitive_object_id` | `FK` | 所属 CO |
-| `sequence_number` | `Integer` | 步骤序号 |
-| `title` | `String(255)` | 步骤标题（来自 LLM 决策） |
-| `status` | `Enum` | pending / running_llm / running_tool / awaiting_human / approved / rejected / completed / failed |
-| `prompt` | `Text` | 发送给 LLM 的完整 prompt |
-| `llm_response` | `Text` | LLM 原始回复 |
-| `llm_decision` | `JSON` | 解析后的结构化决策 |
-| `tool_calls` | `JSON` | 工具调用列表 `[{tool, args}]` |
-| `tool_results` | `JSON` | 工具执行结果 `[{tool, status, ...}]` |
-| `human_decision` | `String` | 用户选择 |
-| `human_input` | `Text` | 用户输入的文本反馈 |
-| `created_at` | `DateTime` | 创建时间 |
-
-### Memory（跨事件记忆）
-
-从 LLM 回复和用户行为中提取的可复用知识，可被后续任何 CO 检索。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | `UUID` | 主键 |
-| `category` | `String(50)` | preference / decision_pattern / domain_knowledge / lesson |
-| `content` | `Text` | 记忆内容 |
-| `source_co_id` | `FK` | 来源 CO（可空） |
-| `relevance_tags` | `JSON` | 相关标签，用于检索 |
-| `created_at` | `DateTime` | 创建时间 |
-
-### Artifact（产出物）
-
-执行过程中生成的文件或数据。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | `UUID` | 主键 |
-| `cognitive_object_id` | `FK` | 所属 CO |
-| `execution_id` | `FK` | 产生该产出物的执行步骤（可空） |
-| `name` | `String(255)` | 文件名 |
-| `file_path` | `Text` | 文件路径 |
-| `artifact_type` | `String(50)` | report / data / chart / document |
-| `created_at` | `DateTime` | 创建时间 |
-
-### LLMDecision（决策协议）
-
-LLM 每次回复必须包含的结构化决策块（非 ORM，Pydantic 模型）。不使用 OpenAI 原生 function calling，而是在自然语言回复中嵌入 ` ```decision ``` ` JSON 块——兼容任何 OpenAI API 格式的 LLM 提供商，并携带元认知信号。
-
-```json
-{
-  "next_action": {"title": "...", "description": "..."},
-  "tool_calls": [{"tool": "file_read", "args": {"path": "/tmp/data.txt"}}],
-  "human_required": false,
-  "human_reason": null,
-  "options": [],
-  "task_complete": false,
-  "confidence": 0.8,
-  "reflection": "..."
-}
-```
-
-### 实体关系
-
-```
-CognitiveObject 1──N Execution
-CognitiveObject 1──N Artifact
-Execution       1──N Artifact (可选)
-CognitiveObject 1──N Memory (通过 source_co_id)
-```
-
 ## 配置
 
-运行 `retro-cogos init` 将内置模板生成到 `~/.retro_cogos/config.yaml`。配置文件查找顺序（第一个匹配的生效）：
+运行 `overseer init` 将内置模板生成到 `~/.overseer/config.yaml`。配置文件查找顺序（第一个匹配的生效）：
 
 1. `./config.yaml`（当前工作目录）
 2. `./config.yml`（当前工作目录）
-3. `~/.retro_cogos/config.yaml`（用户主目录）
-4. `~/.retro_cogos/config.yml`（用户主目录）
+3. `~/.overseer/config.yaml`（用户主目录）
+4. `~/.overseer/config.yml`（用户主目录）
 5. Pydantic 默认值（未找到任何配置文件时）
 
-所有数据路径未配置时默认写入 `~/.retro_cogos/`：
+所有数据路径未配置时默认写入 `~/.overseer/`：
 
 | 路径 | 默认值 |
 |------|--------|
-| 数据库 | `~/.retro_cogos/retro_cogos_data.db` |
-| 产出物 | `~/.retro_cogos/output/` |
-| 日志 | `~/.retro_cogos/logs/` |
+| 数据库 | `~/.overseer/overseer_data.db` |
+| 产出物 | `~/.overseer/output/` |
+| 日志 | `~/.overseer/logs/` |
 
 ```yaml
 llm:
@@ -391,7 +199,7 @@ llm:
   temperature: 0.7
 
 database:
-  path: "retro_cogos_data.db"
+  path: "overseer_data.db"
 
 mcp:
   servers: {}
@@ -401,17 +209,6 @@ tool_permissions:
   file_write: confirm    # 需确认
   file_delete: approve   # 需预览+审批
   default: confirm
-
-reflection:
-  interval: 5            # 每 N 步触发反思
-  similarity_threshold: 0.8
-
-context:
-  max_tokens: 8000       # 上下文压缩阈值
-  output_dir: "output"
-
-log:
-  dir: "logs"            # 日志目录
 ```
 
 ### 工具权限级别
@@ -423,25 +220,43 @@ log:
 | `confirm` | 执行前需要用户确认 | 用户连续拒绝 3 次 → 自动升级为 approve |
 | `approve` | 显示预览面板，用户审批后执行 | — |
 
-权限解析优先级：工具级配置 > MCP 默认 > 全局默认 > 运行时覆盖（最高优先）
-
-## 感知能力路线图
+## 关键文件
 
 ```
-Phase 1  自身状态元感知闭环    ✅ 完成
-  ↓
-Phase 2  工具结果语义感知      ✅ 完成
-  ↓
-Phase 3  用户行为隐式感知      ✅ 完成
-  ↓
-Phase 4  环境变化感知          🔜 计划中
-  ↓
-Phase 5  跨 CO 通信           🔜 计划中
-  ↓
-Phase 6  多模态感知            🔜 计划中
+overseer/
+├── __main__.py                 # 入口
+├── cli.py                      # CLI 命令（init / run / version）
+├── config.py                   # YAML 配置 + Pydantic 校验
+├── database.py                 # SQLAlchemy 引擎 + Session 工厂
+├── core/
+│   ├── enums.py                # COStatus, ExecutionStatus, ToolPermission
+│   ├── protocols.py            # LLMDecision, ToolCall, NextAction
+│   └── plugin_protocols.py     # Plugin Protocol 接口
+├── kernel/
+│   ├── firewall_engine.py      # FirewallEngine, PolicyStore, Sandbox, PromptPolicy
+│   ├── human_gate.py           # HumanGate, Intent, ApprovalResult
+│   ├── perception_bus.py       # PerceptionBus, PerceptionStats
+│   └── registry.py             # PluginRegistry
+├── models/
+│   ├── cognitive_object.py     # CognitiveObject ORM
+│   ├── execution.py            # Execution ORM
+│   ├── memory.py               # Memory ORM
+│   └── artifact.py             # Artifact ORM
+├── services/
+│   ├── execution_service.py    # 编排层（精简，不含安全逻辑）
+│   ├── llm_service.py          # LLMPlugin 实现
+│   ├── tool_service.py         # ToolPlugin 实现
+│   ├── context_service.py      # ContextPlugin 实现
+│   ├── memory_service.py       # MemoryPlugin 实现
+│   ├── planning_service.py     # PlanPlugin 实现
+│   ├── artifact_service.py     # 产出物管理
+│   └── cognitive_object_service.py  # CO CRUD
+└── tui/
+    ├── app.py                  # OverseerApp 主应用
+    ├── theme.py                # Fallout Pip-Boy 终端主题
+    ├── screens/                # TUI 屏幕
+    └── widgets/                # TUI 组件
 ```
-
-详见 [PERCEPTION_ROADMAP.md](./PERCEPTION_ROADMAP.md)
 
 ## 开发
 
@@ -453,10 +268,10 @@ uv sync
 uv run pytest tests/ -v
 
 # 启动应用（开发模式）
-uv run retro-cogos
+uv run overseer
 
 # 或通过模块启动
-uv run python -m retro_cogos
+uv run python -m overseer
 ```
 
 ## 技术栈

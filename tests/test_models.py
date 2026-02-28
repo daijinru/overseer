@@ -1,12 +1,12 @@
 """Tests for ORM models — Phase 2 verification."""
 
-from retro_cogos.core.enums import COStatus, ExecutionStatus
-from retro_cogos.core.protocols import LLMDecision
-from retro_cogos.database import get_session
-from retro_cogos.models.cognitive_object import CognitiveObject
-from retro_cogos.models.execution import Execution
-from retro_cogos.models.memory import Memory
-from retro_cogos.models.artifact import Artifact
+from overseer.core.enums import COStatus, ExecutionStatus
+from overseer.core.protocols import LLMDecision
+from overseer.database import get_session
+from overseer.models.cognitive_object import CognitiveObject
+from overseer.models.execution import Execution
+from overseer.models.memory import Memory
+from overseer.models.artifact import Artifact
 
 
 def test_create_cognitive_object(isolated_db):

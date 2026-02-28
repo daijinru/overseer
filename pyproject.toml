@@ -1,7 +1,7 @@
 [project]
-name = "retro-cogos"
+name = "overseer"
 version = "0.1.0"
-description = "Retro CogOS — Cognitive Operating System"
+description = "Overseer — AI Action Firewall"
 requires-python = ">=3.11"
 dependencies = [
     "textual>=1.0.0",
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-retro-cogos = "retro_cogos.cli:cli"
+overseer = "overseer.cli:cli"
 
 [build-system]
 requires = ["hatchling"]
@@ -31,4 +31,4 @@ dev = [
 asyncio_mode = "auto"
 
 [tool.hatch.build.targets.wheel]
-packages = ["retro_cogos"]
+packages = ["overseer"]

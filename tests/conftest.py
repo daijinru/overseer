@@ -7,8 +7,8 @@ import tempfile
 
 import pytest
 
-from retro_cogos.config import AppConfig, reset_config, load_config
-from retro_cogos.database import Base, reset_db, get_engine, init_db
+from overseer.config import AppConfig, reset_config, load_config
+from overseer.database import Base, reset_db, get_engine, init_db
 
 
 @pytest.fixture(autouse=True)

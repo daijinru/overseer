@@ -1,31 +1,62 @@
 English | **[中文](./README_CN.md)**
 
-# Retro CogOS — Cognitive Operating System
+# Overseer — AI Action Firewall
 
-> Not a chatbot with tools bolted on — an operating system that treats the LLM as its CPU.
+> War never changes. Neither does the need for human oversight.
 
-Retro CogOS abstracts user goals into **CognitiveObjects (cognitive processes)**, driving autonomous multi-step reasoning, tool invocation, and human-in-the-loop interaction through a self-directed cognitive loop. Multiple cognitive processes can run concurrently, with layered perception and safety mechanisms ensuring controllable, trustworthy execution.
+In the world of Fallout, the **Overseer** is the supreme authority of every Vault. When nuclear war scorched the surface into wasteland, Vault-Tec built underground shelters to preserve human civilization — and the Overseer was the one who controlled each Vault's fate. Every door's lock, every resource allocation, every decision about whether a dweller could leave — all required the Overseer's authorization. Nothing happens in a Vault without the Overseer's approval.
 
-Built with a [Textual](https://textual.textualize.io/) terminal TUI and extensible via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
+In the world of AI, the situation is strikingly similar. LLMs can read and write files, call APIs, execute code, operate external systems — capabilities expanding far faster than humans can build trust. The surface is no longer safe. We need an Overseer.
+
+**Overseer** is an AI action firewall. It sits between LLM decision output and real-world execution, responsible for **intercepting, classifying, auditing, and adapting** — ensuring every AI action's risk exposure stays within human-acceptable bounds. Just as a Vault's Overseer never carries supplies but controls everything that happens, this Overseer executes no tasks itself, but without its permission, no AI action can reach the real world.
+
+Built with a [Textual](https://textual.textualize.io/) terminal TUI (Fallout Pip-Boy theme) and extensible via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
 
 ![Screenshot 1](./docs/Snipaste_2026-02-22_21-13-37.jpg)
 ![Screenshot 2](./docs/Snipaste_2026-02-21_13-01-38.jpg)
 ![Screenshot 3](./docs/Snipaste_2026-02-21_13-02-26.jpg)
 ![Screenshot 4](./docs/Snipaste_2026-02-21_13-03-06.jpg)
 
+## Architecture
+
+Overseer is split into an **irreplaceable kernel** and **pluggable plugins**.
+
+The dividing rule: **if you remove this component, is the system still a firewall?** Yes → plugin. No → kernel.
+
+### Kernel — Defines System Identity
+
+**FirewallEngine** — The sole decision center. All security judgments happen here:
+- **PolicyStore**: Two-layer permission policies (AdminPolicy immutable + UserPolicy adaptive), four-tier permission rules
+- **Five-layer check pipeline**: Arg filtering → Loop detection → Permission ruling → Path sandbox → Meta-cognitive circuit-breaking
+- **Adaptive escalation**: Reads PerceptionBus stats, escalates tool permissions (UserPolicy only, AdminPolicy untouched)
+- **Decision parsing**: Extracts `LLMDecision` from raw LLM output, fail-safe defaults to `human_required=True`
+- **PromptPolicy**: Security-critical system prompts managed and injected by the kernel
+
+**HumanGate** — The human-machine channel. When FirewallEngine rules that human decision is needed, this is the only pathway:
+- Request/wait/receive via `asyncio.Event`, timeout handling
+- Intent parsing: approve/reject/abort/freetext detection
+- Multi-stage abort: gentle stop → forced abort
+
+**PerceptionBus** — Pure signal recorder. Only collects, only computes stats, **never judges**:
+- Records: approval results, confidence values, stagnation signals
+- Stats: approve/reject ratios, consecutive rejection counts, hesitation frequency
+- Classification: tool result semantics, consecutive call diff detection
+
+### Plugins — Replaceable Capabilities
+
+Plugins connect to the kernel via `Protocol` interfaces. The kernel depends on no specific plugin implementation.
+
+| Plugin | Responsibility | Replaceable With |
+|--------|---------------|-----------------|
+| `LLMPlugin` | Pure reasoning, no security judgments | Any model, any provider, local inference |
+| `ToolPlugin` | Tool discovery & execution, no permission logic | Different MCP impl, different toolsets |
+| `PlanPlugin` | Task decomposition, optional for simple tasks | Different planning strategies |
+| `MemoryPlugin` | Long-term memory storage & retrieval | Different storage backends |
+| `ContextPlugin` | Context assembly & compression | Different prompt templates |
+
 ## Core Features
 
-### Cognitive Processes, Not Conversations
-
-Retro CogOS's core metaphor is an **operating system**, not a chat interface:
-
-- Users create cognitive processes with full lifecycles (created → running → paused → completed), not conversations
-- Multiple processes run concurrently, each with isolated context, execution history, and database session
-- Context is not a linear chat log but an **accumulated StateDict** — a structured knowledge base with compression and sliding-window support
-
 ### Five-Layer Safety — Never Trust the LLM
-
-The system assumes the LLM is a powerful but unreliable reasoning engine, and builds defense-in-depth around that premise:
 
 | Layer | Mechanism | Effect |
 |-------|-----------|--------|
@@ -35,29 +66,26 @@ The system assumes the LLM is a powerful but unreliable reasoning engine, and bu
 | Output | Unified path sandbox — both builtin and MCP tool file writes are confined to `output/` | LLM cannot write where it shouldn't |
 | Meta-cognitive | Sustained low confidence auto-triggers HITL; reflection detects "no progress" and injects strategy-switch hints | System proactively asks for help when the LLM is lost |
 
+### Adaptive Rule Engine
+
+- **Approval behavior tracking**: per-tool approve/reject counts, consecutive rejection tracking
+- **Auto permission escalation**: 3 consecutive rejections → tool escalates to APPROVE + avoidance signal injected. Escalation only affects UserPolicy layer (AdminPolicy is immutable)
+- **Hesitation detection**: approval time exceeding threshold → "user may be uncertain" signal injected
+- **Preference persistence**: high-rejection/high-approval tool preferences written to long-term memory, effective across sessions
+
 ### Perception System — The System Can "Feel" What's Happening
 
-Beyond executing tools and recording results, the system has three layers of perception:
+**Self-state perception** — Sliding-window confidence monitoring, stagnation signal detection, step count and elapsed time injected into prompts.
 
-**Self-state perception (Phase 1)** — Sliding-window confidence monitoring, stagnation signal detection in reflections, step count and elapsed time injected into prompts so the LLM knows how many resources it has consumed.
+**Tool result semantic perception** — Automatic result classification (success / error / empty / partial), diff detection between consecutive calls, intent-vs-result deviation alerts.
 
-**Tool result semantic perception (Phase 2)** — Automatic result classification (success / error / empty / partial), diff detection between consecutive calls to the same tool, intent-vs-result deviation alerts.
-
-**Implicit user behavior perception (Phase 3)** — Approval response timing (hesitation is noticed), approve/reject ratio tracking, consecutive rejections trigger automatic permission escalation, stable preferences are persisted to cross-event Memory.
-
-### Learns Over Time, Not From Scratch Every Time
-
-- **Cross-event memory**: Extracts lessons, preferences, and knowledge from LLM responses into the Memory table
-- **Implicit preference persistence**: User tool-approval patterns are tracked and written to memory; new tasks load them automatically
-- **Keyword + scoring retrieval**: When a new CO starts, relevant historical memories are retrieved by goal description and injected into the prompt
+**Implicit user behavior perception** — Approval response timing (hesitation is noticed), approve/reject ratio tracking, consecutive rejections trigger automatic permission escalation, stable preferences persisted to cross-session memory.
 
 ### Bidirectional Human-in-the-Loop
 
-Not a one-way "system asks, human answers" model:
-
 - **LLM-initiated**: The model can set `human_required: true` and provide an options list
 - **Three input modes**: Button click, number-key shortcuts, free-text input
-- **Implicit intent detection**: Stop cues in user text ("stop", "enough", "quit") are recognized and guide the LLM to wrap up gracefully
+- **Implicit intent detection**: Stop cues in user text ("stop", "enough", "quit") are recognized
 - **asyncio.Event sync**: The loop pauses to await human input — no polling
 
 ### MCP Tool Ecosystem
@@ -73,82 +101,59 @@ mcp:
       args: ["-y", "howtocook-mcp"]
 ```
 
-- MCP subprocess stderr captured in real-time via custom `_StderrPipe` (os.pipe + background thread), forwarded to TUI
-- Monkey-patches `mcp.stdio_client` to work around stderr binding at import time
-- Automatic retry with exponential backoff (up to 3 attempts)
-- ToolPanelScreen provides a full tool browser (grouped view, schema display, on-demand connection, clipboard copy)
-
-### Task Closure — Not Just "Done"
-
-```
-Create CO → Cognitive loop runs → Artifacts auto-archived → Completion summary → Post-completion actions
-```
-
-- Automatic artifact detection: any file written by any tool is recorded (via `_PATH_KEYS` pattern matching)
-- Completion displays summary + action panel (view artifacts / copy summary / start new task)
-- Artifact viewer supports in-TUI text file preview and system-app opening for binary files
-
-### Structured Logging — Auditable
-
-- **Application log**: `TimedRotatingFileHandler`, daily rotation, 14-day retention
-- **Tool result log**: Separate JSON Lines file (`tool_results.jsonl`), each record contains timestamp, co_id, step, tool, status, output, error
-- **Full execution audit trail**: Every step's prompt, raw LLM response, parsed decision, tool calls and results, and human input are persisted to the Execution table
-
 ## Quick Start
 
 ### Install
 
 ```bash
-git clone <repo-url> && cd retro-cogos
+git clone <repo-url> && cd overseer
 uv sync
 ```
 
 ### Initialize
 
 ```bash
-# Initialize config to ~/.retro_cogos/
-uv run retro-cogos init
+# Initialize config to ~/.overseer/
+uv run overseer init
 
 # Edit config: set llm.api_key, llm.base_url, etc.
-vim ~/.retro_cogos/config.yaml
+vim ~/.overseer/config.yaml
 ```
 
 ### Launch
 
 ```bash
 # Start the TUI (either form works)
-uv run retro-cogos
-uv run retro-cogos run
+uv run overseer
+uv run overseer run
 
 # Other commands
-uv run retro-cogos version       # Show version
-uv run retro-cogos init --force  # Reset config to defaults
+uv run overseer version       # Show version
+uv run overseer init --force  # Reset config to defaults
 ```
 
 ### Build Binary (optional)
 
 ```bash
 ./release.sh
-# Binary at dist/retro-cogos
+# Binary at dist/overseer
 ```
 
 ### Recommended Terminal & Font
 
-Retro CogOS uses a Fallout Pip-Boy CRT terminal theme. For the best visual experience, we recommend [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) — a terminal emulator with built-in CRT scanline, bloom, and screen curvature effects.
+Overseer uses a Fallout Pip-Boy CRT terminal theme. For the best visual experience, we recommend [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) — a terminal emulator with built-in CRT scanline, bloom, and screen curvature effects.
 
 ```bash
 # macOS
 brew install --cask cool-retro-term
 ```
 
-For CJK (Chinese/Japanese/Korean) text display, the built-in retro fonts in cool-retro-term do not include CJK glyphs. We recommend installing [Sarasa Gothic (更纱黑体)](https://github.com/be5invis/Sarasa-Gothic), a monospaced font designed for terminals with excellent CJK support:
+For CJK text display, we recommend [Sarasa Gothic](https://github.com/be5invis/Sarasa-Gothic):
 
 ```bash
 # macOS
 brew install --cask font-sarasa-gothic
 ```
-
-After installation, open cool-retro-term → Settings → General → Font → uncheck **Use builtin fonts**, then select **Sarasa Mono SC** as the font.
 
 ### Keyboard Shortcuts
 
@@ -167,220 +172,23 @@ After installation, open cool-retro-term → Settings → General → Font → u
 | `w`  | Open tool panel |
 | `q`  | Quit |
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────┐
-│                   TUI Layer                      │
-│  RetroCogosApp ← HomeScreen ← [COList, CODetail,      │
-│            ExecutionLog, InteractionPanel,        │
-│            ToolPreview]                           │
-│  ToolPanelScreen  ArtifactViewer  MemoryScreen   │
-│  ConfirmScreen    CreateScreen                    │
-├─────────────────────────────────────────────────┤
-│                 Service Layer                     │
-│  ExecutionService  ← Cognitive loop + Perception │
-│  ├── LLMService        LLM API + decision parse  │
-│  ├── ToolService       Tool mgmt + MCP + perms   │
-│  ├── ContextService    Prompt build + compress    │
-│  ├── MemoryService     Cross-event memory         │
-│  ├── ArtifactService   Artifact management        │
-│  └── COService         CO CRUD                    │
-├─────────────────────────────────────────────────┤
-│                  Data Layer                       │
-│  SQLAlchemy ORM + SQLite (WAL mode)              │
-│  [CognitiveObject, Execution, Memory, Artifact]  │
-├─────────────────────────────────────────────────┤
-│                 Logging Layer                     │
-│  logging_config: App logs + Tool result JSONL    │
-└─────────────────────────────────────────────────┘
-```
-
-### Layer Responsibilities
-
-**TUI Layer** — Textual app with a Fallout Pip-Boy terminal theme. Cognitive loops run in Textual Workers; `post_message()` provides async worker → app communication. Six custom Message types form a typed event bus.
-
-**Service Layer** — Core business logic. `ExecutionService` is the orchestrator (Mediator pattern), driving the cognitive loop and integrating the three-layer perception system. Fully decoupled from the TUI via callbacks. Each instance owns an independent SQLAlchemy Session, supporting concurrent COs.
-
-**Data Layer** — SQLite + WAL mode for concurrent reads. Foreign key constraints + cascade deletes ensure data consistency.
-
-**Logging Layer** — Dual-channel: application logs (daily rotation) + tool result JSON Lines (size rotation), `propagate=False` ensures no cross-contamination.
-
-### Cognitive Loop in Detail
-
-Each iteration of `ExecutionService.run_loop` executes:
-
-```
-1.  Create Execution record
-2.  Build prompt (goal + resource status + tool list + accumulated findings + memories + reflection)
-3.  Call LLM
-4.  Parse structured decision (3-level fallback: regex → JSON extraction → default to human-required)
-4.5 Meta-perception: confidence monitoring → sustained low confidence triggers HITL
-5.  Tool execution (arg filtering → loop detection → permission check → execute → classify result → diff → deviation alert)
-6.  Human interaction (behavior timing → preference stats → implicit intent detection)
-7.  Context merge
-8.  Self-reflection (every N steps) → stagnation detection → strategy-switch injection
-9.  Memory extraction
-9.5 Implicit preference injection
-10. Context compression
-11. Completion check (persist preferences → disconnect MCP → callback)
-```
-
-### Key Files
-
-```
-retro_cogos/
-├── __main__.py                 # Entry point
-├── cli.py                      # CLI commands (init / run / version)
-├── config.py                   # YAML config + Pydantic validation
-├── config.cp.yaml              # Config template (bundled for init)
-├── database.py                 # SQLAlchemy engine + session factory
-├── logging_config.py           # Dual-channel logging config
-├── core/
-│   ├── enums.py                # COStatus, ExecutionStatus, ToolPermission
-│   └── protocols.py            # LLMDecision, ToolCall, NextAction
-├── models/
-│   ├── cognitive_object.py     # CognitiveObject ORM
-│   ├── execution.py            # Execution ORM
-│   ├── memory.py               # Memory ORM
-│   └── artifact.py             # Artifact ORM
-├── services/
-│   ├── execution_service.py    # Cognitive loop orchestration + perception
-│   ├── llm_service.py          # LLM API + decision parsing
-│   ├── tool_service.py         # Tool mgmt + MCP + path sandbox + permission override
-│   ├── context_service.py      # Prompt build / compress / result classification / diff / deviation
-│   ├── memory_service.py       # Cross-event memory + preference extraction
-│   ├── artifact_service.py     # Artifact management
-│   └── cognitive_object_service.py  # CO CRUD
-└── tui/
-    ├── app.py                  # RetroCogosApp main app + message bus
-    ├── theme.py                # Fallout Pip-Boy terminal theme
-    ├── styles/app.tcss         # TUI styles
-    ├── screens/
-    │   ├── home.py             # Home screen
-    │   ├── create.py           # Create CO dialog
-    │   ├── confirm.py          # Confirm action dialog
-    │   ├── memory.py           # Memory browser
-    │   ├── memory_edit.py      # Memory editor
-    │   ├── tool_panel.py       # Tool panel (grouped browsing + on-demand connect)
-    │   ├── tool_result.py      # Tool result viewer
-    │   └── artifact_viewer.py  # Artifact preview / open
-    └── widgets/
-        ├── co_list.py          # CO list (status filter + awaiting markers)
-        ├── co_detail.py        # CO detail
-        ├── execution_log.py    # Execution log + completion summary
-        ├── interaction_panel.py # HITL panel (3 input modes)
-        └── tool_preview.py     # Tool preview / approval (Enter dual-mode)
-```
-
-## Data Model
-
-### CognitiveObject
-
-Represents a user goal — the core entity of the system.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `UUID` | Primary key |
-| `title` | `String(255)` | Goal title |
-| `description` | `Text` | Goal description |
-| `status` | `Enum` | created / running / paused / completed / aborted / failed |
-| `context` | `JSON` | Accumulated context (StateDict): step history, tool results, reflections, etc. |
-| `created_at` | `DateTime` | Created timestamp |
-| `updated_at` | `DateTime` | Updated timestamp (auto) |
-
-Relations: `executions` (1:N) → Execution, `artifacts` (1:N) → Artifact, cascade delete.
-
-### Execution
-
-Each cognitive loop step produces one Execution record.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `UUID` | Primary key |
-| `cognitive_object_id` | `FK` | Parent CO |
-| `sequence_number` | `Integer` | Step number |
-| `title` | `String(255)` | Step title (from LLM decision) |
-| `status` | `Enum` | pending / running_llm / running_tool / awaiting_human / approved / rejected / completed / failed |
-| `prompt` | `Text` | Full prompt sent to LLM |
-| `llm_response` | `Text` | Raw LLM response |
-| `llm_decision` | `JSON` | Parsed structured decision |
-| `tool_calls` | `JSON` | Tool call list `[{tool, args}]` |
-| `tool_results` | `JSON` | Tool execution results `[{tool, status, ...}]` |
-| `human_decision` | `String` | User's choice |
-| `human_input` | `Text` | User's free-text feedback |
-| `created_at` | `DateTime` | Created timestamp |
-
-### Memory
-
-Reusable knowledge extracted from LLM responses and user behavior, retrievable by any future CO.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `UUID` | Primary key |
-| `category` | `String(50)` | preference / decision_pattern / domain_knowledge / lesson |
-| `content` | `Text` | Memory content |
-| `source_co_id` | `FK` | Source CO (nullable) |
-| `relevance_tags` | `JSON` | Tags for retrieval |
-| `created_at` | `DateTime` | Created timestamp |
-
-### Artifact
-
-Files or data produced during execution.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `UUID` | Primary key |
-| `cognitive_object_id` | `FK` | Parent CO |
-| `execution_id` | `FK` | Execution step that produced this artifact (nullable) |
-| `name` | `String(255)` | Filename |
-| `file_path` | `Text` | File path |
-| `artifact_type` | `String(50)` | report / data / chart / document |
-| `created_at` | `DateTime` | Created timestamp |
-
-### LLMDecision (Decision Protocol)
-
-The structured decision block every LLM response must contain (Pydantic model, not ORM). Instead of using OpenAI's native function calling, the system requires the LLM to embed a ` ```decision ``` ` JSON block within its natural language response — compatible with any OpenAI-API-format LLM provider, carrying meta-cognitive signals alongside action directives.
-
-```json
-{
-  "next_action": {"title": "...", "description": "..."},
-  "tool_calls": [{"tool": "file_read", "args": {"path": "/tmp/data.txt"}}],
-  "human_required": false,
-  "human_reason": null,
-  "options": [],
-  "task_complete": false,
-  "confidence": 0.8,
-  "reflection": "..."
-}
-```
-
-### Entity Relations
-
-```
-CognitiveObject 1──N Execution
-CognitiveObject 1──N Artifact
-Execution       1──N Artifact (optional)
-CognitiveObject 1──N Memory (via source_co_id)
-```
-
 ## Configuration
 
-Run `retro-cogos init` to generate `~/.retro_cogos/config.yaml` from the built-in template. The config search order (first match wins):
+Run `overseer init` to generate `~/.overseer/config.yaml` from the built-in template. Config search order (first match wins):
 
 1. `./config.yaml` (CWD)
 2. `./config.yml` (CWD)
-3. `~/.retro_cogos/config.yaml` (user home)
-4. `~/.retro_cogos/config.yml` (user home)
+3. `~/.overseer/config.yaml` (user home)
+4. `~/.overseer/config.yml` (user home)
 5. Pydantic defaults (if no config file found)
 
-All data paths default to `~/.retro_cogos/` when not explicitly configured:
+All data paths default to `~/.overseer/` when not explicitly configured:
 
 | Path | Default |
 |------|---------|
-| Database | `~/.retro_cogos/retro_cogos_data.db` |
-| Output | `~/.retro_cogos/output/` |
-| Logs | `~/.retro_cogos/logs/` |
+| Database | `~/.overseer/overseer_data.db` |
+| Output | `~/.overseer/output/` |
+| Logs | `~/.overseer/logs/` |
 
 ```yaml
 llm:
@@ -391,7 +199,7 @@ llm:
   temperature: 0.7
 
 database:
-  path: "retro_cogos_data.db"
+  path: "overseer_data.db"
 
 mcp:
   servers: {}
@@ -401,17 +209,6 @@ tool_permissions:
   file_write: confirm    # Requires confirmation
   file_delete: approve   # Requires preview + approval
   default: confirm
-
-reflection:
-  interval: 5            # Trigger reflection every N steps
-  similarity_threshold: 0.8
-
-context:
-  max_tokens: 8000       # Context compression threshold
-  output_dir: "output"
-
-log:
-  dir: "logs"            # Log directory
 ```
 
 ### Tool Permission Levels
@@ -423,25 +220,43 @@ log:
 | `confirm` | Requires user confirmation before execution | 3 consecutive rejections → auto-escalate to approve |
 | `approve` | Shows preview panel, executes after user approval | — |
 
-Permission resolution priority: Tool-specific config > MCP default > Global default > Runtime override (highest priority)
-
-## Perception Roadmap
+## Key Files
 
 ```
-Phase 1  Self-state meta-perception    ✅ Done
-  ↓
-Phase 2  Tool result semantic perception ✅ Done
-  ↓
-Phase 3  Implicit user behavior perception ✅ Done
-  ↓
-Phase 4  Environment change perception  🔜 Planned
-  ↓
-Phase 5  Cross-CO communication         🔜 Planned
-  ↓
-Phase 6  Multimodal perception          🔜 Planned
+overseer/
+├── __main__.py                 # Entry point
+├── cli.py                      # CLI commands (init / run / version)
+├── config.py                   # YAML config + Pydantic validation
+├── database.py                 # SQLAlchemy engine + session factory
+├── core/
+│   ├── enums.py                # COStatus, ExecutionStatus, ToolPermission
+│   ├── protocols.py            # LLMDecision, ToolCall, NextAction
+│   └── plugin_protocols.py     # Plugin Protocol interfaces
+├── kernel/
+│   ├── firewall_engine.py      # FirewallEngine, PolicyStore, Sandbox, PromptPolicy
+│   ├── human_gate.py           # HumanGate, Intent, ApprovalResult
+│   ├── perception_bus.py       # PerceptionBus, PerceptionStats
+│   └── registry.py             # PluginRegistry
+├── models/
+│   ├── cognitive_object.py     # CognitiveObject ORM
+│   ├── execution.py            # Execution ORM
+│   ├── memory.py               # Memory ORM
+│   └── artifact.py             # Artifact ORM
+├── services/
+│   ├── execution_service.py    # Orchestration layer (thin, no security logic)
+│   ├── llm_service.py          # LLMPlugin implementation
+│   ├── tool_service.py         # ToolPlugin implementation
+│   ├── context_service.py      # ContextPlugin implementation
+│   ├── memory_service.py       # MemoryPlugin implementation
+│   ├── planning_service.py     # PlanPlugin implementation
+│   ├── artifact_service.py     # Artifact management
+│   └── cognitive_object_service.py  # CO CRUD
+└── tui/
+    ├── app.py                  # OverseerApp main app
+    ├── theme.py                # Fallout Pip-Boy terminal theme
+    ├── screens/                # TUI screens
+    └── widgets/                # TUI widgets
 ```
-
-See [PERCEPTION_ROADMAP.md](./PERCEPTION_ROADMAP.md) for details.
 
 ## Development
 
@@ -453,10 +268,10 @@ uv sync
 uv run pytest tests/ -v
 
 # Launch the app (dev mode)
-uv run retro-cogos
+uv run overseer
 
 # Or via module
-uv run python -m retro_cogos
+uv run python -m overseer
 ```
 
 ## Tech Stack

@@ -2,8 +2,8 @@
 
 import json
 
-from retro_cogos.services.cognitive_object_service import CognitiveObjectService
-from retro_cogos.services.context_service import ContextService
+from overseer.services.cognitive_object_service import CognitiveObjectService
+from overseer.services.context_service import ContextService
 
 
 def test_build_prompt(isolated_db):

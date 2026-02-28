@@ -7,8 +7,8 @@ echo "==> Syncing dependencies (including dev group)..."
 uv sync --group dev
 
 echo "==> Building binary with PyInstaller..."
-uv run pyinstaller retro_cogos.spec --noconfirm
+uv run pyinstaller overseer.spec --noconfirm
 
 echo ""
-echo "==> Build complete: dist/retro-cogos"
-echo "    Run ./dist/retro-cogos init to initialize config."
+echo "==> Build complete: dist/overseer"
+echo "    Run ./dist/overseer init to initialize config."

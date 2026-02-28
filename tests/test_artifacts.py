@@ -1,9 +1,9 @@
 """Tests for artifact service — Phase 5 verification."""
 
-from retro_cogos.services.artifact_service import ArtifactService
-from retro_cogos.services.cognitive_object_service import CognitiveObjectService
-from retro_cogos.database import get_session
-from retro_cogos.models.execution import Execution
+from overseer.services.artifact_service import ArtifactService
+from overseer.services.cognitive_object_service import CognitiveObjectService
+from overseer.database import get_session
+from overseer.models.execution import Execution
 
 
 def _create_co_and_exec(co_title="Test"):

@@ -2,12 +2,12 @@
 
 import pytest
 
-from retro_cogos.core.enums import ToolPermission
-from retro_cogos.core.protocols import ToolCall
-from retro_cogos.services.tool_service import ToolService
-from retro_cogos.kernel.firewall_engine import FirewallEngine
-from retro_cogos.kernel.perception_bus import PerceptionBus
-from retro_cogos.config import get_config
+from overseer.core.enums import ToolPermission
+from overseer.core.protocols import ToolCall
+from overseer.services.tool_service import ToolService
+from overseer.kernel.firewall_engine import FirewallEngine
+from overseer.kernel.perception_bus import PerceptionBus
+from overseer.config import get_config
 
 
 def test_list_tools(isolated_db):

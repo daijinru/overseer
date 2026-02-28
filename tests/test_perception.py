@@ -25,13 +25,13 @@ if "mcp" not in sys.modules:
     ):
         sys.modules[_sub] = _mcp_mock
 
-from retro_cogos.kernel.perception_bus import PerceptionBus
-from retro_cogos.kernel.firewall_engine import FirewallEngine
-from retro_cogos.services.cognitive_object_service import CognitiveObjectService
-from retro_cogos.services.context_service import ContextService
-from retro_cogos.services.execution_service import ExecutionService
-from retro_cogos.services.memory_service import MemoryService
-from retro_cogos.config import get_config
+from overseer.kernel.perception_bus import PerceptionBus
+from overseer.kernel.firewall_engine import FirewallEngine
+from overseer.services.cognitive_object_service import CognitiveObjectService
+from overseer.services.context_service import ContextService
+from overseer.services.execution_service import ExecutionService
+from overseer.services.memory_service import MemoryService
+from overseer.config import get_config
 
 
 # ── Phase 2: classify_tool_result (now on PerceptionBus + ContextService) ──
