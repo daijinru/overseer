@@ -24,6 +24,7 @@ class LLMPlugin(Protocol):
         prompt: str,
         tools: Optional[List[Dict[str, Any]]] = None,
         *,
+        system_prompt: Optional[str] = None,
         stream: bool = False,
         on_chunk: Optional[Callable[[str], None]] = None,
     ) -> str: ...

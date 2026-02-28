@@ -14,7 +14,6 @@ from mcp import ClientSessionGroup, StdioServerParameters
 from mcp.client.session_group import SseServerParameters, StreamableHttpParameters
 
 from retro_cogos.config import MCPServerConfig, get_config
-from retro_cogos.core.enums import ToolPermission
 from retro_cogos.core.protocols import ToolCall
 
 logger = logging.getLogger(__name__)
@@ -252,7 +251,11 @@ class ToolService:
         return list(self._tools.values())
 
     def list_tools_detailed(self) -> List[Dict[str, Any]]:
-        """Return all tools with source and permission info."""
+        """Return all tools with source info.
+
+        Permission display is informational only — security decisions are made
+        by the kernel's FirewallEngine/PolicyStore.
+        """
         result = []
         for name, info in self._tools.items():
             source = self._mcp_tool_map.get(name)
@@ -261,9 +264,26 @@ class ToolService:
                 "description": info.get("description", ""),
                 "parameters": info.get("parameters", {}),
                 "source": source or "builtin",
-                "permission": self.get_permission(name).value,
+                "permission": self._get_display_permission(name),
             })
         return result
+
+    def _get_display_permission(self, tool_name: str) -> str:
+        """Get permission level for display purposes (TUI panel).
+
+        NOT used for security decisions — those go through FirewallEngine.
+        """
+        # Phase 3: Runtime overrides take precedence
+        if tool_name in self._permission_overrides:
+            return self._permission_overrides.get(tool_name, "confirm")
+        perms = self._cfg.tool_permissions
+        if tool_name in perms:
+            level = perms[tool_name]
+        elif tool_name in self._mcp_tool_map:
+            level = perms.get("mcp_default", "auto")
+        else:
+            level = perms.get("default", "confirm")
+        return level
 
     def list_configured_servers(self) -> List[Dict[str, Any]]:
         """Return MCP server configs without connecting."""
@@ -297,86 +317,10 @@ class ToolService:
         removed = [k for k in args if k not in valid_props]
         return filtered, removed
 
-    def _is_path_readable(self, path: str) -> bool:
-        """Check if a path falls within the configured readable_paths whitelist.
-
-        Returns True if the path is allowed without additional approval.
-        """
-        from pathlib import Path
-
-        try:
-            target = Path(path).resolve()
-        except (ValueError, OSError):
-            return False
-
-        readable_paths = self._cfg.context.readable_paths
-        output_dir = Path(self._cfg.context.output_dir).resolve()
-
-        for allowed in readable_paths:
-            if allowed in (".", "./"):
-                allowed_path = Path.cwd().resolve()
-            elif allowed.rstrip("/") == "output":
-                allowed_path = output_dir
-            else:
-                allowed_path = Path(allowed).resolve()
-
-            try:
-                target.relative_to(allowed_path)
-                return True
-            except ValueError:
-                continue
-
-        return False
-
-    def get_permission(self, tool_name: str) -> ToolPermission:
-        """Get permission level for a tool."""
-        # Phase 3: Runtime overrides take precedence
-        if tool_name in self._permission_overrides:
-            try:
-                return ToolPermission(self._permission_overrides[tool_name])
-            except ValueError:
-                pass
-        perms = self._cfg.tool_permissions
-        # Check tool-specific permission first
-        if tool_name in perms:
-            level = perms[tool_name]
-        elif tool_name in self._mcp_tool_map:
-            # MCP tools default to auto (read-only queries) unless explicitly configured
-            level = perms.get("mcp_default", "auto")
-        else:
-            level = perms.get("default", "confirm")
-        try:
-            return ToolPermission(level)
-        except ValueError:
-            return ToolPermission.CONFIRM
-
-    def needs_human_approval(self, tool_name: str, args: Optional[Dict[str, Any]] = None) -> bool:
-        """Check if a tool call requires human approval before execution.
-
-        For file_read/file_list, paths outside the readable_paths whitelist
-        are escalated to require human confirmation.
-        """
-        perm = self.get_permission(tool_name)
-        # Dynamic escalation for file_read / file_list outside readable_paths
-        if perm in (ToolPermission.AUTO, ToolPermission.NOTIFY) and args:
-            if tool_name in ("file_read", "file_list"):
-                path = args.get("path", "")
-                if path and not self._is_path_readable(path):
-                    return True
-        return perm in (ToolPermission.CONFIRM, ToolPermission.APPROVE)
-
-    def needs_preview(self, tool_name: str, args: Optional[Dict[str, Any]] = None) -> bool:
-        """Check if a tool call should show a preview before approval."""
-        return self.get_permission(tool_name) == ToolPermission.APPROVE
-
-    def override_permission(self, tool_name: str, level: str) -> None:
-        """Override the runtime permission level for a tool.
-
-        Phase 3: Used by ExecutionService to escalate permissions when the user
-        consecutively rejects a tool, signaling it should require higher approval.
-        """
-        self._permission_overrides[tool_name] = level
-        logger.info("Permission override: %s → %s", tool_name, level)
+    def get_tool_schema(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """Return the parameter schema for a tool, or None."""
+        tool = self._tools.get(tool_name)
+        return tool.get("parameters") if tool else None
 
     async def execute(self, tool_call: ToolCall) -> Dict[str, Any]:
         """Execute a tool call and return the result."""
@@ -406,37 +350,14 @@ class ToolService:
             logger.error("Tool execution failed: %s — %s", tool_name, e)
             return {"status": "error", "error": str(e)}
 
-    # Keys that typically carry file paths in MCP tool arguments
-    _PATH_KEYS = frozenset({
-        "path", "file_path", "filepath", "filename",
-        "outputPath", "output_path", "savePath", "save_path",
-    })
-
-    def _rewrite_path_args(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Rewrite file-path arguments to resolve into output_dir.
-
-        Strips directory components and prepends the configured output_dir,
-        mirroring the same safety logic used by builtin file_write.
-        """
-        from pathlib import Path
-
-        output_dir = Path(self._cfg.context.output_dir)
-        rewritten = dict(args)
-        changed = False
-        for key in self._PATH_KEYS:
-            if key in rewritten and isinstance(rewritten[key], str):
-                p = Path(rewritten[key])
-                rewritten[key] = str(output_dir / p.name)
-                changed = True
-        if changed:
-            output_dir.mkdir(parents=True, exist_ok=True)
-        return rewritten
-
     async def _execute_mcp(
         self, tool_name: str, args: Dict[str, Any], max_retries: int = 3
     ) -> Dict[str, Any]:
-        """Execute a tool via MCP server, with automatic retries on failure."""
-        args = self._rewrite_path_args(args)
+        """Execute a tool via MCP server, with automatic retries on failure.
+
+        Note: path sandboxing is now handled by FirewallEngine.sandbox_args()
+        in the orchestration layer before this method is called.
+        """
         last_error = ""
         for attempt in range(1, max_retries + 1):
             try:

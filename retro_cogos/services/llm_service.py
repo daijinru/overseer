@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional
 import httpx
 
 from retro_cogos.config import get_config
-from retro_cogos.core.protocols import HelpRequest, LLMDecision, TaskPlan, ToolCall, WorkingMemory
+from retro_cogos.core.protocols import LLMDecision, TaskPlan, WorkingMemory
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,14 @@ SYSTEM_PROMPT = """\
 - 当子任务的成功标准已满足时，设置 "subtask_complete": true。
 - 不要越界处理其他子任务的内容。
 """
+
+# NOTE: SYSTEM_PROMPT above is kept only as a fallback default for
+# LLMService.call() when no system_prompt is explicitly provided
+# (e.g. direct usage outside the orchestration loop).
+# The canonical, security-authoritative copy lives in
+# kernel/firewall_engine.py → PromptPolicy.
+# In the orchestration loop, ExecutionService always passes
+# FirewallEngine.get_system_prompt() via the system_prompt parameter.
 
 
 PLANNING_SYSTEM_PROMPT = """\
@@ -310,12 +318,13 @@ class LLMService:
         prompt: str,
         tools: Optional[List[Dict[str, Any]]] = None,
         *,
+        system_prompt: Optional[str] = None,
         stream: bool = False,
         on_chunk: Optional[Callable[[str], None]] = None,
     ) -> str:
         """Call LLM and return raw response text."""
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
         return await self._request(
@@ -323,45 +332,24 @@ class LLMService:
         )
 
     def _normalize_decision(self, data: dict) -> LLMDecision:
-        """Build LLMDecision from a dict, normalising tool_calls and help_request."""
-        raw_tcs = data.pop("tool_calls", [])
-        raw_help = data.pop("help_request", None)
-        raw_plan_rev = data.pop("plan_revision", None)
-        decision = LLMDecision(**data)
-        decision.tool_calls = [ToolCall.from_llm(tc) for tc in raw_tcs]
-        if raw_help and isinstance(raw_help, dict):
-            decision.help_request = HelpRequest(**raw_help)
-        if raw_plan_rev and isinstance(raw_plan_rev, dict):
-            decision.plan_revision = TaskPlan(**raw_plan_rev)
-        return decision
+        """Backward-compat wrapper — delegates to FirewallEngine."""
+        from retro_cogos.kernel.firewall_engine import FirewallEngine
+        from retro_cogos.kernel.perception_bus import PerceptionBus
+        from retro_cogos.config import get_config
+        engine = FirewallEngine(get_config(), PerceptionBus())
+        return engine._normalize_decision(data)
 
     def parse_decision(self, response: str) -> LLMDecision:
-        """Extract the decision JSON block from LLM response."""
-        # Try to find ```decision ... ``` block
-        pattern = r"```decision\s*\n(.*?)\n```"
-        match = re.search(pattern, response, re.DOTALL)
-        if match:
-            try:
-                return self._normalize_decision(json.loads(match.group(1)))
-            except (json.JSONDecodeError, Exception) as e:
-                logger.warning("Failed to parse decision block: %s", e)
+        """Extract the decision JSON block from LLM response.
 
-        # Fallback: try to find any JSON block that looks like a decision
-        json_pattern = r"\{[^{}]*\"task_complete\"[^{}]*\}"
-        match = re.search(json_pattern, response, re.DOTALL)
-        if match:
-            try:
-                return self._normalize_decision(json.loads(match.group(0)))
-            except (json.JSONDecodeError, Exception):
-                pass
-
-        # Last resort: return a default decision that asks for human help
-        logger.warning("Could not parse decision from LLM response, requesting human input")
-        return LLMDecision(
-            human_required=True,
-            human_reason="无法确定下一步操作，请查看回复内容并给予指引。",
-            options=["继续", "终止"],
-        )
+        Backward-compat wrapper — delegates to FirewallEngine.parse_decision().
+        Canonical implementation (with fail-safe) lives in the kernel.
+        """
+        from retro_cogos.kernel.firewall_engine import FirewallEngine
+        from retro_cogos.kernel.perception_bus import PerceptionBus
+        from retro_cogos.config import get_config
+        engine = FirewallEngine(get_config(), PerceptionBus())
+        return engine.parse_decision(response)
 
     async def reflect(self, context: dict) -> str:
         """Ask LLM to reflect on progress so far."""

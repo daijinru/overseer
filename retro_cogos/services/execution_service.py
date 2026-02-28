@@ -507,7 +507,8 @@ class ExecutionService:
 
                     system_prompt = firewall.get_system_prompt()
                     response = await llm.call(
-                        prompt, stream=bool(_stream_cb), on_chunk=_stream_cb,
+                        prompt, system_prompt=system_prompt,
+                        stream=bool(_stream_cb), on_chunk=_stream_cb,
                     )
                 except Exception as e:
                     logger.error("LLM call failed at step %d: %s", step_number, e)
@@ -640,6 +641,9 @@ class ExecutionService:
                                 continue
                             execution.status = ExecutionStatus.RUNNING_TOOL
                             self.session.commit()
+
+                        # Sandbox args via firewall before execution
+                        tc = firewall.sandbox_args(tc)
 
                         # Execute tool
                         result = await tools.execute(tc)

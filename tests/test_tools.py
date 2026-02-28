@@ -5,6 +5,9 @@ import pytest
 from retro_cogos.core.enums import ToolPermission
 from retro_cogos.core.protocols import ToolCall
 from retro_cogos.services.tool_service import ToolService
+from retro_cogos.kernel.firewall_engine import FirewallEngine
+from retro_cogos.kernel.perception_bus import PerceptionBus
+from retro_cogos.config import get_config
 
 
 def test_list_tools(isolated_db):
@@ -18,23 +21,30 @@ def test_list_tools(isolated_db):
 
 
 def test_get_permission_configured(isolated_db):
-    svc = ToolService()
-    # file_read is configured as auto in config.yaml fixture
-    perm = svc.get_permission("file_read")
+    """Permission checks now live in FirewallEngine.PolicyStore."""
+    cfg = get_config()
+    bus = PerceptionBus()
+    engine = FirewallEngine(cfg, bus)
+    perm = engine.policy.get_permission("file_read")
     assert perm == ToolPermission.AUTO
 
 
 def test_get_permission_default(isolated_db):
-    svc = ToolService()
-    perm = svc.get_permission("unknown_tool")
+    cfg = get_config()
+    bus = PerceptionBus()
+    engine = FirewallEngine(cfg, bus)
+    perm = engine.policy.get_permission("unknown_tool")
     assert perm == ToolPermission.CONFIRM
 
 
 def test_needs_human_approval(isolated_db):
-    svc = ToolService()
-    assert svc.needs_human_approval("file_read") is False  # auto
-    assert svc.needs_human_approval("file_write") is True  # confirm
-    assert svc.needs_human_approval("unknown") is True  # default confirm
+    """Permission checks now live in FirewallEngine.PolicyStore."""
+    cfg = get_config()
+    bus = PerceptionBus()
+    engine = FirewallEngine(cfg, bus)
+    assert engine.policy.needs_human_approval("file_read") is False  # auto
+    assert engine.policy.needs_human_approval("file_write") is True  # confirm
+    assert engine.policy.needs_human_approval("unknown") is True  # default confirm
 
 
 @pytest.mark.asyncio

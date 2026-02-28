@@ -228,23 +228,12 @@ class ContextService:
 
     @staticmethod
     def classify_tool_result(result: dict) -> str:
-        """Classify a tool result into a semantic category.
+        """Classify a tool result — delegates to PerceptionBus.classify_result().
 
-        Returns one of: 'success', 'error', 'empty', 'partial'.
+        Thin backward-compat wrapper. Canonical implementation lives in the kernel.
         """
-        status = result.get("status", "")
-        if status == "error":
-            return "error"
-        if status == "ok":
-            output = result.get("output", result.get("content", ""))
-            if not output or output.strip() == "":
-                return "empty"
-            return "success"
-        # Fallback: check for error indicators in string representation
-        result_str = json.dumps(result, ensure_ascii=False)
-        if '"error"' in result_str or '"status": "error"' in result_str:
-            return "error"
-        return "partial"
+        from retro_cogos.kernel.perception_bus import PerceptionBus
+        return PerceptionBus.classify_result("", result)
 
     def merge_tool_result(
         self, co: CognitiveObject, step_number: int, tool_name: str, result: str,
@@ -282,39 +271,16 @@ class ContextService:
     def check_intent_deviation(
         self, intent_description: str, tool_results: list[dict],
     ) -> str | None:
-        """Check if tool results deviate from the stated intent.
+        """Check if tool results deviate from intent — delegates to FirewallEngine.
 
-        Returns a deviation warning string, or None if results look aligned.
+        Thin backward-compat wrapper. Canonical implementation lives in the kernel.
         """
-        if not intent_description or not tool_results:
-            return None
-
-        all_errors = all(r.get("status") == "error" for r in tool_results)
-        if all_errors:
-            return (
-                f"Intent was '{intent_description}', but all tool calls failed. "
-                f"The current approach is not working."
-            )
-
-        all_empty = all(
-            self.classify_tool_result(r) == "empty" for r in tool_results
-        )
-        if all_empty:
-            return (
-                f"Intent was '{intent_description}', but all tools returned empty results. "
-                f"The data or resource may not exist."
-            )
-
-        # Case 3: Partial failure — some tools failed, some succeeded
-        error_count = sum(1 for r in tool_results if r.get("status") == "error")
-        if 0 < error_count < len(tool_results):
-            failed = [r.get("tool", "?") for r in tool_results if r.get("status") == "error"]
-            return (
-                f"Intent was '{intent_description}', but {error_count}/{len(tool_results)} "
-                f"tool calls failed ({', '.join(failed)}). Review partial results."
-            )
-
-        return None
+        from retro_cogos.kernel.firewall_engine import FirewallEngine
+        from retro_cogos.kernel.perception_bus import PerceptionBus
+        from retro_cogos.config import get_config
+        # Use a lightweight engine instance just for the pure-logic method
+        engine = FirewallEngine(get_config(), PerceptionBus())
+        return engine.check_deviation(intent_description, tool_results)
 
     def merge_reflection(
         self, co: CognitiveObject, reflection: str
@@ -374,44 +340,15 @@ class ContextService:
         return True
 
     def build_constraint_hints(self, co: CognitiveObject) -> List[str]:
-        """Generate pre-emptive constraint warnings from past failures and user behavior.
+        """Generate constraint warnings — delegates to FirewallEngine.
 
-        Sources:
-        - working_memory.failed_approaches
-        - accumulated_findings with [error] classification
-        - accumulated_findings with perception:tool_avoidance signals
+        Thin backward-compat wrapper. Canonical implementation lives in the kernel.
         """
-        ctx = co.context or {}
-        hints: List[str] = []
-
-        # From working memory
-        working_mem = ctx.get("working_memory")
-        if working_mem and working_mem.get("failed_approaches"):
-            for fa in working_mem["failed_approaches"]:
-                hints.append(fa)
-
-        # From recent findings: extract errors and avoidance signals
-        findings = ctx.get("accumulated_findings", [])
-        seen_errors: set[str] = set()
-        for f in findings:
-            value = f.get("value", "")
-            key = f.get("key", "")
-            # Error results
-            if value.startswith("[error]") and key.startswith("tool:"):
-                tool_name = key[5:]  # strip "tool:" prefix
-                error_sig = f"{tool_name}:{value[:60]}"
-                if error_sig not in seen_errors:
-                    seen_errors.add(error_sig)
-                    hints.append(f"Tool '{tool_name}' previously failed: {value[8:80]}...")
-            # Tool avoidance signals from perception
-            if key == "perception:tool_avoidance":
-                hints.append(value)
-            # Same-as-previous warnings
-            if "[SAME as previous call" in value:
-                tool_name = key[5:] if key.startswith("tool:") else key
-                hints.append(f"Calling '{tool_name}' with the same args returned identical results. Try different parameters.")
-
-        return hints[:10]  # cap to avoid prompt bloat
+        from retro_cogos.kernel.firewall_engine import FirewallEngine
+        from retro_cogos.kernel.perception_bus import PerceptionBus
+        from retro_cogos.config import get_config
+        engine = FirewallEngine(get_config(), PerceptionBus())
+        return engine.build_constraints(co.context or {})
 
     async def compress_to_working_memory(
         self, co: CognitiveObject, llm_service: "LLMService"
