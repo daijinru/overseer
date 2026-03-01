@@ -534,6 +534,46 @@ MemoryEditScreen {
     padding: 1 2;
 }
 
+/* ── System screen ── */
+#system-container {
+    layout: horizontal;
+    height: 1fr;
+}
+
+#system-list-panel {
+    width: 35%;
+    min-width: 30;
+    max-width: 50;
+    border-right: heavy $primary-background;
+    padding: 0 1;
+}
+
+#system-listview {
+    height: 1fr;
+}
+
+#system-detail-panel {
+    width: 1fr;
+    padding: 0 1;
+}
+
+#system-detail-header {
+    height: auto;
+    padding: 1 0;
+    text-style: bold;
+}
+
+#system-detail-scroll {
+    height: 1fr;
+    border: double $primary-background;
+    padding: 1 2;
+}
+
+.section-header {
+    background: transparent;
+    height: auto;
+}
+
 /* ── CRT Terminal Controls ── */
 ListView > ListItem {
     background: transparent;

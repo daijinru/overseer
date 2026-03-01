@@ -26,6 +26,7 @@ from overseer.tui.screens.home import HomeScreen
 from overseer.tui.screens.memory import MemoryScreen
 from overseer.tui.screens.artifact_viewer import ArtifactListScreen
 from overseer.tui.screens.tool_panel import ToolPanelScreen
+from overseer.tui.screens.system import SystemScreen, ResetStatsRequest
 from overseer.tui.theme import FALLOUT_THEME
 from overseer.tui.widgets.co_detail import CODetail
 from overseer.tui.widgets.co_list import COList
@@ -118,6 +119,7 @@ class OverseerApp(App):
         Binding("a", "view_artifacts", "Artifacts", show=False),
         Binding("m", "view_memories", "Memories", show=False),
         Binding("w", "view_tools", "Tools", show=False),
+        Binding("i", "view_system", "System", show=False),
         Binding("q", "quit", "Quit"),
     ]
 
@@ -557,6 +559,91 @@ class OverseerApp(App):
             servers = ts.list_configured_servers()
 
         self.push_screen(ToolPanelScreen(tools, servers=servers, tool_service=live_ts))
+
+    def action_view_system(self) -> None:
+        """Open the System screen to browse kernel components and plugins."""
+        kernel_data: Dict[str, Any] = {}
+        plugin_data: Dict[str, str] = {}
+
+        # Try to get live data from a running ExecutionService
+        live_exec: ExecutionService | None = None
+        for exec_service in self._execution_services.values():
+            live_exec = exec_service
+            break
+
+        if live_exec is not None:
+            # Live kernel data
+            fw = live_exec._firewall
+            perc = live_exec._perception
+            hg = live_exec._human_gate
+            registry = live_exec._registry
+
+            stats = perc.get_stats()
+            kernel_data = {
+                "firewall": {
+                    "policy_summary": fw.get_policy_summary(),
+                    "loop_state": fw.get_loop_state(),
+                },
+                "human_gate": {
+                    "consecutive_stops": hg.get_state().get("consecutive_stops", 0),
+                    "pending": bool(self._pending_hitl),
+                },
+                "perception": {
+                    "stats": {
+                        "confidence_window": list(stats.confidence_window),
+                        "stagnation_count": stats.stagnation_count,
+                    },
+                    "approval_summary": perc.build_approval_summary(),
+                },
+                "plugins": {
+                    "ToolPlugin": {
+                        "tool_count": len(live_exec.tool_service.list_tools()),
+                        "server_count": len(live_exec.tool_service.list_configured_servers()),
+                    },
+                },
+            }
+            plugin_data = registry.list_registered()
+        else:
+            # No running service — show config-based defaults
+            from overseer.kernel import FirewallEngine, PerceptionBus, HumanGate, PluginRegistry
+
+            cfg = get_config()
+            perc = PerceptionBus()
+            fw = FirewallEngine(cfg, perc)
+
+            kernel_data = {
+                "firewall": {
+                    "policy_summary": fw.get_policy_summary(),
+                    "loop_state": fw.get_loop_state(),
+                },
+                "human_gate": {
+                    "consecutive_stops": 0,
+                    "pending": False,
+                },
+                "perception": {
+                    "stats": {
+                        "confidence_window": [],
+                        "stagnation_count": 0,
+                    },
+                    "approval_summary": "",
+                },
+                "plugins": {},
+            }
+            # Show default plugin mapping
+            plugin_data = {
+                "LLMPlugin": "LLMService",
+                "ToolPlugin": "ToolService",
+                "PlanPlugin": "PlanningService",
+                "MemoryPlugin": "MemoryService",
+                "ContextPlugin": "ContextService",
+            }
+
+        self.push_screen(SystemScreen(kernel_data, plugin_data))
+
+    def on_reset_stats_request(self, message: ResetStatsRequest) -> None:
+        """Handle reset stats request from SystemScreen."""
+        for exec_service in self._execution_services.values():
+            exec_service._perception.reset_stats()
 
     # ── Message handlers from execution service ──
 

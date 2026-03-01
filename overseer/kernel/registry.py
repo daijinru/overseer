@@ -56,6 +56,13 @@ class PluginRegistry:
         """Check if a plugin is registered for the given Protocol type."""
         return protocol_type in self._plugins
 
+    def list_registered(self) -> Dict[str, str]:
+        """Return a mapping of registered Protocol names to implementation class names."""
+        return {
+            proto.__name__: type(impl).__name__
+            for proto, impl in self._plugins.items()
+        }
+
     @classmethod
     def create_default(
         cls,

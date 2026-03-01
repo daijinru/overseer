@@ -34,6 +34,7 @@ class HomeScreen(Screen):
         ("y", "copy_log", "Copy Log"),
         ("m", "view_memories", "Memories"),
         ("w", "view_tools", "Tools"),
+        ("i", "view_system", "System"),
         ("q", "quit_app", "Quit"),
     ]
 
@@ -93,6 +94,9 @@ class HomeScreen(Screen):
 
     def action_view_tools(self) -> None:
         self.app.action_view_tools()
+
+    def action_view_system(self) -> None:
+        self.app.action_view_system()
 
     async def action_quit_app(self) -> None:
         await self.app.action_quit()

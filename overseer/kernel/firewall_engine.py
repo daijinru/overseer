@@ -311,6 +311,22 @@ class FirewallEngine:
     def hesitation_threshold(self) -> float:
         return self._hesitation_threshold
 
+    def get_policy_summary(self) -> Dict[str, Any]:
+        """Return a read-only summary of the current policy state."""
+        admin = self._policy._admin_permissions
+        user = self._policy._user_overrides
+        return {
+            "admin_rules": dict(admin),
+            "user_overrides": dict(user),
+            "mcp_tools_count": len(self._policy._mcp_tools),
+            "output_dir": str(self._sandbox._output_dir),
+            "readable_paths": list(self._sandbox._readable_paths),
+            "low_confidence_window": self._low_confidence_window,
+            "low_confidence_threshold": self._low_confidence_threshold,
+            "auto_escalate_threshold": self._auto_escalate_threshold,
+            "hesitation_threshold": self._hesitation_threshold,
+        }
+
     # ── Core decision parsing ──
 
     def parse_decision(self, response: str) -> LLMDecision:

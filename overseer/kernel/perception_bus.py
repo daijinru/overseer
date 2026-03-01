@@ -148,6 +148,12 @@ class PerceptionBus:
         """Return current statistics snapshot."""
         return self._stats
 
+    def reset_stats(self) -> None:
+        """Reset all statistics to initial state."""
+        self._stats = PerceptionStats()
+        self._last_tool_outputs.clear()
+        logger.info("PerceptionBus statistics reset")
+
     def get_tool_outputs_snapshot(self) -> Dict[str, str]:
         """Return current tool outputs state (for checkpoint serialization)."""
         return dict(self._last_tool_outputs)
