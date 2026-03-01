@@ -1,6 +1,6 @@
 English | **[中文](./README_CN.md)**
 
-# Overseer — AI Action Firewall
+# Overseer — No Action Without Human Oversight
 
 > War never changes. Neither does the need for human oversight.
 

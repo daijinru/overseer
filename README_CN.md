@@ -1,6 +1,6 @@
 **[English](./README.md)** | 中文
 
-# Overseer — AI 动作防火墙
+# Overseer — 没有人类许可，AI 寸步难行
 
 > 战争从未改变。对人类监督的需求也一样。
 
