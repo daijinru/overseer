@@ -12,7 +12,14 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional, Protocol, runtime_checkable
 
-from overseer.core.protocols import Subtask, TaskPlan, ToolCall, WorkingMemory
+from overseer.core.protocols import (
+    LLMResponse,
+    Subtask,
+    TaskPlan,
+    TokenUsage,
+    ToolCall,
+    WorkingMemory,
+)
 
 
 @runtime_checkable
@@ -27,7 +34,7 @@ class LLMPlugin(Protocol):
         system_prompt: Optional[str] = None,
         stream: bool = False,
         on_chunk: Optional[Callable[[str], None]] = None,
-    ) -> str: ...
+    ) -> LLMResponse: ...
 
     async def reflect(self, context: dict) -> str: ...
 
@@ -42,6 +49,8 @@ class LLMPlugin(Protocol):
     async def checkpoint(self, prompt: str) -> str: ...
 
     def parse_checkpoint(self, response: str) -> Dict[str, Any]: ...
+
+    def last_usage(self) -> TokenUsage: ...
 
     async def close(self) -> None: ...
 
@@ -140,7 +149,15 @@ class ContextPlugin(Protocol):
 
     def add_artifact(self, co: Any, artifact_path: str) -> None: ...
 
-    def compress_if_needed(self, co: Any, max_chars: int = 16000) -> bool: ...
+    @staticmethod
+    def summarize_tool_result(
+        tool_name: str, result: dict, max_chars: int = 1500
+    ) -> str: ...
+
+    @staticmethod
+    def estimate_tokens(text: str) -> int: ...
+
+    def compress_if_needed(self, co: Any, max_tokens: int = 0) -> bool: ...
 
     async def compress_to_working_memory(self, co: Any, llm_service: Any) -> Optional[WorkingMemory]: ...
 

@@ -72,6 +72,20 @@ class WorkingMemory(BaseModel):
     last_updated_step: int = 0
 
 
+class TokenUsage(BaseModel):
+    """Token usage from a single LLM call."""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    model: str = ""
+
+
+class LLMResponse(BaseModel):
+    """Structured response from an LLM call, including usage metadata."""
+    content: str
+    usage: TokenUsage = Field(default_factory=TokenUsage)
+
+
 class LLMDecision(BaseModel):
     """Structured decision block parsed from LLM response."""
     next_action: Optional[NextAction] = None

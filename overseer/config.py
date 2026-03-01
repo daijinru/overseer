@@ -14,6 +14,15 @@ def _default_data_dir() -> Path:
     return Path.home() / ".overseer"
 
 
+class ModelEndpoint(BaseModel):
+    """Configuration for a single model endpoint."""
+    base_url: str = "https://api.openai.com/v1"
+    model: str = "gpt-4o"
+    api_key: str = "sk-placeholder"
+    max_tokens: int = 4096
+    temperature: float = 0.7
+
+
 class LLMConfig(BaseModel):
     base_url: str = "https://api.openai.com/v1"
     model: str = "gpt-4o"
@@ -23,6 +32,28 @@ class LLMConfig(BaseModel):
     max_retries: int = 3
     retry_base_delay: float = 1.0   # seconds
     retry_max_delay: float = 60.0   # seconds
+
+    # Multi-model routing (optional, backward compatible)
+    primary: Optional[ModelEndpoint] = None
+    secondary: Optional[ModelEndpoint] = None
+
+    def get_primary(self) -> ModelEndpoint:
+        """Return the primary model config, falling back to top-level fields."""
+        if self.primary:
+            return self.primary
+        return ModelEndpoint(
+            base_url=self.base_url,
+            model=self.model,
+            api_key=self.api_key,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+        )
+
+    def get_secondary(self) -> ModelEndpoint:
+        """Return the secondary model config, falling back to primary."""
+        if self.secondary:
+            return self.secondary
+        return self.get_primary()
 
 
 class DatabaseConfig(BaseModel):

@@ -38,6 +38,11 @@ class PerceptionStats:
     # Stagnation tracking
     stagnation_count: int = 0
 
+    # Token usage accumulation
+    total_prompt_tokens: int = 0
+    total_completion_tokens: int = 0
+    total_tokens: int = 0
+
     def approval_rate(self, tool: str) -> float:
         """Return approval rate for a tool (0.0 to 1.0)."""
         total = self.approval_counts[tool] + self.reject_counts[tool]
@@ -95,6 +100,12 @@ class PerceptionBus:
         self._stats.stagnation_count += 1
         logger.debug("Perception: stagnation recorded (total=%d): %s",
                       self._stats.stagnation_count, reflection[:80])
+
+    def record_token_usage(self, usage: "TokenUsage") -> None:
+        """Record token usage from an LLM call."""
+        self._stats.total_prompt_tokens += usage.prompt_tokens
+        self._stats.total_completion_tokens += usage.completion_tokens
+        self._stats.total_tokens += usage.total_tokens
 
     # ── Classification ──
 

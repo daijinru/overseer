@@ -34,6 +34,7 @@ class Execution(Base):
     tool_results: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
     human_decision: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     human_input: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    token_usage: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )

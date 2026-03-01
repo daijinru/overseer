@@ -82,7 +82,7 @@ def test_compress_if_needed(isolated_db):
     original_count = len(co.context.get("accumulated_findings", []))
     assert original_count == 20
 
-    compressed = ctx_svc.compress_if_needed(co, max_chars=5000)
+    compressed = ctx_svc.compress_if_needed(co, max_tokens=500)
     assert compressed is True
 
     co = co_svc.get(co.id)

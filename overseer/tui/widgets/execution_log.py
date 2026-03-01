@@ -123,6 +123,12 @@ class ExecutionLog(Vertical):
         icon = STATUS_ICONS.get(ex.status, "?")
         ts = self._format_ts(ex)
         self._write(f"{ts}{icon} [bold]Step {ex.sequence_number}: {escape_markup(ex.title or '')}[/bold]")
+        # Show token usage if available
+        if ex.token_usage:
+            tokens = ex.token_usage.get("total_tokens", 0)
+            model = ex.token_usage.get("model", "")
+            if tokens > 0:
+                self._write(f"    [dim]Tokens: {tokens:,}  Model: {model}[/dim]")
         if ex.llm_response and ex.status in ("completed", "awaiting_human", "approved"):
             summary = self._truncate(ex.llm_response, LLM_RESPONSE_MAX)
             self._write(f"    [italic]{escape_markup(summary)}[/italic]")
@@ -264,6 +270,17 @@ class ExecutionLog(Vertical):
         lines.append("")
 
         lines.append(f"[bold]Steps:[/bold] {step_count}  |  [bold]Duration:[/bold] {duration}")
+
+        # Token usage summary
+        total_tokens = 0
+        if hasattr(co, 'executions') and co.executions:
+            for ex in co.executions:
+                if ex.token_usage:
+                    total_tokens += ex.token_usage.get("total_tokens", 0)
+        if total_tokens > 0:
+            cost = total_tokens / 1_000_000 * 2.0
+            lines.append(f"[bold]Tokens:[/bold] {total_tokens:,}  |  [bold]Est. Cost:[/bold] ${cost:.4f}")
+
         lines.append("")
 
         if findings:

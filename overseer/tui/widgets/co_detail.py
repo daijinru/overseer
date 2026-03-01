@@ -65,11 +65,27 @@ class CODetail(Static):
             f"Created: {created}  |  Updated: {updated}  |  Duration: {duration}"
         )
 
-        # Stats: steps, artifacts, context info
+        # Stats: steps, artifacts, token usage, cost
         step_count = (co.context or {}).get("step_count", 0)
         artifact_count = len(co.artifacts) if co.artifacts else 0
+
+        # Sum token usage across all executions
+        total_tokens = 0
+        if co.executions:
+            for ex in co.executions:
+                if ex.token_usage:
+                    total_tokens += ex.token_usage.get("total_tokens", 0)
+
+        token_str = f"{total_tokens:,}" if total_tokens > 0 else "-"
+        # Estimate cost at $2/1M tokens (configurable default)
+        cost_estimate = total_tokens / 1_000_000 * 2.0
+        cost_str = f"${cost_estimate:.4f}" if total_tokens > 0 else "-"
+
         self.query_one("#co-detail-stats", Static).update(
-            f"Steps: [bold]{step_count}[/bold]  |  Artifacts: [bold]{artifact_count}[/bold]"
+            f"Steps: [bold]{step_count}[/bold]  |  "
+            f"Artifacts: [bold]{artifact_count}[/bold]  |  "
+            f"Tokens: [bold]{token_str}[/bold]  |  "
+            f"Cost: [bold]{cost_str}[/bold]"
         )
 
         # Description

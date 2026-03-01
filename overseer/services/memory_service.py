@@ -43,14 +43,34 @@ class MemoryService:
         logger.info("Saved memory [%s]: %s", category, content[:50])
         return mem
 
+    _STOPWORDS = frozenset({
+        "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都",
+        "一", "个", "上", "也", "很", "到", "说", "要", "去", "你", "会",
+        "着", "没有", "看", "好", "自己", "这", "他", "她", "它",
+        "the", "a", "an", "is", "are", "was", "were", "be", "been",
+        "to", "of", "in", "for", "on", "with", "at", "by", "from",
+    })
+
+    @staticmethod
+    def _segment(text: str) -> list[str]:
+        """Segment text using jieba for Chinese, falling back to split()."""
+        try:
+            import jieba
+            words = list(jieba.cut(text, cut_all=False))
+        except ImportError:
+            logger.debug("jieba not available, falling back to space-based splitting")
+            words = text.split()
+        return [w for w in words if len(w) >= 2 and w not in MemoryService._STOPWORDS]
+
     def retrieve(self, query: str, limit: int = 5) -> List[Memory]:
         """Retrieve relevant memories by keyword matching on content and tags.
 
-        This is a simple tag/keyword matching implementation.
-        Can be upgraded to semantic similarity later (Phase 9).
+        Uses jieba for Chinese word segmentation to enable proper Chinese
+        keyword matching. Falls back to space-based splitting if jieba
+        is not available.
         """
         query_lower = query.lower()
-        query_words = set(query_lower.split())
+        query_words = self._segment(query_lower)
 
         all_memories = self.session.query(Memory).order_by(Memory.created_at.desc()).limit(100).all()
 
@@ -63,16 +83,26 @@ class MemoryService:
             if query_lower in content_lower:
                 score += 3.0
 
-            # Individual word matches
+            # Segmented word matches (jieba-powered)
+            content_words = set(self._segment(content_lower))
             for word in query_words:
-                if len(word) > 2 and word in content_lower:
-                    score += 1.0
+                if word in content_words:
+                    score += 1.5
+                elif word in content_lower:
+                    score += 0.5
 
             # Tag matches
             tags = mem.relevance_tags or []
             for tag in tags:
-                if isinstance(tag, str) and tag.lower() in query_lower:
-                    score += 2.0
+                if isinstance(tag, str):
+                    tag_lower = tag.lower()
+                    if tag_lower in query_lower:
+                        score += 2.0
+                    else:
+                        tag_words = set(self._segment(tag_lower))
+                        overlap = tag_words & set(query_words)
+                        if overlap:
+                            score += 1.0 * len(overlap)
 
             if score > 0:
                 scored.append((score, mem))

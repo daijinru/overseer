@@ -10,8 +10,14 @@ from typing import Any, Callable, Dict, List, Optional
 
 import httpx
 
-from overseer.config import get_config
-from overseer.core.protocols import LLMDecision, TaskPlan, WorkingMemory
+from overseer.config import ModelEndpoint, get_config
+from overseer.core.protocols import (
+    LLMDecision,
+    LLMResponse,
+    TaskPlan,
+    TokenUsage,
+    WorkingMemory,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +164,11 @@ class LLMService:
     def __init__(self):
         self._cfg = get_config().llm
         self._client: httpx.AsyncClient | None = None
+        self._last_usage: TokenUsage = TokenUsage()
+
+    def last_usage(self) -> TokenUsage:
+        """Return the token usage from the most recent LLM call."""
+        return self._last_usage
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Lazily create a persistent async HTTP client."""
@@ -171,6 +182,33 @@ class LLMService:
             await self._client.aclose()
             self._client = None
 
+    def _build_usage(
+        self, usage_data: dict, model_name: str,
+    ) -> TokenUsage:
+        """Build a TokenUsage from API response usage dict."""
+        usage = TokenUsage(
+            prompt_tokens=usage_data.get("prompt_tokens", 0),
+            completion_tokens=usage_data.get("completion_tokens", 0),
+            total_tokens=usage_data.get("total_tokens", 0),
+            model=model_name,
+        )
+        self._last_usage = usage
+        return usage
+
+    @staticmethod
+    def _estimate_usage(messages: list, response_text: str, model_name: str) -> dict:
+        """Rough token estimation when API doesn't return usage."""
+        prompt_chars = sum(len(m.get("content", "")) for m in messages)
+        # Conservative: Chinese ~1.5 chars/token, ASCII ~4 chars/token
+        def _est(text: str) -> int:
+            cn = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+            return int(cn / 1.5 + (len(text) - cn) / 4)
+        return {
+            "prompt_tokens": _est("".join(m.get("content", "") for m in messages)),
+            "completion_tokens": _est(response_text),
+            "total_tokens": _est("".join(m.get("content", "") for m in messages)) + _est(response_text),
+        }
+
     async def _request(
         self,
         messages: List[Dict[str, Any]],
@@ -180,26 +218,29 @@ class LLMService:
         tools: Optional[List[Dict[str, Any]]] = None,
         stream: bool = False,
         on_chunk: Optional[Callable[[str], None]] = None,
-    ) -> str:
+        endpoint: ModelEndpoint | None = None,
+    ) -> LLMResponse:
         """Unified HTTP request with retry and optional streaming.
 
         Retry uses exponential backoff for transient errors (429/5xx)
         and honours the Retry-After header for 429 responses.
         """
+        ep = endpoint or self._cfg.get_primary()
+
         payload: Dict[str, Any] = {
-            "model": self._cfg.model,
+            "model": ep.model,
             "messages": messages,
-            "max_tokens": max_tokens or self._cfg.max_tokens,
-            "temperature": temperature if temperature is not None else self._cfg.temperature,
+            "max_tokens": max_tokens or ep.max_tokens,
+            "temperature": temperature if temperature is not None else ep.temperature,
         }
         if tools:
             payload["tools"] = tools
         if stream:
             payload["stream"] = True
 
-        url = f"{self._cfg.base_url.rstrip('/')}/chat/completions"
+        url = f"{ep.base_url.rstrip('/')}/chat/completions"
         headers = {
-            "Authorization": f"Bearer {self._cfg.api_key}",
+            "Authorization": f"Bearer {ep.api_key}",
             "Content-Type": "application/json",
         }
 
@@ -220,7 +261,14 @@ class LLMService:
                     resp = await client.post(url, json=payload, headers=headers)
                     resp.raise_for_status()
                     data = resp.json()
-                    return data["choices"][0]["message"]["content"]
+                    content = data["choices"][0]["message"]["content"]
+                    usage_data = data.get("usage", {})
+                    if not usage_data:
+                        usage_data = self._estimate_usage(
+                            messages, content, ep.model,
+                        )
+                    usage = self._build_usage(usage_data, ep.model)
+                    return LLMResponse(content=content, usage=usage)
 
             except httpx.HTTPStatusError as e:
                 last_error = e
@@ -270,9 +318,10 @@ class LLMService:
         payload: Dict[str, Any],
         headers: Dict[str, str],
         on_chunk: Optional[Callable[[str], None]] = None,
-    ) -> str:
-        """Handle an SSE streaming request, returning the full accumulated text."""
+    ) -> LLMResponse:
+        """Handle an SSE streaming request, returning a structured LLMResponse."""
         full_response = ""
+        usage_data: dict = {}
         in_decision_block = False
         # Buffer for detecting decision markers split across chunks
         _MARKER = "```decision"
@@ -288,6 +337,9 @@ class LLMService:
                     break
                 try:
                     data = json.loads(data_str)
+                    # Some providers include usage in the final chunk
+                    if "usage" in data and data["usage"]:
+                        usage_data = data["usage"]
                     delta = data.get("choices", [{}])[0].get("delta", {})
                     chunk_text = delta.get("content", "")
                 except (json.JSONDecodeError, IndexError, KeyError):
@@ -311,7 +363,13 @@ class LLMService:
                 if on_chunk and not in_decision_block:
                     on_chunk(chunk_text)
 
-        return full_response
+        model_name = payload.get("model", "")
+        if not usage_data:
+            usage_data = self._estimate_usage(
+                payload["messages"], full_response, model_name,
+            )
+        usage = self._build_usage(usage_data, model_name)
+        return LLMResponse(content=full_response, usage=usage)
 
     async def call(
         self,
@@ -321,14 +379,15 @@ class LLMService:
         system_prompt: Optional[str] = None,
         stream: bool = False,
         on_chunk: Optional[Callable[[str], None]] = None,
-    ) -> str:
-        """Call LLM and return raw response text."""
+    ) -> LLMResponse:
+        """Call LLM and return structured response with usage metadata."""
         messages = [
             {"role": "system", "content": system_prompt or SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
         return await self._request(
             messages, tools=tools, stream=stream, on_chunk=on_chunk,
+            endpoint=self._cfg.get_primary(),
         )
 
     def _normalize_decision(self, data: dict) -> LLMDecision:
@@ -352,7 +411,7 @@ class LLMService:
         return engine.parse_decision(response)
 
     async def reflect(self, context: dict) -> str:
-        """Ask LLM to reflect on progress so far."""
+        """Ask LLM to reflect on progress so far (uses secondary model)."""
         prompt = f"""请回顾以下任务上下文，反思当前进展。
 
 上下文：
@@ -369,15 +428,25 @@ class LLMService:
   "reflection": "你的诚实评估"
 }}
 ```"""
-        return await self.call(prompt)
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ]
+        result = await self._request(
+            messages, endpoint=self._cfg.get_secondary(),
+        )
+        return result.content
 
     async def plan(self, prompt: str) -> str:
-        """Call LLM with the planning system prompt to generate a task plan."""
+        """Call LLM with the planning system prompt (uses secondary model)."""
         messages = [
             {"role": "system", "content": PLANNING_SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
-        return await self._request(messages)
+        result = await self._request(
+            messages, endpoint=self._cfg.get_secondary(),
+        )
+        return result.content
 
     def parse_plan(self, response: str) -> Optional[TaskPlan]:
         """Extract a TaskPlan from a ```plan``` fenced block."""
@@ -391,12 +460,16 @@ class LLMService:
         return None
 
     async def compress(self, prompt: str) -> str:
-        """Call LLM with the compression system prompt to summarize context."""
+        """Call LLM with the compression system prompt (uses secondary model)."""
         messages = [
             {"role": "system", "content": COMPRESSION_PROMPT},
             {"role": "user", "content": prompt},
         ]
-        return await self._request(messages, max_tokens=1024, temperature=0.3)
+        result = await self._request(
+            messages, max_tokens=1024, temperature=0.3,
+            endpoint=self._cfg.get_secondary(),
+        )
+        return result.content
 
     def parse_working_memory(self, response: str) -> Optional[WorkingMemory]:
         """Extract a WorkingMemory from a ```memory``` fenced block."""
@@ -410,12 +483,16 @@ class LLMService:
         return None
 
     async def checkpoint(self, prompt: str) -> str:
-        """Call LLM with the checkpoint system prompt for subtask-boundary review."""
+        """Call LLM with the checkpoint system prompt (uses secondary model)."""
         messages = [
             {"role": "system", "content": CHECKPOINT_SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
-        return await self._request(messages, max_tokens=1024, temperature=0.3)
+        result = await self._request(
+            messages, max_tokens=1024, temperature=0.3,
+            endpoint=self._cfg.get_secondary(),
+        )
+        return result.content
 
     def parse_checkpoint(self, response: str) -> Dict[str, Any]:
         """Extract checkpoint assessment from a ```checkpoint``` fenced block."""

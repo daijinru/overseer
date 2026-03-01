@@ -266,6 +266,8 @@ class ExecutionService:
 
         try:
             plan = await planner.generate_plan(co, memories, available_tools)
+            llm = self._registry.get(LLMPlugin)
+            self._perception.record_token_usage(llm.last_usage())
             if plan and plan.subtasks:
                 planner.store_plan(co, plan)
                 subtask_titles = [st.title for st in plan.subtasks]
@@ -294,6 +296,8 @@ class ExecutionService:
             self._on_info(co_id, "[Phase] Checkpoint: reviewing progress...")
 
         revised = await planner.checkpoint_reflect(co)
+        llm = self._registry.get(LLMPlugin)
+        self._perception.record_token_usage(llm.last_usage())
         if revised:
             if self._on_info:
                 self._on_info(co_id, "[Phase] Plan revised at checkpoint")
@@ -311,6 +315,7 @@ class ExecutionService:
         llm = self._registry.get(LLMPlugin)
 
         wm = await ctx_plugin.compress_to_working_memory(co, llm)
+        self._perception.record_token_usage(llm.last_usage())
         if wm:
             if self._on_info:
                 self._on_info(co_id, "[Phase] Context compressed to working memory")
@@ -506,10 +511,11 @@ class ExecutionService:
                             self._on_stream_chunk(_cid, text)
 
                     system_prompt = firewall.get_system_prompt()
-                    response = await llm.call(
+                    llm_result = await llm.call(
                         prompt, system_prompt=system_prompt,
                         stream=bool(_stream_cb), on_chunk=_stream_cb,
                     )
+                    response = llm_result.content
                 except Exception as e:
                     logger.error("LLM call failed at step %d: %s", step_number, e)
                     execution.status = ExecutionStatus.FAILED
@@ -533,6 +539,8 @@ class ExecutionService:
                     return
 
                 execution.llm_response = response
+                execution.token_usage = llm_result.usage.model_dump()
+                perception.record_token_usage(llm_result.usage)
                 self.session.commit()
 
                 # ── 4. Parse decision (via firewall — fail-safe) ──
@@ -667,7 +675,7 @@ class ExecutionService:
                             ctx_plugin.add_artifact(co, result.get("path", _path_arg))
 
                         # Merge tool result with perception enrichment
-                        result_summary = json.dumps(result, ensure_ascii=False)[:2000]
+                        result_summary = ctx_plugin.summarize_tool_result(tc.tool, result)
                         removed = _removed_params.get(tc.tool)
                         if removed:
                             result_summary = (
@@ -801,6 +809,7 @@ class ExecutionService:
                 if step_number % cfg.reflection.interval == 0:
                     try:
                         reflection_response = await llm.reflect(co.context)
+                        perception.record_token_usage(llm.last_usage())
                         reflection_decision = firewall.parse_decision(reflection_response)
                         reflection_text = reflection_decision.reflection or reflection_response[:200]
                         ctx_plugin.merge_reflection(co, reflection_text)

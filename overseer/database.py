@@ -47,9 +47,25 @@ def get_session() -> Session:
 
 
 def init_db() -> None:
-    """Create all tables."""
+    """Create all tables and run migrations."""
     import overseer.models  # noqa: F401 — ensure models are registered
     Base.metadata.create_all(get_engine())
+    _migrate_db()
+
+
+def _migrate_db() -> None:
+    """Run schema migrations for existing databases."""
+    from sqlalchemy import inspect, text
+    engine = get_engine()
+    inspector = inspect(engine)
+    if "executions" in inspector.get_table_names():
+        columns = [col["name"] for col in inspector.get_columns("executions")]
+        if "token_usage" not in columns:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE executions ADD COLUMN token_usage JSON"
+                ))
+                conn.commit()
 
 
 def reset_db() -> None:

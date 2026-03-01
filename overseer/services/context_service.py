@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from sqlalchemy.orm import Session, object_session
 
+from overseer.config import get_config
 from overseer.database import get_session
 from overseer.models.cognitive_object import CognitiveObject
 from overseer.core.protocols import WorkingMemory
@@ -303,40 +304,138 @@ class ContextService:
         sess = object_session(co) or self.session
         sess.commit()
 
-    def compress_if_needed(self, co: CognitiveObject, max_chars: int = 16000) -> bool:
-        """Compress early findings if context is too large (truncation fallback).
+    @staticmethod
+    def estimate_tokens(text: str) -> int:
+        """Rough token count estimation for mixed Chinese/English text.
 
-        Returns True if compression was performed.
+        Conservative: Chinese chars ~1.5 chars/token, ASCII ~4 chars/token.
         """
+        cn = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+        return int(cn / 1.5 + (len(text) - cn) / 4)
+
+    @staticmethod
+    def summarize_tool_result(
+        tool_name: str, result: dict, max_chars: int = 1500,
+    ) -> str:
+        """Smart summarization of tool results, extracting key fields.
+
+        Replaces naive [:2000] hard truncation with structure-aware compression.
+        """
+        status = result.get("status", "unknown")
+
+        # Error results: keep error message fully
+        if status == "error":
+            error = result.get("error", result.get("output", ""))
+            if isinstance(error, str) and len(error) > max_chars:
+                error = error[:max_chars] + "..."
+            return json.dumps({"status": "error", "error": error}, ensure_ascii=False)
+
+        output = result.get("output", result.get("content", ""))
+
+        # Empty output: check if there are other meaningful fields (e.g. path, bytes_written)
+        if not output or (isinstance(output, str) and not output.strip()):
+            other_fields = {k: v for k, v in result.items() if k != "status" and v}
+            if other_fields:
+                return json.dumps({"status": status, **other_fields}, ensure_ascii=False)
+            return json.dumps({"status": status, "output": "(empty)"}, ensure_ascii=False)
+
+        # file_read: keep first/last lines, drop middle
+        if tool_name in ("file_read",) and isinstance(output, str) and len(output) > max_chars:
+            lines = output.split("\n")
+            if len(lines) > 10:
+                kept = lines[:5] + [f"... ({len(lines) - 10} lines omitted) ..."] + lines[-5:]
+                output = "\n".join(kept)
+
+        # Structured data: extract key portions
+        if isinstance(output, dict):
+            output_str = json.dumps(output, ensure_ascii=False)
+            if len(output_str) > max_chars:
+                summary = {}
+                remaining = max_chars
+                for k, v in output.items():
+                    v_str = json.dumps(v, ensure_ascii=False) if not isinstance(v, str) else v
+                    if len(v_str) > 200:
+                        v_str = v_str[:200] + "..."
+                    summary[k] = v_str
+                    remaining -= len(k) + len(v_str)
+                    if remaining <= 0:
+                        break
+                output = summary
+        elif isinstance(output, list):
+            output_str = json.dumps(output, ensure_ascii=False)
+            if len(output_str) > max_chars:
+                output = output[:5]
+                if len(output) < len(result.get("output", [])):
+                    output.append(f"... ({len(result['output']) - 5} more items)")
+
+        # Final string truncation as safety net
+        result_str = json.dumps({"status": status, "output": output}, ensure_ascii=False)
+        if len(result_str) > max_chars:
+            result_str = result_str[:max_chars] + "..."
+        return result_str
+
+    def compress_if_needed(self, co: CognitiveObject, max_tokens: int = 0) -> bool:
+        """Compress early findings if context exceeds token budget.
+
+        Uses token estimation instead of raw character count.
+        Implements differentiated retention: perception signals and human decisions
+        are preserved longer than tool results.
+        """
+        if max_tokens <= 0:
+            max_tokens = get_config().context.max_tokens  # default 8000
+
         ctx = co.context or {}
         ctx_text = json.dumps(ctx, ensure_ascii=False)
-        if len(ctx_text) <= max_chars:
+        est_tokens = self.estimate_tokens(ctx_text)
+
+        if est_tokens <= max_tokens:
             return False
 
         findings = list(ctx.get("accumulated_findings", []))
         if len(findings) <= 3:
             return False
 
-        # Keep the last 3 findings in full, summarize earlier ones
-        keep = findings[-3:]
-        to_compress = findings[:-3]
+        # Differentiated retention: separate priority vs compressible
+        _PRIORITY_PREFIXES = {"human_decision", "perception:", "system:"}
+        keep_recent = findings[-3:]
+        older = findings[:-3]
 
+        priority_findings = []
+        compressible = []
+        for f in older:
+            key = f.get("key", "")
+            if any(key.startswith(p) for p in _PRIORITY_PREFIXES):
+                priority_findings.append(f)
+            else:
+                compressible.append(f)
+
+        # Summarize compressible findings
         summary_parts = []
-        for f in to_compress:
-            summary_parts.append(f"Step {f.get('step', '?')}: {f.get('key', '')} = {f.get('value', '')[:80]}")
+        for f in compressible:
+            summary_parts.append(
+                f"Step {f.get('step', '?')}: {f.get('key', '')} = {f.get('value', '')[:80]}"
+            )
 
-        compressed_finding = {
-            "step": f"1-{to_compress[-1].get('step', '?')}",
-            "key": "compressed_summary",
-            "value": "; ".join(summary_parts),
-        }
+        new_findings = []
+        if compressible:
+            compressed = {
+                "step": f"1-{compressible[-1].get('step', '?')}",
+                "key": "compressed_summary",
+                "value": "; ".join(summary_parts),
+            }
+            new_findings.append(compressed)
+        new_findings.extend(priority_findings)
+        new_findings.extend(keep_recent)
 
         ctx = copy.deepcopy(ctx)
-        ctx["accumulated_findings"] = [compressed_finding] + keep
+        ctx["accumulated_findings"] = new_findings
         co.context = ctx
         sess = object_session(co) or self.session
         sess.commit()
-        logger.info("Compressed context for CO %s: %d findings → %d", co.id[:8], len(findings), len(ctx["accumulated_findings"]))
+        logger.info(
+            "Compressed context for CO %s: %d findings → %d (est. tokens: %d → target %d)",
+            co.id[:8], len(findings), len(new_findings), est_tokens, max_tokens,
+        )
         return True
 
     def build_constraint_hints(self, co: CognitiveObject) -> List[str]:
