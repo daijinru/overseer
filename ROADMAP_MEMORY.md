@@ -212,6 +212,8 @@ else:
 
 需要在 MemoryService 中新增 `query_by_tags` 方法，直接用 JSON 字段查询。
 
+> **前置修正**：当前 `Memory.relevance_tags` 在 ORM 中声明为 `Mapped[Dict[str, Any]]`，但实际使用方式始终是 `list[str]`。实现 `query_by_tags` 前需先将类型声明修正为 `Mapped[List[str]]`，并确认 SQLite JSON 查询使用 `json_each()` 做标签匹配。
+
 #### 2.3 Memory 模型扩展
 
 为 `Memory` ORM 模型新增字段：
@@ -252,6 +254,7 @@ memory.save(...)
 - 使用 secondary/经济模型（对应 ROADMAP 中的多模型路由方案），控制额外 token 开销
 - 关键词预过滤仍保留，只对命中的 response 调用 LLM，避免每步都消耗 token
 - LLM prompt 包含当前已有记忆摘要，避免写入重复内容
+- **降级策略**：LLM 调用超时或失败时，fallback 到 Phase 1 的规则引擎（关键词匹配 + Category 映射），确保记忆提取不因 LLM 故障而中断
 
 #### 3.2 记忆去重与合并
 
@@ -296,6 +299,8 @@ CREATE VIRTUAL TABLE memories_fts USING fts5(
     tokenize='unicode61'
 );
 ```
+
+> **中文分词注意**：`unicode61` tokenizer 按 Unicode 边界切分，对中文仅能做到单字粒度，无法进行语义分词。实现时需在应用层保持 jieba 预分词后写入 FTS5，或研究自定义 tokenizer 方案。
 
 `retrieve()` 改为先走 FTS5 粗召回，再用当前评分逻辑精排。
 

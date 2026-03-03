@@ -512,6 +512,8 @@ ExecutionService (编排，约 200 行)
 - 中期：SQLite FTS5 全文搜索
 - 长期：嵌入向量 + 余弦相似度
 
+> Memory 子系统的完整问题诊断与分阶段演进方案见 [ROADMAP_MEMORY.md](ROADMAP_MEMORY.md)。
+
 ---
 
 ### Milestone 3：感知深化与多任务风险隔离
