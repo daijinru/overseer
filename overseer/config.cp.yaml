@@ -36,6 +36,12 @@ context:
   max_tokens: 8000     # StateDict 压缩阈值
   output_dir: "output"  # file_write 相对路径的基准目录，未配置时默认 ~/.overseer/output
 
+memory:
+  scan_limit: 500        # 检索时扫描的最大记忆条数（默认 500）
+  decay_base: 0.5        # 时间衰减底数
+  half_life_days: 90     # 半衰期（天），90 天后评分衰减至 50%
+  access_boost: 0.1      # 每次被检索命中的加分（上限 20 次）
+
 log:
   dir: "logs"  # 日志目录，未配置时默认 ~/.overseer/logs
 

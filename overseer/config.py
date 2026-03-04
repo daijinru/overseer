@@ -101,6 +101,13 @@ class ExecutionConfig(BaseModel):
     max_steps: int = 50
 
 
+class MemoryConfig(BaseModel):
+    scan_limit: int = 500        # max memories scanned during retrieve()
+    decay_base: float = 0.5      # time-decay base
+    half_life_days: int = 90     # half-life in days
+    access_boost: float = 0.1    # per-access score bonus (capped at 20 accesses)
+
+
 class LogConfig(BaseModel):
     dir: str = str(_default_data_dir() / "logs")
 
@@ -114,6 +121,7 @@ class AppConfig(BaseModel):
     context: ContextConfig = Field(default_factory=ContextConfig)
     planning: PlanningConfig = Field(default_factory=PlanningConfig)
     execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
+    memory: MemoryConfig = Field(default_factory=MemoryConfig)
     log: LogConfig = Field(default_factory=LogConfig)
 
 

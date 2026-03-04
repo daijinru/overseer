@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
+from overseer.config import get_config
 from overseer.database import get_session
 from overseer.models.memory import Memory
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 class MemoryService:
     def __init__(self, session: Session | None = None):
         self._session = session
+        self._mem_cfg = get_config().memory
 
     @property
     def session(self) -> Session:
@@ -96,12 +98,21 @@ class MemoryService:
         Uses jieba for Chinese word segmentation to enable proper Chinese
         keyword matching. Falls back to space-based splitting if jieba
         is not available.
+
+        Scoring includes time-decay and access_count boost (Phase 4.1/4.2).
         """
         query_lower = query.lower()
         query_words = self._segment(query_lower)
 
-        all_memories = self.session.query(Memory).order_by(Memory.created_at.desc()).limit(100).all()
+        cfg = self._mem_cfg
+        all_memories = (
+            self.session.query(Memory)
+            .order_by(Memory.created_at.desc())
+            .limit(cfg.scan_limit)
+            .all()
+        )
 
+        now = datetime.now(timezone.utc)
         scored: list[tuple[float, Memory]] = []
         for mem in all_memories:
             score = 0.0
@@ -133,7 +144,18 @@ class MemoryService:
                             score += 1.0 * len(overlap)
 
             if score > 0:
-                scored.append((score, mem))
+                # Time decay: prefer recent memories
+                ref_time = mem.updated_at or mem.created_at
+                if ref_time.tzinfo is None:
+                    ref_time = ref_time.replace(tzinfo=timezone.utc)
+                days_ago = max((now - ref_time).days, 0)
+                time_factor = cfg.decay_base ** (days_ago / cfg.half_life_days)
+
+                # Access boost: frequently retrieved memories resist decay
+                access_count = min(mem.access_count or 0, 20)
+                final_score = score * time_factor + access_count * cfg.access_boost
+
+                scored.append((final_score, mem))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         results = [mem for _, mem in scored[:limit]]
