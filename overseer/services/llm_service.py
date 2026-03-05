@@ -137,6 +137,47 @@ CHECKPOINT_SYSTEM_PROMPT = """\
 """
 
 
+MEMORY_JUDGE_PROMPT = """\
+你是 Overseer 的记忆评估器。你需要判断一段 LLM 响应中是否包含值得跨会话持久化的知识。
+
+只有以下类型的信息才值得记住：
+- preference：用户的偏好或习惯（如"用户偏好 PDF 格式"）
+- decision_pattern：反复出现的决策模式或规律
+- domain_knowledge：特定领域的重要知识或发现
+- lesson：从失败或试错中获得的经验教训
+
+不值得记住的信息：
+- 当步推理的中间过程（如"这个函数返回一个列表"）
+- 对已有代码的简单描述
+- 通用编程知识（任何开发者都知道的事）
+- 临时性、一次性的操作细节
+
+请用 ```judge``` 围栏包裹一个 JSON 块：
+
+```judge
+{
+  "worth": true,
+  "category": "preference",
+  "content": "精炼后的记忆内容，简洁且自包含",
+  "tags": ["相关标签"]
+}
+```
+
+如果不值得记住，输出：
+
+```judge
+{
+  "worth": false
+}
+```
+
+规则：
+- content 应精炼为一句话，去除冗余上下文，确保脱离原文仍可理解。
+- tags 提供 1-3 个有助于未来检索的关键词标签。
+- 全程使用中文。
+"""
+
+
 COMPRESSION_PROMPT = """\
 你是 Overseer 的记忆压缩器。请将以下执行历史压缩为一份简洁的工作记忆摘要。
 
@@ -504,3 +545,26 @@ class LLMService:
             except (json.JSONDecodeError, Exception) as e:
                 logger.warning("Failed to parse checkpoint block: %s", e)
         return {"progress_assessment": "", "plan_still_valid": True, "revision": None}
+
+    async def judge(self, prompt: str) -> str:
+        """Ask LLM to judge whether a response is worth remembering (uses secondary model)."""
+        messages = [
+            {"role": "system", "content": MEMORY_JUDGE_PROMPT},
+            {"role": "user", "content": prompt},
+        ]
+        result = await self._request(
+            messages, max_tokens=512, temperature=0.2,
+            endpoint=self._cfg.get_secondary(),
+        )
+        return result.content
+
+    def parse_judge(self, response: str) -> Optional[Dict[str, Any]]:
+        """Extract memory judgment from a ```judge``` fenced block."""
+        pattern = r"```judge\s*\n(.*?)\n```"
+        match = re.search(pattern, response, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except (json.JSONDecodeError, Exception) as e:
+                logger.warning("Failed to parse judge block: %s", e)
+        return None

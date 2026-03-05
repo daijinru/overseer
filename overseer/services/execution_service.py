@@ -76,7 +76,7 @@ class ExecutionService:
         self.planning_service = self._registry.get(PlanPlugin)
 
         # Memory extraction (orchestration-layer judgment, not a plugin)
-        self._memory_extractor = MemoryExtractor()
+        self._memory_extractor = MemoryExtractor(llm=self.llm_service)
 
         # TUI callbacks
         self._on_step_update: Optional[Callable] = None
@@ -895,8 +895,9 @@ class ExecutionService:
                         logger.warning("Reflection failed: %s", e)
 
                 # ── 10. Memory extraction ──
-                extraction = self._memory_extractor.evaluate(
-                    co_id, response, execution.title
+                extraction = await self._memory_extractor.evaluate_with_llm(
+                    co_id, response, execution.title,
+                    co_title=co.title,
                 )
                 if extraction:
                     memory.save(

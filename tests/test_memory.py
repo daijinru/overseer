@@ -1,5 +1,10 @@
 """Tests for memory service and memory extractor."""
 
+import json
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from overseer.services.memory_service import MemoryService
 from overseer.services.memory_extractor import MemoryExtractor
 
@@ -258,3 +263,139 @@ def test_bridge_working_memory_saves_findings(isolated_db):
 
     # open_questions should NOT be persisted
     assert not any("pagination" in m.content for m in all_mems)
+
+
+# ── Phase 3.1: LLM memory judge tests ──
+
+
+def _make_mock_llm(judge_response: dict) -> MagicMock:
+    """Create a mock LLM that returns a judge fenced block."""
+    raw = f"分析完毕。\n\n```judge\n{json.dumps(judge_response, ensure_ascii=False)}\n```"
+    mock = MagicMock()
+    mock.judge = AsyncMock(return_value=raw)
+    mock.parse_judge = MagicMock(return_value=judge_response)
+    return mock
+
+
+@pytest.mark.asyncio
+async def test_evaluate_with_llm_worth_true():
+    """LLM judges response as worth remembering — returns LLM-refined result."""
+    llm = _make_mock_llm({
+        "worth": True,
+        "category": "lesson",
+        "content": "配置文件必须使用 UTF-8 编码",
+        "tags": ["config", "encoding"],
+    })
+    ext = MemoryExtractor(llm=llm)
+
+    result = await ext.evaluate_with_llm(
+        "co-1",
+        "After investigation, important to note that the config file must be UTF-8 encoded.",
+        step_title="Config check",
+        co_title="项目配置检查",
+    )
+
+    assert result is not None
+    assert result["category"] == "lesson"
+    assert result["content"] == "配置文件必须使用 UTF-8 编码"
+    assert "config" in result["tags"]
+    assert "encoding" in result["tags"]
+    llm.judge.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_evaluate_with_llm_worth_false():
+    """LLM judges response as not worth remembering — returns None."""
+    llm = _make_mock_llm({"worth": False})
+    ext = MemoryExtractor(llm=llm)
+
+    result = await ext.evaluate_with_llm(
+        "co-1",
+        "After investigation, important to note that the loop iterates three times.",
+        step_title="Loop check",
+        co_title="代码审查",
+    )
+
+    assert result is None
+    llm.judge.assert_called_once()
+    # Category count should have been decremented (undo the rule-based increment)
+    assert ext._category_counts.get("domain_knowledge", 0) == 0
+
+
+@pytest.mark.asyncio
+async def test_evaluate_with_llm_fallback():
+    """LLM call fails — falls back to rule-based result."""
+    llm = MagicMock()
+    llm.judge = AsyncMock(side_effect=RuntimeError("LLM unavailable"))
+    ext = MemoryExtractor(llm=llm)
+
+    result = await ext.evaluate_with_llm(
+        "co-1",
+        "After investigation, important to note that the config file must be UTF-8 encoded.",
+        step_title="Config check",
+        co_title="项目配置检查",
+    )
+
+    assert result is not None
+    # Falls back to rule-based: category from INDICATOR_MAP
+    assert result["category"] == "domain_knowledge"
+    assert "important to note" in result["content"].lower()
+
+
+@pytest.mark.asyncio
+async def test_evaluate_with_llm_no_indicator():
+    """No keyword hit — LLM is never called."""
+    llm = MagicMock()
+    llm.judge = AsyncMock()
+    ext = MemoryExtractor(llm=llm)
+
+    result = await ext.evaluate_with_llm(
+        "co-1",
+        "The data shows normal trends. I'll proceed to the next step.",
+        step_title="Analysis",
+        co_title="数据分析",
+    )
+
+    assert result is None
+    llm.judge.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_evaluate_with_llm_parse_failure():
+    """LLM returns unparseable response — falls back to rule result."""
+    llm = MagicMock()
+    llm.judge = AsyncMock(return_value="无法判断，跳过。")
+    llm.parse_judge = MagicMock(return_value=None)
+    ext = MemoryExtractor(llm=llm)
+
+    result = await ext.evaluate_with_llm(
+        "co-1",
+        "Lesson learned: always validate user input before processing.",
+        step_title="Security review",
+        co_title="安全审计",
+    )
+
+    assert result is not None
+    # Falls back to rule-based
+    assert result["category"] == "lesson"
+
+
+def test_parse_judge():
+    """LLMService.parse_judge extracts fenced judge block correctly."""
+    from overseer.services.llm_service import LLMService
+
+    svc = LLMService()
+
+    response = '分析如下：\n\n```judge\n{"worth": true, "category": "lesson", "content": "测试内容", "tags": ["test"]}\n```'
+    result = svc.parse_judge(response)
+    assert result is not None
+    assert result["worth"] is True
+    assert result["category"] == "lesson"
+    assert result["content"] == "测试内容"
+
+    # Invalid JSON
+    bad = "```judge\nnot json\n```"
+    assert svc.parse_judge(bad) is None
+
+    # No fenced block
+    assert svc.parse_judge("plain text") is None

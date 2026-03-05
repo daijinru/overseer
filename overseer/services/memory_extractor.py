@@ -4,8 +4,9 @@ Evaluates LLM responses to determine what's worth persisting to long-term
 memory. This is judgment logic that belongs in the orchestration layer,
 NOT in the MemoryPlugin (which is pure CRUD).
 
-Phase 1 implementation: rule-based with tightened indicators, context-window
-extraction, and per-category frequency limits.
+Phase 3 implementation: keyword pre-filter (cost control) → LLM judge
+(secondary model) for refined evaluation. Falls back to rule-based
+extraction when LLM is unavailable.
 """
 
 from __future__ import annotations
@@ -13,7 +14,10 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from overseer.core.plugin_protocols import LLMPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +42,7 @@ class MemoryExtractor:
     Instantiated per-CO-execution so frequency counters reset naturally.
     """
 
+    llm: Optional[LLMPlugin] = field(default=None, repr=False)
     _category_counts: dict[str, int] = field(default_factory=dict)
 
     def evaluate(
@@ -46,7 +51,7 @@ class MemoryExtractor:
         llm_response: str,
         step_title: str = "",
     ) -> Optional[dict]:
-        """Return extraction result or None if nothing worth remembering.
+        """Rule-based extraction (Phase 1 fallback).
 
         Returns:
             ``{"category": str, "content": str, "tags": list[str]}`` or None.
@@ -84,6 +89,78 @@ class MemoryExtractor:
                     }
 
         return None
+
+    async def evaluate_with_llm(
+        self,
+        co_id: str,
+        llm_response: str,
+        step_title: str = "",
+        co_title: str = "",
+    ) -> Optional[dict]:
+        """Keyword pre-filter → LLM judge → fallback to rule-based.
+
+        Returns:
+            ``{"category": str, "content": str, "tags": list[str]}`` or None.
+        """
+        # Step 1: rule-based pre-filter (cost control — skip LLM if no indicator)
+        rule_result = self.evaluate(co_id, llm_response, step_title)
+        if rule_result is None:
+            return None
+
+        # Step 2: if no LLM available, return rule result directly
+        if self.llm is None:
+            return rule_result
+
+        # Step 3: LLM judge
+        prompt = (
+            f"任务：{co_title}\n"
+            f"步骤：{step_title}\n\n"
+            f"以下是 LLM 在该步骤中的响应片段：\n\n"
+            f"{rule_result['content']}"
+        )
+
+        try:
+            raw = await self.llm.judge(prompt)
+            judgment = self.llm.parse_judge(raw)
+
+            if judgment is None:
+                logger.warning("LLM judge parse failed, falling back to rule result")
+                return rule_result
+
+            if not judgment.get("worth", False):
+                # Undo the category count increment from evaluate()
+                cat = rule_result["category"]
+                if self._category_counts.get(cat, 0) > 0:
+                    self._category_counts[cat] -= 1
+                return None
+
+            # Use LLM-refined result
+            category = judgment.get("category", rule_result["category"])
+            content = judgment.get("content", rule_result["content"])
+            tags = judgment.get("tags", [])
+            if step_title and step_title not in tags:
+                tags.append(step_title)
+            if category not in tags:
+                tags.append(category)
+
+            logger.info(
+                "Memory extraction (LLM-judged) [%s] from '%s': %s",
+                category,
+                step_title,
+                content[:60],
+            )
+            return {
+                "category": category,
+                "content": content,
+                "tags": tags,
+            }
+
+        except Exception:
+            logger.warning(
+                "LLM judge call failed, falling back to rule result",
+                exc_info=True,
+            )
+            return rule_result
 
 
 # ---------------------------------------------------------------------------

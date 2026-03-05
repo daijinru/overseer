@@ -227,34 +227,38 @@ access_count: Mapped[int] = 0    # 被检索命中的次数（用于后续衰减
 
 ---
 
-### Phase 3：精炼 — LLM 驱动的记忆判断
+### Phase 3：精炼 — LLM 驱动的记忆判断 (进行中)
 
 > 目标：用 LLM 替代关键词匹配，让 "什么该被记住" 的判断达到人类水平。
 
-#### 3.1 LLM 记忆评估器
+#### 3.1 LLM 记忆评估器 ✅
 
-将 Phase 1 的 `MemoryExtractor` 从规则驱动升级为 LLM 驱动：
+已实现：`MemoryExtractor` 升级为关键词预筛 + LLM 精判的两阶段流程。
 
 ```
 关键词预过滤（Phase 1 保留，作为成本控制的粗筛）
     ↓ 命中
-LLM 精判（新增）
-    输入: response + step_title + co.title
+LLM 精判（evaluate_with_llm）
+    输入: 段落内容 + step_title + co.title
     输出: {
-        worth_remembering: bool,
+        worth: bool,
         category: "preference" | "lesson" | ...,
         content: "精炼后的记忆内容",
         tags: ["tag1", "tag2"]
     }
-    ↓ worth_remembering=true
-memory.save(...)
+    ↓ worth=true → memory.save(LLM 精炼结果)
+    ↓ worth=false → 不保存（撤销频率计数）
+    ↓ LLM 失败 → fallback 到规则引擎结果
 ```
 
-设计要点：
-- 使用 secondary/经济模型（对应 ROADMAP 中的多模型路由方案），控制额外 token 开销
-- 关键词预过滤仍保留，只对命中的 response 调用 LLM，避免每步都消耗 token
-- LLM prompt 包含当前已有记忆摘要，避免写入重复内容
-- **降级策略**：LLM 调用超时或失败时，fallback 到 Phase 1 的规则引擎（关键词匹配 + Category 映射），确保记忆提取不因 LLM 故障而中断
+实现细节：
+- `LLMService.judge()` 使用 secondary 模型（max_tokens=512, temperature=0.2）
+- `LLMService.parse_judge()` 解析 `` ```judge``` `` fenced JSON block
+- `LLMPlugin` Protocol 新增 `judge()` / `parse_judge()` 签名
+- `MemoryExtractor` 接受可选 `llm: LLMPlugin` 依赖，无 LLM 时退化为纯规则
+- `MEMORY_JUDGE_PROMPT` 中文系统提示，指导 LLM 区分四种 category 与不值得记住的噪音
+- **降级策略**：LLM 调用超时/失败/解析失败时，fallback 到 Phase 1 的规则引擎结果
+- 关键词未命中时不调用 LLM，零额外开销
 
 #### 3.2 记忆去重与合并
 
@@ -330,7 +334,7 @@ Phase 1  止血                        Phase 2  增值
             ▼                                    ▼
 Phase 3  精炼                        Phase 4  检索升级
 ┌──────────────────────────┐        ┌──────────────────────────┐
-│ 3.1 LLM 记忆评估器        │        │ 4.1 去除 100 条硬上限 ✅   │
+│ 3.1 LLM 记忆评估器 ✅      │        │ 4.1 去除 100 条硬上限 ✅   │
 │ 3.2 记忆去重与合并         │        │ 4.2 时间衰减评分 ✅        │
 │                          │        │ 4.3 FTS5 全文搜索          │
 │                          │        │ 4.4 向量检索（长期）        │
